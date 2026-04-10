@@ -1,0 +1,7 @@
+url_prefix: /llm
+proxy_consumer_timeout: 600
+
+litellm_mode: built-in
+external_litellm_url: ""
+litellm_master_key: null
+allow_project_own_llms: true

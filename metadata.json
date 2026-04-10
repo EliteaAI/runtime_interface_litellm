@@ -1,0 +1,12 @@
+{
+  "name": "Runtime interface: LiteLLM",
+  "version": "0.2.4",
+  "depends_on": ["shared", "auth", "admin", "projects"],
+  "init_after": ["configurations", "integrations", "worker_client"],
+  "version_requirements": {
+    "pylon": ">= 1.2.7",
+    "plugins": {
+      "admin": ">= 0.1"
+    }
+  }
+}
