@@ -132,7 +132,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             user_id, "administration",
         )
         #
-        user_is_administration_admin = "admin" in user_administration_roles
+        user_is_administration_admin = "admin" in user_administration_roles or "super_admin" in user_administration_roles
         #
         # Admin can access all targets
         #
