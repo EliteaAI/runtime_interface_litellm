@@ -132,7 +132,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             user_id, "administration",
         )
         #
-        user_is_administration_admin = "admin" in user_administration_roles
+        user_is_administration_admin = "admin" in user_administration_roles or "super_admin" in user_administration_roles
         #
         # Admin can access all targets
         #
@@ -223,7 +223,6 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             model_name.startswith(f"{public_project_id}_"):
                         model_obj_name = model_name.split("_", 1)[1]
                     elif not _re.match(r'^\d+_', model_name):
-                        # Non-prefixed model (imported/external) — visible to all
                         model_obj_name = model_name
                     else:
                         continue
@@ -284,7 +283,6 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (form data): %s -> %s", raw_model_name, model_name)
                     #
-                    # Convert ImmutableMultiDict to mutable dict if needed
                     if hasattr(proxy_target["data"], "to_dict"):
                         proxy_target["data"] = dict(proxy_target["data"])
                     proxy_target["data"]["model"] = model_name
