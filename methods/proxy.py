@@ -103,6 +103,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             "/v1/images/generations",
             "/v1/images/edits",
             "/v1/images/variations",
+            "/v1/audio/speech",
+            "/v1/audio/transcriptions",
+            "/v1/realtime",
         ]
         #
         endpoint_prefix_whitelist = [
