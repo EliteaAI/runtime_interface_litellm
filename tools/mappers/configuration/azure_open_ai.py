@@ -85,12 +85,25 @@ def to_model(  # pylint: disable=R0913
     configuration_uuid = expanded_configuration_info["uuid"]
     configuration_project = expanded_configuration_info["project_id"]
     #
+    # LiteLLM's atranscription() calls get_llm_provider(model=...) without forwarding
+    # custom_llm_provider, so transcription models (whisper, gpt-4o-transcribe, etc.)
+    # must encode the provider in the model string for self-routing.
+    # The "azure/" prefix is stripped by LiteLLM before the Azure API call, so the
+    # actual deployment name sent to Azure remains unchanged.
+    lower_model = model_name.lower()
+    litellm_model = (
+        f"azure/{model_name}"
+        if ("whisper" in lower_model or "transcribe" in lower_model)
+        and not model_name.startswith("azure/")
+        else model_name
+    )
+    #
     return {
         "model_name": f"{configuration_project}_{model_name}",
         "litellm_params": {
             "custom_llm_provider": "azure",
             **credential_values,
-            "model": model_name,
+            "model": litellm_model,
         },
         "model_info": {
             "centry_configuration_uuid": configuration_uuid,

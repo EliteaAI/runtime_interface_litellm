@@ -71,7 +71,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 except:  # pylint: disable=W0702
                     pass
         #
-        elif configuration_section in ["llm", "embedding", "image_generation"]:
+        elif configuration_section in ["llm", "embedding", "image_generation", "tts", "asr"]:
             #
             # Skip LiteLLM provisioning for imported models (no credentials = externally managed)
             #
@@ -160,7 +160,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         credential["credential_name"],
                     )
         #
-        elif configuration_section in ["llm", "embedding", "image_generation"]:
+        elif configuration_section in ["llm", "embedding", "image_generation", "tts", "asr"]:
             #
             # Skip LiteLLM deletion for imported models (no credentials = externally managed)
             #

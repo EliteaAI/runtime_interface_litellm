@@ -165,13 +165,20 @@ def to_models(  # pylint: disable=R0913
     #
     for model_data in integration_data["settings"]["models"]:
         model_name = model_data["name"]
+        lower_model = model_name.lower()
+        litellm_model = (
+            f"azure/{model_name}"
+            if ("whisper" in lower_model or "transcribe" in lower_model)
+            and not model_name.startswith("azure/")
+            else model_name
+        )
         #
         result.append({
             "model_name": f"{target_project}_{model_name}",
             "litellm_params": {
                 "custom_llm_provider": "azure",
                 **credential_values,
-                "model": model_name,
+                "model": litellm_model,
             },
             "model_info": {
                 "centry_integration_uid": integration_uid,
