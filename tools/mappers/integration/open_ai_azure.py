@@ -168,7 +168,8 @@ def to_models(  # pylint: disable=R0913
         lower_model = model_name.lower()
         litellm_model = (
             f"azure/{model_name}"
-            if "whisper" in lower_model or "transcribe" in lower_model
+            if ("whisper" in lower_model or "transcribe" in lower_model)
+            and not model_name.startswith("azure/")
             else model_name
         )
         #
