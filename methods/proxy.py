@@ -256,15 +256,30 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 litellm_model = resolved["litellm_model"]
                 #
                 # Verify the resolved model name actually exists in LiteLLM.
-                # Externally-managed models are not registered under a project prefix,
-                # so fall back to the raw model name and the caller's own API key.
+                # Restores the three-step fallback from pre-refactor _map_model_name:
+                #   1. {config_project_id}_{model}  (from configurations lookup)
+                #   2. {public_project_id}_{model}  (shared/public project fallback)
+                #   3. raw model name               (externally-managed models)
+                # Steps 2 and 3 always use the caller's own project API key.
                 #
                 if not self.service_node.call.litellm_api_call("model_group_info", litellm_model):
-                    log.debug(
-                        "Model %s not found in LiteLLM, falling back to raw model name %s",
-                        litellm_model, raw_model_name,
-                    )
-                    litellm_model = raw_model_name
+                    public_project_id = self.service_node.call.get_public_project_id()
+                    public_litellm_model = f"{public_project_id}_{raw_model_name}"
+                    if public_project_id != project_id and \
+                            self.service_node.call.litellm_api_call(
+                                "model_group_info", public_litellm_model
+                            ):
+                        log.debug(
+                            "Model %s not found, using public project model %s",
+                            litellm_model, public_litellm_model,
+                        )
+                        litellm_model = public_litellm_model
+                    else:
+                        log.debug(
+                            "Model %s not found in LiteLLM, falling back to raw model name %s",
+                            litellm_model, raw_model_name,
+                        )
+                        litellm_model = raw_model_name
                     llm_key = VaultClient(project_id).get_secrets().get("project_llm_key", "")
             else:
                 # No model in request body — fall back to caller's project API key
