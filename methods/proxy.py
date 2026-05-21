@@ -148,7 +148,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return "tts"
         if "/audio/transcriptions" in endpoint or "/audio/translations" in endpoint:
             return "asr"
-        return "ai_credentials"
+        return "llm"
 
     @web.method()
     def prepare_request(self, proxy_target, proxy_auth):  # pylint: disable=R0911,R0912,R0914
