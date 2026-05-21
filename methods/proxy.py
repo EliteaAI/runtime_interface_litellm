@@ -148,6 +148,10 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return "tts"
         if "/audio/transcriptions" in endpoint or "/audio/translations" in endpoint:
             return "asr"
+        if "/embeddings" in endpoint:
+            return "embedding"
+        if "/images/" in endpoint:
+            return "image_generation"
         return "llm"
 
     @web.method()
@@ -250,6 +254,18 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 #
                 llm_key = resolved["project_llm_key"]
                 litellm_model = resolved["litellm_model"]
+                #
+                # Verify the resolved model name actually exists in LiteLLM.
+                # Externally-managed models are not registered under a project prefix,
+                # so fall back to the raw model name and the caller's own API key.
+                #
+                if not self.service_node.call.litellm_api_call("model_group_info", litellm_model):
+                    log.debug(
+                        "Model %s not found in LiteLLM, falling back to raw model name %s",
+                        litellm_model, raw_model_name,
+                    )
+                    litellm_model = raw_model_name
+                    llm_key = VaultClient(project_id).get_secrets().get("project_llm_key", "")
             else:
                 # No model in request body — fall back to caller's project API key
                 project_secrets = VaultClient(project_id).get_secrets()
