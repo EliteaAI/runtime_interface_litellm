@@ -17,7 +17,6 @@
 
 """ RPC: resolve LiteLLM model key and API key for a given project/model/section. """
 
-from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from tools import context, VaultClient  # pylint: disable=E0401
@@ -39,33 +38,19 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         2. Fetch the LiteLLM API key from the config owner's vault.
         3. Return ``{litellm_model, project_llm_key}``.
 
-        Falls back to the caller's own project_id/key if resolution fails.
+        Raises on failure — callers are responsible for handling errors.
         """
         config_project_id = project_id
 
-        try:
-            response = context.rpc_manager.timeout(10).configurations_get_models(
-                project_id=project_id, section=section, include_shared=True
-            )
-            for item in response.get("items", []):
-                if item.get("name") == model_name:
-                    config_project_id = item["project_id"]
-                    break
-        except Exception:  # pylint: disable=W0703
-            log.exception(
-                "litellm_resolve_model: failed to resolve config project_id "
-                "for project=%s model=%s section=%s, falling back to caller's project",
-                project_id, model_name, section,
-            )
+        response = context.rpc_manager.timeout(10).configurations_get_models(
+            project_id=project_id, section=section, include_shared=True
+        )
+        for item in response.get("items", []):
+            if item.get("name") == model_name:
+                config_project_id = item["project_id"]
+                break
 
-        try:
-            project_llm_key = VaultClient(config_project_id).get_secrets().get("project_llm_key", "")
-        except Exception:  # pylint: disable=W0703
-            log.exception(
-                "litellm_resolve_model: failed to fetch project_llm_key for project=%s",
-                config_project_id,
-            )
-            project_llm_key = ""
+        project_llm_key = VaultClient(config_project_id).get_secrets().get("project_llm_key", "")
 
         return {
             "litellm_model": f"{config_project_id}_{model_name}",
