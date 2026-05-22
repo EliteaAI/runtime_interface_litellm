@@ -142,17 +142,42 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return "Forbidden", 403
 
     @web.method()
-    def _get_section_for_endpoint(self, endpoint):
-        """Map a LiteLLM proxy endpoint to the configuration section for model resolution."""
-        if "/audio/speech" in endpoint:
-            return "tts"
-        if "/audio/transcriptions" in endpoint or "/audio/translations" in endpoint:
-            return "asr"
-        if "/embeddings" in endpoint:
-            return "embedding"
-        if "/images/" in endpoint:
-            return "image_generation"
-        return "llm"
+    def _map_model_name(self, raw_model_name, project_id, public_project_id):
+        """
+        Map raw model name to project-prefixed model name.
+
+        FRAGILE — CHANGE WITH EXTRA CAUTION.
+        This three-step fallback is the result of production incidents and deliberate
+        rollback from a DB-based resolution approach (litellm_resolve_model RPC).
+        The invariants that must hold:
+          1. Always checks caller's own project first ({project_id}_{model}).
+          2. Falls back to the public project ({public_project_id}_{model}).
+          3. Falls back to the raw name for externally-managed models.
+          4. ALWAYS uses the caller's own project_llm_key — never a third project's key.
+        Violating invariant 4 risks circular routing loops when a credential's
+        api_base points back to this proxy (e.g. an OpenAI-compatible credential
+        routing through dev.elitea.ai/llm/v1).
+
+        Returns:
+            Mapped model name (with project prefix if model exists in LiteLLM)
+        """
+        model_name = f"{project_id}_{raw_model_name}"
+        model_info = self.service_node.call.litellm_api_call(
+            "model_group_info",
+            model_name,
+        )
+        #
+        if not model_info and public_project_id != project_id:
+            model_name = f"{public_project_id}_{raw_model_name}"
+            model_info = self.service_node.call.litellm_api_call(
+                "model_group_info",
+                model_name,
+            )
+        #
+        if not model_info:
+            model_name = raw_model_name
+        #
+        return model_name
 
     @web.method()
     def prepare_request(self, proxy_target, proxy_auth):  # pylint: disable=R0911,R0912,R0914
@@ -183,8 +208,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             if project_id is None:
                 return "Error", 400
             #
+            public_project_id = self.get_public_project_id()
+            #
             if proxy_target_endpoint.startswith("/v1/models"):
-                public_project_id = self.get_public_project_id()
                 result = {
                     "data": [],
                     "object": "list",
@@ -230,67 +256,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 #
                 return result
             #
-            # Resolve model name and API key
+            vault_client = VaultClient(project_id)
+            project_secrets = vault_client.get_secrets()
             #
-            section = self._get_section_for_endpoint(proxy_target_endpoint)
-            #
-            raw_model_name = None
-            if isinstance(proxy_target["json"], dict):
-                raw_model_name = proxy_target["json"].get("model")
-            if raw_model_name is None and isinstance(proxy_target.get("data"), dict):
-                raw_model_name = proxy_target["data"].get("model")
-            #
-            if raw_model_name is not None:
-                try:
-                    resolved = context.rpc_manager.timeout(10).litellm_resolve_model(
-                        project_id=project_id, model_name=raw_model_name, section=section
-                    )
-                except Exception:  # pylint: disable=W0703
-                    log.exception(
-                        "prepare_request: failed to resolve model %s for project=%s",
-                        raw_model_name, project_id,
-                    )
-                    return "Error", 400
-                #
-                llm_key = resolved["project_llm_key"]
-                litellm_model = resolved["litellm_model"]
-                #
-                # Verify the resolved model name actually exists in LiteLLM.
-                # Restores the three-step fallback from pre-refactor _map_model_name:
-                #   1. {config_project_id}_{model}  (from configurations lookup)
-                #   2. {public_project_id}_{model}  (shared/public project fallback)
-                #   3. raw model name               (externally-managed models)
-                # Steps 2 and 3 always use the caller's own project API key.
-                #
-                if not self.service_node.call.litellm_api_call("model_group_info", litellm_model):
-                    public_project_id = self.service_node.call.get_public_project_id()
-                    public_litellm_model = f"{public_project_id}_{raw_model_name}"
-                    if public_project_id != project_id and \
-                            self.service_node.call.litellm_api_call(
-                                "model_group_info", public_litellm_model
-                            ):
-                        log.debug(
-                            "Model %s not found, using public project model %s",
-                            litellm_model, public_litellm_model,
-                        )
-                        litellm_model = public_litellm_model
-                    else:
-                        log.debug(
-                            "Model %s not found in LiteLLM, falling back to raw model name %s",
-                            litellm_model, raw_model_name,
-                        )
-                        litellm_model = raw_model_name
-                    llm_key = VaultClient(project_id).get_secrets().get("project_llm_key", "")
-            else:
-                # No model in request body — fall back to caller's project API key
-                project_secrets = VaultClient(project_id).get_secrets()
-                if "project_llm_key" not in project_secrets:
-                    return "Error", 400
-                llm_key = project_secrets["project_llm_key"]
-                litellm_model = None
-            #
-            if not llm_key:
+            if "project_llm_key" not in project_secrets:
                 return "Error", 400
+            #
+            llm_key = project_secrets["project_llm_key"]
             #
             proxy_target["headers"]["Authorization"] = f"Bearer {llm_key}"
             #
@@ -306,20 +278,26 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         log.debug("Dropping param: %s", drop_param)
                         proxy_target["json"].pop(drop_param, None)
             #
-            if litellm_model is not None:
-                if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
-                    if litellm_model != raw_model_name:
-                        log.debug("Mapped model name (JSON): %s -> %s", raw_model_name, litellm_model)
-                    proxy_target["json"]["model"] = litellm_model
+            if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
+                raw_model_name = proxy_target["json"]["model"]
+                model_name = self._map_model_name(raw_model_name, project_id, public_project_id)
                 #
-                # Also handle model mapping for form data (multipart requests like image edits)
+                if model_name != raw_model_name:
+                    log.debug("Mapped model name (JSON): %s -> %s", raw_model_name, model_name)
+                    proxy_target["json"]["model"] = model_name
+            #
+            # Also handle model mapping for form data (multipart requests like image edits)
+            #
+            if proxy_target.get("data") and "model" in (proxy_target["data"] if isinstance(proxy_target["data"], dict) else {}):
+                raw_model_name = proxy_target["data"]["model"]
+                model_name = self._map_model_name(raw_model_name, project_id, public_project_id)
                 #
-                if proxy_target.get("data") and "model" in (proxy_target["data"] if isinstance(proxy_target["data"], dict) else {}):
-                    if litellm_model != raw_model_name:
-                        log.debug("Mapped model name (form data): %s -> %s", raw_model_name, litellm_model)
+                if model_name != raw_model_name:
+                    log.debug("Mapped model name (form data): %s -> %s", raw_model_name, model_name)
+                    #
                     if hasattr(proxy_target["data"], "to_dict"):
                         proxy_target["data"] = dict(proxy_target["data"])
-                    proxy_target["data"]["model"] = litellm_model
+                    proxy_target["data"]["model"] = model_name
         #
         return None
 

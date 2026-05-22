@@ -94,12 +94,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
 
     @web.method()
     def configuration_to_model_info(self, configuration):
-        """ Method """
+        """
+        FRAGILE — CHANGE WITH EXTRA CAUTION.
+        model_name MUST be the project-prefixed form ({project_id}_{name}) because
+        LiteLLM stores all managed models under that prefix.  delete_configuration_entities
+        uses this value as a lookup key against LiteLLM's model registry; returning the
+        bare name causes a silent no-op — stale entries accumulate and can produce
+        circular routing loops on the next sync.
+        """
         try:
             configuration_uuid = configuration["uuid"]
+            project_id = configuration["project_id"]
+            model_name = configuration["data"]["name"]
             #
             return {
-                "model_name": configuration["data"]["name"],
+                "model_name": f"{project_id}_{model_name}",
                 "configuration_uuid": f"{configuration_uuid}",
             }
         except KeyError:
