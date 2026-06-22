@@ -193,17 +193,62 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         if proxy_auth["type"] == "token":
             user_name = proxy_auth["user"]["name"]
+            # try:
+            #     if user_name.startswith(project_constants["PROJECT_USER_NAME_PREFIX"]):
+            #         project_id = int(user_name.split(":")[-2])
+            #     else:
+            #         project_id = context.rpc_manager.timeout(30).projects_get_personal_project_id(
+            #             proxy_auth["user"]["id"]
+            #         )
+            # except:  # pylint: disable=W0702
+            #     log.exception("Failed to get project_id")
+            #     project_id = None
+            user_id = proxy_auth["user"]["id"]
             #
-            try:
-                if user_name.startswith(project_constants["PROJECT_USER_NAME_PREFIX"]):
-                    project_id = int(user_name.split(":")[-2])
-                else:
-                    project_id = context.rpc_manager.timeout(30).projects_get_personal_project_id(
-                        proxy_auth["user"]["id"]
-                    )
-            except:  # pylint: disable=W0702
-                log.exception("Failed to get project_id")
-                project_id = None
+            project_id = None
+            #
+            # Prefer explicit project_id from request headers so a request that
+            # originates inside a team project is billed to that team rather
+            # than to the caller's personal project. Accept X-Project-Id first
+            # (semantic name), fall back to OpenAI-Organization for SDK builds
+            # that don't yet send X-Project-Id. Both are gated by a membership
+            # check so a token holder can never spend on a project they don't
+            # belong to.
+            #
+            header_project_id = proxy_target["headers"].get("X-Project-Id") \
+                or proxy_target["headers"].get("OpenAI-Organization")
+            #
+            if header_project_id is not None:
+                try:
+                    candidate_project_id = int(header_project_id)
+                except (TypeError, ValueError):
+                    candidate_project_id = None
+                #
+                if candidate_project_id is not None:
+                    try:
+                        user_in_project = context.rpc_manager.timeout(
+                            30
+                        ).admin_check_user_in_project(
+                            candidate_project_id, user_id,
+                        )
+                    except:  # pylint: disable=W0702
+                        log.exception("Failed to check project membership")
+                        user_in_project = False
+                    #
+                    if user_in_project:
+                        project_id = candidate_project_id
+            #
+            if project_id is None:
+                try:
+                    if user_name.startswith(project_constants["PROJECT_USER_NAME_PREFIX"]):
+                        project_id = int(user_name.split(":")[-2])
+                    else:
+                        project_id = context.rpc_manager.timeout(30).projects_get_personal_project_id(
+                            proxy_auth["user"]["id"]
+                        )
+                except:  # pylint: disable=W0702
+                    log.exception("Failed to get project_id")
+                    project_id = None
             #
             if project_id is None:
                 return "Error", 400
