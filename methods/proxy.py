@@ -181,16 +181,6 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         if proxy_auth["type"] == "token":
             user_name = proxy_auth["user"]["name"]
-            # try:
-            #     if user_name.startswith(project_constants["PROJECT_USER_NAME_PREFIX"]):
-            #         project_id = int(user_name.split(":")[-2])
-            #     else:
-            #         project_id = context.rpc_manager.timeout(30).projects_get_personal_project_id(
-            #             proxy_auth["user"]["id"]
-            #         )
-            # except:  # pylint: disable=W0702
-            #     log.exception("Failed to get project_id")
-            #     project_id = None
             user_id = proxy_auth["user"]["id"]
             #
             project_id = None
