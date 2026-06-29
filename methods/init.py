@@ -102,6 +102,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             this.for_module("admin").module.register_admin_task(
                 "seed_llm_keys", self.seed_llm_keys
             )
+            this.for_module("admin").module.register_admin_task(
+                "cleanup_llm_orphans", self.cleanup_llm_orphans
+            )
         except:  # pylint: disable=W0702
             log.exception("Failed to register admin tasks")
         #
@@ -186,6 +189,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             )
             this.for_module("admin").module.unregister_admin_task(
                 "seed_llm_keys", self.seed_llm_keys
+            )
+            this.for_module("admin").module.unregister_admin_task(
+                "cleanup_llm_orphans", self.cleanup_llm_orphans
             )
         except:  # pylint: disable=W0702
             log.exception("Failed to unregister admin tasks")

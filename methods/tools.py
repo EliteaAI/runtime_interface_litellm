@@ -116,3 +116,70 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return {
             "allow_project_own_llms": self.descriptor.config.get("allow_project_own_llms", True),
         }
+
+    @web.method()
+    def parse_admin_task_param(self, param):
+        """Parse semicolon-delimited admin-task param string.
+
+        Supported segments (case-insensitive keys, whitespace tolerated):
+            project_id=<all|N>           single project (or all)
+            project_ids=A,B,C            multiple projects (comma separated)
+            dry_run                      flag — perform no mutations
+
+        Returns a dict with:
+            project_ids: list[int] | None       None means "no explicit scope"
+            dry_run: bool
+            scope_requested: bool               True if any project_id(s) segment was seen
+            scope_all_requested: bool           True if `project_id=all` was given explicitly
+            scope_parse_errors: list[str]       raw tokens that failed int parsing
+
+        ``scope_requested`` lets destructive callers refuse the silent
+        "no scope = wipe everything" fallback. ``scope_all_requested``
+        distinguishes that refusal from an operator who explicitly opted
+        in to system-wide via ``project_id=all``.
+        """
+        param = param or ""
+        #
+        result = {
+            "project_ids": None,
+            "dry_run": False,
+            "scope_requested": False,
+            "scope_all_requested": False,
+            "scope_parse_errors": [],
+        }
+        #
+        for seg in [s.strip() for s in str(param).split(";") if s.strip()]:
+            seg_lower = seg.lower()
+            #
+            if seg_lower.startswith("project_id="):
+                result["scope_requested"] = True
+                value = seg.split("=", 1)[1].strip()
+                if value.lower() == "all":
+                    result["scope_all_requested"] = True
+                    result["project_ids"] = None
+                else:
+                    try:
+                        result["project_ids"] = [int(value)]
+                    except ValueError:
+                        log.warning("parse_admin_task_param: invalid project_id '%s', ignoring", value)
+                        result["scope_parse_errors"].append(value)
+            #
+            elif seg_lower.startswith("project_ids="):
+                result["scope_requested"] = True
+                value = seg.split("=", 1)[1].strip()
+                ids = []
+                for token in value.split(","):
+                    token = token.strip()
+                    if not token:
+                        continue
+                    try:
+                        ids.append(int(token))
+                    except ValueError:
+                        log.warning("parse_admin_task_param: invalid project_ids token '%s', skipping", token)
+                        result["scope_parse_errors"].append(token)
+                result["project_ids"] = ids or None
+            #
+            elif seg_lower == "dry_run":
+                result["dry_run"] = True
+        #
+        return result
