@@ -76,11 +76,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         vault_client.set_secrets(project_secrets)
 
     @web.method()
-    def delete_project_entities(self, project_id):
+    def delete_project_entities(self, project_id, dry_run=False):
         """ Method """
         team_name = f"project_{project_id}"
         key_name = f"project_key_{project_id}"
         name_prefix = f"{project_id}_"
+        prefix = "[DRY RUN] " if dry_run else ""
         #
         # Teams and keys
         #
@@ -98,15 +99,19 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 #
                 for team_key in team_keys:
                     if team_key["key_alias"] == key_name:
-                        self.service_node.call.litellm_api_call(
-                            "key_delete",
-                            team_key["token"],
-                        )
+                        log.info("%sDeleting key: %s", prefix, key_name)
+                        if not dry_run:
+                            self.service_node.call.litellm_api_call(
+                                "key_delete",
+                                team_key["token"],
+                            )
                 #
-                self.service_node.call.litellm_api_call(
-                    "team_delete",
-                    team["team_id"],
-                )
+                log.info("%sDeleting team: %s", prefix, team_name)
+                if not dry_run:
+                    self.service_node.call.litellm_api_call(
+                        "team_delete",
+                        team["team_id"],
+                    )
         #
         # Models and credentials
         #
@@ -116,10 +121,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         for model in models:
             if model["model_name"].startswith(name_prefix):
-                self.service_node.call.litellm_api_call(
-                    "model_delete",
-                    model["model_info"]["id"],
-                )
+                log.info("%sDeleting model: %s", prefix, model["model_name"])
+                if not dry_run:
+                    self.service_node.call.litellm_api_call(
+                        "model_delete",
+                        model["model_info"]["id"],
+                    )
         #
         credentials = self.service_node.call.litellm_api_call(
             "credential_list",
@@ -127,7 +134,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         for credential in credentials:
             if credential["credential_name"].startswith(name_prefix):
-                self.service_node.call.litellm_api_call(
-                    "credential_delete",
-                    credential["credential_name"],
-                )
+                log.info("%sDeleting credential: %s", prefix, credential["credential_name"])
+                if not dry_run:
+                    self.service_node.call.litellm_api_call(
+                        "credential_delete",
+                        credential["credential_name"],
+                    )
