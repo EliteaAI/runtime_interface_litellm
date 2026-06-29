@@ -23,7 +23,7 @@ from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from plugins.admin.tasks.logs import make_logger  # pylint: disable=E0401
 
-from tools import context, serialize  # pylint: disable=E0401
+from tools import context  # pylint: disable=E0401
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -65,10 +65,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 prefix = "[DRY RUN] " if dry_run else ""
                 #
                 # Safety: if operator asked for scoped run (project_id/project_ids)
-                # but every token failed to parse, refuse to silently delete the
-                # whole proxy. They must use project_id=all explicitly.
+                # but every token failed to parse AND did not explicitly request
+                # 'all', refuse to silently delete the whole proxy.
                 #
-                if opts["scope_requested"] and not project_ids:
+                if opts["scope_requested"] \
+                        and not project_ids \
+                        and not opts["scope_all_requested"]:
                     log.error(
                         "Refusing to run: scoped param was given but no valid "
                         "project ids parsed (errors: %s). Use project_id=all to "
@@ -138,39 +140,51 @@ class Method:  # pylint: disable=E1101,R0903,W0201
     # pylint: disable=R,W0613
     @web.method()
     def sync_llm_entities(self, *args, **kwargs):
-        """Sync LiteLLM proxy entities (teams, keys, models) for all projects and their AI integrations. Long-running.
+        """Sync LiteLLM proxy entities (teams, keys, models) for all projects and their configurations. Long-running.
 
         Param format (optional):
-            "[project_id=<all|N>;][project_ids=A,B,C;][include_admin=<true|false>;][dry_run]"
-
-        Defaults:
-            - Unscoped run: include_admin=True (full sync of project + admin integrations)
-            - Scoped run (project_id/project_ids set): include_admin=False unless explicitly overridden
+            "[project_id=<all|N>;][project_ids=A,B,C;][dry_run]"
 
         Examples:
-            ""                                          - sync everything (project + admin)
-            "dry_run"                                   - log planned actions, mutate nothing
-            "project_id=34"                             - sync project 34 only, skip admin
-            "project_ids=34,42;include_admin=true"      - sync those two projects AND admin integrations
-            "project_id=34;dry_run"                     - dry run for project 34
+            ""                              - sync all projects
+            "dry_run"                       - log planned actions, mutate nothing
+            "project_id=34"                 - sync project 34 only
+            "project_ids=34,42"             - sync projects 34 and 42
+            "project_id=34;dry_run"         - dry run for project 34
+            "project_id=all;dry_run"        - explicit system-wide dry run
         """
         with make_logger() as log:
             opts = self.parse_admin_task_param(kwargs.get("param", ""))
             dry_run = opts["dry_run"]
             project_ids_filter = opts["project_ids"]
-            include_admin = opts["include_admin"]
             prefix = "[DRY RUN] " if dry_run else ""
             #
             log.info(
-                "%sStarting (project_ids=%s include_admin=%s dry_run=%s)",
-                prefix, project_ids_filter, include_admin, dry_run,
+                "%sStarting (project_ids=%s dry_run=%s)",
+                prefix, project_ids_filter, dry_run,
             )
             start_ts = time.time()
+            #
+            # Safety: scoped param given but every token failed to parse AND
+            # the operator did not explicitly request 'all' — refuse to
+            # silently widen blast radius to system-wide.
+            #
+            if opts["scope_requested"] \
+                    and not project_ids_filter \
+                    and not opts["scope_all_requested"]:
+                log.error(
+                    "Refusing to run: scoped param was given but no valid "
+                    "project ids parsed (errors: %s). Use project_id=all to "
+                    "explicitly target everything.",
+                    opts["scope_parse_errors"],
+                )
+                end_ts = time.time()
+                log.info("%sExiting (duration = %s)", prefix, end_ts - start_ts)
+                return
             #
             try:
                 log.info("%sSyncing project LLM entities", prefix)
                 #
-                failed_integration_calls = 0
                 failed_configuration_calls = 0
                 #
                 present_teams = set()
@@ -214,11 +228,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             self.make_project_entities(project_id)
                             present_teams.add(team_name)
                     #
-                    # Skip configs/integrations for non-public projects when own LLMs disabled
+                    # Skip configurations for non-public projects when own LLMs disabled
                     #
                     if not allow_own and project_id != public_project_id:
                         log.info(
-                            "Skipping configs/integrations for project %s "
+                            "Skipping configurations for project %s "
                             "(allow_project_own_llms is disabled)", project_id,
                         )
                         continue
@@ -250,77 +264,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         if not dry_run:
                             self.delete_configuration_entities(project_configuration)
                             self.make_configuration_entities(project_configuration)
-                    #
-                    # Integrations
-                    #
-                    try:
-                        if failed_integration_calls < 3:
-                            project_ai_integrations = context.rpc_manager.timeout(
-                                5
-                            ).integrations_get_project_integrations_by_section(
-                                project_id, "ai",
-                            )
-                        else:
-                            project_ai_integrations = []
-                    except:  # pylint: disable=W0702
-                        project_ai_integrations = []
-                        failed_integration_calls += 1
-                    else:
-                        if project_ai_integrations is None or project_ai_integrations is ...:
-                            project_ai_integrations = []
-                    #
-                    for project_ai_integration in project_ai_integrations:
-                        integration_payload = {
-                            "mode": "default",
-                            "project_id": project_id,
-                            "integration_name": project_ai_integration.name,
-                            "integration_data": serialize(project_ai_integration),
-                        }
-                        #
-                        log.info(
-                            "%sProject %s AI integration: %s",
-                            prefix, project_id, integration_payload,
-                        )
-                        if not dry_run:
-                            self.delete_integration_entities(integration_payload)
-                            self.make_integration_entities(integration_payload)
             except:  # pylint: disable=W0702
                 log.exception("Got exception, stopping")
-            #
-            if not include_admin:
-                log.info(
-                    "%sSkipping admin LLM entities sync (include_admin=False)", prefix,
-                )
-            else:
-                try:
-                    log.info("%sSyncing admin LLM entities", prefix)
-                    #
-                    try:
-                        admin_ai_integrations = context.rpc_manager.timeout(
-                            5
-                        ).integrations_get_administration_integrations_by_section(
-                            "ai",
-                        )
-                    except:  # pylint: disable=W0702
-                        admin_ai_integrations = []
-                    else:
-                        if admin_ai_integrations is None or admin_ai_integrations is ...:
-                            admin_ai_integrations = []
-                    #
-                    for admin_ai_integration in admin_ai_integrations:
-                        integration_payload = {
-                            "mode": "administration",
-                            "project_id": None,
-                            "integration_name": admin_ai_integration.name,
-                            "integration_data": serialize(admin_ai_integration),
-                        }
-                        #
-                        log.info("%sAdmin AI integration: %s", prefix, integration_payload)
-                        if not dry_run:
-                            self.delete_integration_entities(integration_payload)
-                            self.make_integration_entities(integration_payload)
-                except:  # pylint: disable=W0702
-                    log.exception("Got exception, stopping")
             #
             end_ts = time.time()
             log.info("%sExiting (duration = %s)", prefix, end_ts - start_ts)
@@ -614,19 +559,22 @@ class Method:  # pylint: disable=E1101,R0903,W0201
     # pylint: disable=R,W0613
     @web.method()
     def cleanup_llm_orphans(self, *args, **kwargs):
-        """Sweep LiteLLM for orphaned models/credentials whose backing Centry entity no longer exists.
+        """Sweep LiteLLM for orphaned models/credentials whose backing Centry configuration no longer exists.
 
         A LiteLLM model or credential is considered orphaned when it carries a
-        Centry ownership marker (``centry_integration_uid`` or
-        ``centry_configuration_uuid``) that does not appear in the current set
-        of live integrations/configurations. Entries without any Centry marker
-        are treated as externally managed and left alone.
+        ``centry_configuration_uuid`` marker that does not appear in the current
+        set of live project configurations. Entries without that marker are
+        treated as externally managed and left alone.
 
-        The live set is ALWAYS built from the full system (all projects + admin
-        integrations) regardless of scope, so we never misclassify another
-        project's entity as orphaned. ``project_id``/``project_ids`` only
-        restrict WHICH orphans get deleted (by ``{N}_`` name prefix), to keep
-        the blast radius small for targeted cleanups.
+        The live set is ALWAYS built from the full system (all projects)
+        regardless of scope, so we never misclassify another project's entity
+        as orphaned. ``project_id``/``project_ids`` only restrict WHICH
+        orphans get deleted (by ``{N}_`` name prefix), to keep the blast
+        radius small for targeted cleanups.
+
+        Safety: if the configurations RPC fails for too many projects, the
+        live set is incomplete and the sweep aborts without deletions to
+        avoid wiping real models.
 
         Param format (optional):
             "[project_id=<all|N>;][project_ids=A,B,C;][dry_run]"
@@ -636,6 +584,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             "dry_run"                       - dry run system-wide
             "project_id=14002;dry_run"      - dry run, only consider models/credentials prefixed '14002_'
             "project_id=14002"              - delete orphans prefixed '14002_'
+            "project_id=all;dry_run"        - explicit system-wide dry run
 
         Always run with dry_run first.
         """
@@ -651,10 +600,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             )
             start_ts = time.time()
             #
-            # Safety: scoped param given but every token failed to parse — refuse
-            # to silently widen blast radius to system-wide.
+            # Safety: scoped param given but every token failed to parse AND
+            # the operator did not explicitly request 'all' — refuse to
+            # silently widen blast radius to system-wide.
             #
-            if opts["scope_requested"] and not project_ids_filter:
+            if opts["scope_requested"] \
+                    and not project_ids_filter \
+                    and not opts["scope_all_requested"]:
                 log.error(
                     "Refusing to run: scoped param was given but no valid "
                     "project ids parsed (errors: %s). Use project_id=all to "
@@ -670,35 +622,18 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 scope = {f"{int(pid)}_" for pid in project_ids_filter}
                 log.info("%sScope (name prefixes): %s", prefix, sorted(scope))
             #
-            # --- Build live sets (system-wide) ---
+            # --- Build live set (system-wide) ---
             #
-            live_integration_uids = set()
             live_configuration_uuids = set()
             #
-            # If the integrations RPC never succeeds, an empty live_integration_uids
-            # would misclassify EVERY integration-backed model as orphan. Track
-            # health and refuse to delete integration-marked entries when unhealthy.
+            # If too many configurations_get_filtered_project calls fail, the
+            # live set is incomplete and would misclassify real models as
+            # orphan. We abort instead of guessing.
             #
-            integration_rpcs_healthy = False
+            failed_configuration_calls = 0
+            attempted_configuration_calls = 0
             #
             try:
-                log.info("Collecting admin AI integrations")
-                try:
-                    admin_ai = context.rpc_manager.timeout(
-                        10
-                    ).integrations_get_administration_integrations_by_section("ai")
-                    integration_rpcs_healthy = True
-                except:  # pylint: disable=W0702
-                    log.exception("Failed to list admin AI integrations")
-                    admin_ai = []
-                if admin_ai is None or admin_ai is ...:
-                    admin_ai = []
-                for integration in admin_ai:
-                    try:
-                        live_integration_uids.add(serialize(integration).get("uid"))
-                    except:  # pylint: disable=W0702
-                        log.exception("Failed to serialize admin integration")
-                #
                 log.info("Collecting project list")
                 project_list = context.rpc_manager.timeout(120).project_list(
                     filter_={"create_success": True},
@@ -707,32 +642,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 for project in project_list:
                     project_id = project["id"]
                     #
-                    # Project integrations
-                    try:
-                        proj_ai = context.rpc_manager.timeout(
-                            5
-                        ).integrations_get_project_integrations_by_section(project_id, "ai")
-                        integration_rpcs_healthy = True
-                    except:  # pylint: disable=W0702
-                        log.exception(
-                            "Failed to list AI integrations for project %s", project_id,
-                        )
-                        proj_ai = []
-                    if proj_ai is None or proj_ai is ...:
-                        proj_ai = []
-                    for integration in proj_ai:
-                        try:
-                            live_integration_uids.add(serialize(integration).get("uid"))
-                        except:  # pylint: disable=W0702
-                            log.exception(
-                                "Failed to serialize integration for project %s", project_id,
-                            )
-                    #
-                    # Project configurations
-                    # NB: filter_fields is a SQLAlchemy filter_by dict, NOT a
-                    # projection; passing a list silently fails the RPC and
-                    # would empty the live set, misclassifying every
-                    # configuration-backed model as orphan.
+                    attempted_configuration_calls += 1
                     try:
                         proj_cfgs = context.rpc_manager.timeout(
                             5
@@ -744,6 +654,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         log.exception(
                             "Failed to list configurations for project %s", project_id,
                         )
+                        failed_configuration_calls += 1
                         proj_cfgs = []
                     if proj_cfgs is None or proj_cfgs is ...:
                         proj_cfgs = []
@@ -752,23 +663,33 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         if uuid:
                             live_configuration_uuids.add(uuid)
                 #
-                # Discard None values from serialize() that lacked uid
-                live_integration_uids.discard(None)
-                live_integration_uids.discard("")
-                #
                 log.info(
-                    "Live set: %d integration UIDs, %d configuration UUIDs "
-                    "(integration RPCs healthy=%s)",
-                    len(live_integration_uids), len(live_configuration_uuids),
-                    integration_rpcs_healthy,
+                    "Live set: %d configuration UUIDs "
+                    "(configurations RPC: %d ok / %d failed of %d projects)",
+                    len(live_configuration_uuids),
+                    attempted_configuration_calls - failed_configuration_calls,
+                    failed_configuration_calls,
+                    attempted_configuration_calls,
                 )
-                if not integration_rpcs_healthy:
-                    log.warning(
-                        "Integration RPCs never succeeded during live-set build. "
-                        "Integration-marked entries will be SKIPPED (not classified "
-                        "as orphan) for this run to prevent false positives. "
-                        "Configuration-marked entries will still be evaluated.",
+                #
+                # If we couldn't reach the configurations RPC for a meaningful
+                # share of projects, abort. We pick a conservative threshold:
+                # more than 25% of attempts failing OR every attempt failing.
+                #
+                if attempted_configuration_calls > 0 and (
+                    failed_configuration_calls == attempted_configuration_calls
+                    or failed_configuration_calls * 4 > attempted_configuration_calls
+                ):
+                    log.error(
+                        "Aborting orphan sweep: configurations RPC failed for "
+                        "%d/%d project(s). Live set is incomplete; deleting "
+                        "now would risk wiping real models. Re-run when the "
+                        "configurations plugin is reachable.",
+                        failed_configuration_calls, attempted_configuration_calls,
                     )
+                    end_ts = time.time()
+                    log.info("%sExiting (duration = %s)", prefix, end_ts - start_ts)
+                    return
             except:  # pylint: disable=W0702
                 log.exception("Failed to build live set; aborting (no deletions performed)")
                 end_ts = time.time()
@@ -779,36 +700,29 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             orphan_models = 0
             deleted_models = 0
-            skipped_unhealthy_models = 0
+            unmanaged_integration_models = 0
             try:
                 models = self.service_node.call.litellm_api_call("model_info") or []
                 for model in models:
                     info = model.get("model_info") or {}
                     name = model.get("model_name", "") or ""
                     #
-                    uid = info.get("centry_integration_uid")
                     uuid = info.get("centry_configuration_uuid")
+                    uid = info.get("centry_integration_uid")
                     #
-                    if not uid and not uuid:
-                        continue  # externally managed; not our concern
+                    # Skip entries with only an integration marker — the
+                    # current platform has no integration liveness source, so
+                    # we cannot decide whether they are orphan or live.
+                    # Treat them as unmanaged from this sweep's perspective.
                     #
-                    # Safety: if integration RPCs failed, the live integration set
-                    # is unreliable. Skip integration-only entries to avoid false
-                    # positives. Entries also carrying a configuration uuid still
-                    # get evaluated against the (healthy) configuration live set.
-                    #
-                    if uid and not uuid and not integration_rpcs_healthy:
-                        skipped_unhealthy_models += 1
-                        log.info(
-                            "%sSkipping integration-marked model %s (uid=%s): "
-                            "integration RPCs unhealthy this run",
-                            prefix, name, uid,
-                        )
+                    if uid and not uuid:
+                        unmanaged_integration_models += 1
                         continue
                     #
-                    is_orphan = (uid and uid not in live_integration_uids) \
-                        or (uuid and uuid not in live_configuration_uuids)
-                    if not is_orphan:
+                    if not uuid:
+                        continue  # externally managed; not our concern
+                    #
+                    if uuid in live_configuration_uuids:
                         continue
                     #
                     # Scope filter (by name prefix)
@@ -817,8 +731,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     #
                     orphan_models += 1
                     log.warning(
-                        "%sOrphan model: name=%s uid=%s uuid=%s",
-                        prefix, name, uid, uuid,
+                        "%sOrphan model: name=%s uuid=%s",
+                        prefix, name, uuid,
                     )
                     if not dry_run:
                         model_id = info.get("id")
@@ -843,34 +757,24 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             orphan_credentials = 0
             deleted_credentials = 0
-            skipped_unhealthy_credentials = 0
+            unmanaged_integration_credentials = 0
             try:
                 credentials = self.service_node.call.litellm_api_call("credential_list") or []
                 for credential in credentials:
                     cred_name = credential.get("credential_name", "") or ""
                     cred_info = credential.get("credential_info") or {}
                     #
-                    uid = cred_info.get("centry_integration_uid")
                     uuid = cred_info.get("centry_configuration_uuid")
+                    uid = cred_info.get("centry_integration_uid")
                     #
-                    if not uid and not uuid:
+                    if uid and not uuid:
+                        unmanaged_integration_credentials += 1
                         continue
                     #
-                    # Same safety rule as models: skip integration-only entries
-                    # if the integrations RPC was unreachable this run.
-                    #
-                    if uid and not uuid and not integration_rpcs_healthy:
-                        skipped_unhealthy_credentials += 1
-                        log.info(
-                            "%sSkipping integration-marked credential %s (uid=%s): "
-                            "integration RPCs unhealthy this run",
-                            prefix, cred_name, uid,
-                        )
+                    if not uuid:
                         continue
                     #
-                    is_orphan = (uid and uid not in live_integration_uids) \
-                        or (uuid and uuid not in live_configuration_uuids)
-                    if not is_orphan:
+                    if uuid in live_configuration_uuids:
                         continue
                     #
                     if scope is not None and not any(cred_name.startswith(p) for p in scope):
@@ -878,8 +782,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     #
                     orphan_credentials += 1
                     log.warning(
-                        "%sOrphan credential: name=%s uid=%s uuid=%s",
-                        prefix, cred_name, uid, uuid,
+                        "%sOrphan credential: name=%s uuid=%s",
+                        prefix, cred_name, uuid,
                     )
                     if not dry_run:
                         try:
@@ -895,11 +799,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 log.exception("Failed to enumerate credentials")
             #
             log.info(
-                "%sOrphan sweep complete: models orphan=%d deleted=%d skipped_unhealthy=%d; "
-                "credentials orphan=%d deleted=%d skipped_unhealthy=%d",
+                "%sOrphan sweep complete: models orphan=%d deleted=%d unmanaged_integration=%d; "
+                "credentials orphan=%d deleted=%d unmanaged_integration=%d",
                 prefix,
-                orphan_models, deleted_models, skipped_unhealthy_models,
-                orphan_credentials, deleted_credentials, skipped_unhealthy_credentials,
+                orphan_models, deleted_models, unmanaged_integration_models,
+                orphan_credentials, deleted_credentials, unmanaged_integration_credentials,
             )
             end_ts = time.time()
             log.info("%sExiting (duration = %s)", prefix, end_ts - start_ts)

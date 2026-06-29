@@ -124,23 +124,28 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         Supported segments (case-insensitive keys, whitespace tolerated):
             project_id=<all|N>           single project (or all)
             project_ids=A,B,C            multiple projects (comma separated)
-            include_admin=<true|false>   include administration-scope integrations
             dry_run                      flag — perform no mutations
 
-        Defaults: when no project scoping is given, returns an unscoped run
-        (project_ids=None means "all"); include_admin defaults to True for
-        unscoped runs, False for scoped runs (callers may override).
+        Returns a dict with:
+            project_ids: list[int] | None       None means "no explicit scope"
+            dry_run: bool
+            scope_requested: bool               True if any project_id(s) segment was seen
+            scope_all_requested: bool           True if `project_id=all` was given explicitly
+            scope_parse_errors: list[str]       raw tokens that failed int parsing
+
+        ``scope_requested`` lets destructive callers refuse the silent
+        "no scope = wipe everything" fallback. ``scope_all_requested``
+        distinguishes that refusal from an operator who explicitly opted
+        in to system-wide via ``project_id=all``.
         """
         param = param or ""
         #
         result = {
-            "project_ids": None,        # None = all projects (unscoped)
-            "include_admin": None,      # None = use default-by-scope below
+            "project_ids": None,
             "dry_run": False,
-            "scope_requested": False,   # True if any project_id(s) segment was seen,
-                                        # even if all values failed to parse — lets
-                                        # destructive callers refuse the "all" fallback.
-            "scope_parse_errors": [],   # raw tokens that failed int parsing
+            "scope_requested": False,
+            "scope_all_requested": False,
+            "scope_parse_errors": [],
         }
         #
         for seg in [s.strip() for s in str(param).split(";") if s.strip()]:
@@ -150,6 +155,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 result["scope_requested"] = True
                 value = seg.split("=", 1)[1].strip()
                 if value.lower() == "all":
+                    result["scope_all_requested"] = True
                     result["project_ids"] = None
                 else:
                     try:
@@ -173,16 +179,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         result["scope_parse_errors"].append(token)
                 result["project_ids"] = ids or None
             #
-            elif seg_lower.startswith("include_admin="):
-                value = seg.split("=", 1)[1].strip().lower()
-                result["include_admin"] = value in ("1", "true", "yes", "on")
-            #
             elif seg_lower == "dry_run":
                 result["dry_run"] = True
-        #
-        # Default include_admin based on scope: unscoped → True, scoped → False
-        #
-        if result["include_admin"] is None:
-            result["include_admin"] = result["project_ids"] is None
         #
         return result

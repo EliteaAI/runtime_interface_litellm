@@ -120,13 +120,22 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         )
         #
         for model in models:
-            if model["model_name"].startswith(name_prefix):
-                log.info("%sDeleting model: %s", prefix, model["model_name"])
-                if not dry_run:
-                    self.service_node.call.litellm_api_call(
-                        "model_delete",
-                        model["model_info"]["id"],
-                    )
+            model_name = model.get("model_name", "") or ""
+            if not model_name.startswith(name_prefix):
+                continue
+            log.info("%sDeleting model: %s", prefix, model_name)
+            if dry_run:
+                continue
+            model_id = (model.get("model_info") or {}).get("id")
+            if not model_id:
+                log.error(
+                    "Cannot delete model %s: missing model_info.id", model_name,
+                )
+                continue
+            self.service_node.call.litellm_api_call(
+                "model_delete",
+                model_id,
+            )
         #
         credentials = self.service_node.call.litellm_api_call(
             "credential_list",
