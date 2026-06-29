@@ -637,7 +637,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 log.info("Collecting project list")
                 project_list = context.rpc_manager.timeout(120).project_list(
                     filter_={"create_success": True},
-                ) or []
+                )
+                #
+                # Pylon RPC returns Sentinel (...) when no handler is registered.
+                # Treat as fatal: a Sentinel would leave the loop at zero
+                # iterations, bypassing the health gate, and every uuid-marked
+                # entry in LiteLLM would look like an orphan.
+                #
+                if project_list is None or project_list is ...:
+                    log.error(
+                        "project_list RPC returned no result (None/Sentinel); "
+                        "aborting orphan sweep to avoid wiping real models.",
+                    )
+                    end_ts = time.time()
+                    log.info("%sExiting (duration = %s)", prefix, end_ts - start_ts)
+                    return
                 #
                 for project in project_list:
                     project_id = project["id"]
