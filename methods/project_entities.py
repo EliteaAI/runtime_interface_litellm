@@ -71,9 +71,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         llm_key = key_result["key"]
         #
         vault_client = VaultClient(project_id)
-        project_secrets = vault_client.get_secrets()
-        project_secrets["project_llm_key"] = llm_key
-        vault_client.set_secrets(project_secrets)
+        vault_client.update_secrets(add={"project_llm_key": llm_key})
 
     @web.method()
     def delete_project_entities(self, project_id, dry_run=False):
