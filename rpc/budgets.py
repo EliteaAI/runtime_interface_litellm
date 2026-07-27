@@ -121,6 +121,98 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         #
         return {uid: spend_by_tag.get(tag, 0.0) for tag, uid in tags.items()}
 
+    @web.rpc("litellm_get_project_usage_detail", "litellm_get_project_usage_detail")
+    def litellm_get_project_usage_detail(self, project_id, **kwargs):
+        """Per-model and per-day current-month usage for a project."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        #
+        return self.read_tag_usage_detail(make_budget_tag(project_id, now), now)
+
+    @web.rpc("litellm_get_user_usage_detail", "litellm_get_user_usage_detail")
+    def litellm_get_user_usage_detail(self, project_id, user_id, **kwargs):
+        """Per-model and per-day current-month usage for one user in a project."""
+        now = datetime.datetime.now(datetime.timezone.utc)
+        #
+        return self.read_tag_usage_detail(make_user_budget_tag(project_id, user_id, now), now)
+
+    @web.method()
+    def read_tag_usage_detail(self, tag_name, now):
+        """Per-model and per-day breakdown for a single tag's current month.
+
+        Reads one tag only: LiteLLM stores one row per tag per request, so asking for a
+        project tag together with its own user tags would count the shared traffic twice.
+        """
+        period_start = now.replace(day=1)
+        #
+        result = {
+            "tag": tag_name,
+            "period": f"{now:%Y%m}",
+            "models": [],
+            "daily": [],
+            "spend": 0.0,
+            "total_tokens": 0,
+            "api_requests": 0,
+            "available": False,
+        }
+        #
+        try:
+            activity = self.service_node.call.litellm_api_call(
+                "tag_daily_activity",
+                tags=[tag_name],
+                start_date=f"{period_start:%Y-%m-%d}",
+                end_date=f"{now:%Y-%m-%d}",
+                page_size=MAX_ACTIVITY_PAGE_SIZE,
+            )
+        except:  # pylint: disable=W0702
+            log.exception("Failed to read usage detail for tag %s", tag_name)
+            return result
+        #
+        models = {}
+        daily = []
+        #
+        for day in (activity or {}).get("results") or []:
+            day_metrics = (day or {}).get("metrics") or {}
+            #
+            daily.append({
+                "date": (day or {}).get("date"),
+                "spend": float(day_metrics.get("spend", 0) or 0),
+                "total_tokens": int(day_metrics.get("total_tokens", 0) or 0),
+                "api_requests": int(day_metrics.get("api_requests", 0) or 0),
+            })
+            #
+            breakdown = ((day or {}).get("breakdown") or {}).get("models") or {}
+            #
+            for model_name, entry in breakdown.items():
+                metrics = (entry or {}).get("metrics") or {}
+                bucket = models.setdefault(
+                    model_name,
+                    {"model": model_name, "spend": 0.0, "total_tokens": 0, "api_requests": 0},
+                )
+                #
+                bucket["spend"] += float(metrics.get("spend", 0) or 0)
+                bucket["total_tokens"] += int(metrics.get("total_tokens", 0) or 0)
+                bucket["api_requests"] += int(metrics.get("api_requests", 0) or 0)
+        #
+        daily.sort(key=lambda item: item["date"] or "")
+        #
+        # Models with no spend and no calls only add noise to the UI
+        model_rows = [row for row in models.values() if row["api_requests"] or row["spend"]]
+        model_rows.sort(key=lambda row: row["spend"], reverse=True)
+        #
+        result["models"] = model_rows
+        result["daily"] = daily
+        result["spend"] = sum(row["spend"] for row in daily)
+        result["total_tokens"] = sum(row["total_tokens"] for row in daily)
+        result["api_requests"] = sum(row["api_requests"] for row in daily)
+        result["available"] = True
+        #
+        return result
+
+    @web.rpc("litellm_budgets_mode", "litellm_budgets_mode")
+    def litellm_budgets_mode(self, **kwargs):
+        """Current cost-budget mode, so the UI can hide the feature when it is off."""
+        return self.budgets_mode()
+
     @web.method()
     def read_tags_spend(self, tag_names, now):
         """Map tag -> current-month spend using a single multi-tag activity call.
