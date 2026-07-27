@@ -104,6 +104,11 @@ class Route:  # pylint: disable=E1101,R0903
             #
             self.prepare_response(proxy_target, proxy_auth, response)
             #
+            budget_error = self.make_budget_error_response(response, iterator)
+            #
+            if budget_error is not None:
+                return budget_error
+            #
             return flask.Response(
                 flask.stream_with_context(iterator),
                 status=response["status_code"],

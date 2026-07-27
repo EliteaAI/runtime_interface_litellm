@@ -5,3 +5,14 @@ litellm_mode: built-in
 external_litellm_url: ""
 litellm_master_key: null
 allow_project_own_llms: true
+
+cost_budgets:
+  enabled: false
+  # Applied only to projects/users without an explicit budget row.
+  # null (or unset) means UNLIMITED for that scope, so every value here can be
+  # toggled off independently to restore the original unlimited behaviour.
+  defaults:
+    enabled: true
+    project_monthly_limit: null
+    personal_project_monthly_limit: null
+    user_monthly_limit: null
