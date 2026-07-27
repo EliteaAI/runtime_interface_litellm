@@ -31,3 +31,16 @@ class Module(module.ModuleModel):  # pylint: disable=R0903
         )
         #
         self.descriptor.register_tool("runtime_interface", self)
+
+    def reconfig(self):
+        """Re-config"""
+        # Budget limits are cached per tag on the request path, so drop them when an
+        # admin changes the flag or the defaults — otherwise the change would only
+        # apply after the cache TTL expires.
+        self.invalidate_budget_tag_cache()
+        #
+        log.info(
+            "Cost budgets reconfigured: enabled=%s defaults=%s",
+            self.budgets_enabled(),
+            self.descriptor.config.get("cost_budgets", {}).get("defaults", {}),
+        )
