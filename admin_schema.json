@@ -2,24 +2,32 @@
   "$schema": "https://elitea.ai/admin-config-schema/v1",
   "plugin": "runtime_interface_litellm",
   "properties": {
-    "cost_budgets_enabled": {
-      "type": "boolean",
-      "title": "Enable Cost Budgets",
-      "description": "Master switch for per-project and per-user LLM spend limits on shared models. When disabled, no spend is tracked or blocked and calls behave exactly as before.",
-      "path": "cost_budgets.enabled",
+    "cost_budgets_mode": {
+      "type": "string",
+      "title": "Cost Budgets Mode",
+      "description": "Off leaves requests untouched and blocks nothing, so it is a true rollback. Observe tracks spend per project and user without ever blocking a call, which is the safe way to measure real usage before choosing limits. Enforce rejects calls once a limit is exceeded.",
+      "enum": [
+        "off",
+        "observe",
+        "enforce"
+      ],
+      "path": "cost_budgets.mode",
       "section": "cost_budgets",
-      "default": false,
+      "default": "off",
       "requires_restart": false
     },
     "cost_budgets_defaults_enabled": {
       "type": "boolean",
       "title": "Apply Default Limits",
-      "description": "Apply the default limits below to projects and users that have no limit set explicitly. When disabled, anything without an explicit limit stays unlimited.",
+      "description": "Apply the default limits below to projects and users that have no limit set explicitly. When disabled, anything without an explicit limit stays unlimited. Only used in enforce mode.",
       "path": "cost_budgets.defaults.enabled",
       "section": "cost_budgets",
       "default": false,
       "requires_restart": false,
-      "visible_when": { "field": "cost_budgets_enabled", "value": true }
+      "visible_when": {
+        "field": "cost_budgets_mode",
+        "value": "enforce"
+      }
     },
     "cost_budgets_project_monthly_limit": {
       "type": "number",
@@ -29,7 +37,10 @@
       "section": "cost_budgets",
       "default": null,
       "requires_restart": false,
-      "visible_when": { "field": "cost_budgets_defaults_enabled", "value": true }
+      "visible_when": {
+        "field": "cost_budgets_defaults_enabled",
+        "value": true
+      }
     },
     "cost_budgets_personal_project_monthly_limit": {
       "type": "number",
@@ -39,7 +50,10 @@
       "section": "cost_budgets",
       "default": null,
       "requires_restart": false,
-      "visible_when": { "field": "cost_budgets_defaults_enabled", "value": true }
+      "visible_when": {
+        "field": "cost_budgets_defaults_enabled",
+        "value": true
+      }
     },
     "cost_budgets_user_monthly_limit": {
       "type": "number",
@@ -49,7 +63,10 @@
       "section": "cost_budgets",
       "default": null,
       "requires_restart": false,
-      "visible_when": { "field": "cost_budgets_defaults_enabled", "value": true }
+      "visible_when": {
+        "field": "cost_budgets_defaults_enabled",
+        "value": true
+      }
     }
   }
 }

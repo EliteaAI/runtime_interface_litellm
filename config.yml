@@ -6,13 +6,29 @@ external_litellm_url: ""
 litellm_master_key: null
 allow_project_own_llms: true
 
+# Monthly spend limits for SHARED models, enforced by LiteLLM via per-request tags.
+# Calls to a project's own (BYO) or externally-managed models are never counted.
+# Manage these from Admin -> Features -> Cost Budgets rather than editing by hand.
 cost_budgets:
-  enabled: false
-  # Applied only to projects/users without an explicit budget row.
-  # null (or unset) means UNLIMITED for that scope, so every value here can be
-  # toggled off independently to restore the original unlimited behaviour.
+  # off     - no tagging, no writes to LiteLLM, no blocking. Requests are identical
+  #           to pre-feature behaviour, so this is a true rollback switch.
+  # observe - tag and track spend, but never push a limit: nothing is ever blocked.
+  #           Use this to measure real per-project spend before choosing limits.
+  # enforce - track spend and reject calls once a limit is exceeded (HTTP 400).
+  # Note: switching away from enforce lifts any ceilings already pushed to LiteLLM.
+  mode: "off"
+  #
+  # Per-scope limits applied ONLY where nothing has been set explicitly on the
+  # Budgets page. null (or unset) means unlimited for that scope, so each default
+  # can be turned off independently without disabling the feature.
+  # Ignored entirely unless mode is "enforce".
   defaults:
-    enabled: true
+    enabled: false
+    # Team/shared projects.
     project_monthly_limit: null
+    # Each user's own project. API and token calls made without a project header
+    # are billed here, so this is effectively the per-user cap for direct API use.
     personal_project_monthly_limit: null
+    # One member's spend inside a project, so a single member cannot consume the
+    # whole project budget. Applied in addition to the project limit.
     user_monthly_limit: null

@@ -296,6 +296,74 @@ class TestMultiTagSpendAggregation(unittest.TestCase):
             self.assertEqual(aggregate_entities(payload, ["a"]), {"a": 0.0})
 
 
+class FakeModes:
+    """Mirror of budgets_mode's resolution, including the legacy boolean."""
+
+    def __init__(self, config):
+        self.config = config
+
+    def budgets_mode(self):
+        config = self.config
+        mode = config.get("mode", None)
+        #
+        if mode is None:
+            return budgets.MODE_ENFORCE if config.get("enabled", False) else budgets.MODE_OFF
+        #
+        mode = str(mode).strip().lower()
+        #
+        if mode not in budgets.BUDGET_MODES:
+            return budgets.MODE_OFF
+        #
+        return mode
+
+    def budgets_enabled(self):
+        return self.budgets_mode() != budgets.MODE_OFF
+
+    def budgets_enforcing(self):
+        return self.budgets_mode() == budgets.MODE_ENFORCE
+
+
+class TestBudgetModes(unittest.TestCase):
+    """Off must be a true rollback; observe tracks without ever blocking."""
+
+    def test_off_disables_everything(self):
+        m = FakeModes({"mode": "off"})
+        self.assertFalse(m.budgets_enabled())
+        self.assertFalse(m.budgets_enforcing())
+
+    def test_observe_tracks_but_never_enforces(self):
+        m = FakeModes({"mode": "observe"})
+        self.assertTrue(m.budgets_enabled())
+        self.assertFalse(m.budgets_enforcing())
+
+    def test_enforce_tracks_and_enforces(self):
+        m = FakeModes({"mode": "enforce"})
+        self.assertTrue(m.budgets_enabled())
+        self.assertTrue(m.budgets_enforcing())
+
+    def test_missing_config_defaults_to_off(self):
+        self.assertEqual(FakeModes({}).budgets_mode(), budgets.MODE_OFF)
+
+    def test_legacy_enabled_true_maps_to_enforce(self):
+        # An existing config predating the mode setting must keep working
+        self.assertEqual(FakeModes({"enabled": True}).budgets_mode(), budgets.MODE_ENFORCE)
+
+    def test_legacy_enabled_false_maps_to_off(self):
+        self.assertEqual(FakeModes({"enabled": False}).budgets_mode(), budgets.MODE_OFF)
+
+    def test_mode_wins_over_legacy_enabled(self):
+        m = FakeModes({"mode": "observe", "enabled": True})
+        self.assertEqual(m.budgets_mode(), budgets.MODE_OBSERVE)
+        self.assertFalse(m.budgets_enforcing())
+
+    def test_unknown_mode_fails_safe_to_off(self):
+        # A typo must not silently enable blocking
+        self.assertEqual(FakeModes({"mode": "enfroce"}).budgets_mode(), budgets.MODE_OFF)
+
+    def test_mode_is_case_and_space_insensitive(self):
+        self.assertEqual(FakeModes({"mode": " Enforce "}).budgets_mode(), budgets.MODE_ENFORCE)
+
+
 class TestMetadataKeySelection(unittest.TestCase):
     """Anthropic /v1/messages ignores `metadata`; its tags must go in `litellm_metadata`.
 

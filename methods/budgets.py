@@ -31,6 +31,15 @@ from tools import context  # pylint: disable=E0401
 
 BUDGET_TAG_PREFIX = "elitea_proj_"
 
+# off     — no tagging, no writes, no blocking; requests are byte-for-byte pre-feature
+# observe — tag and track spend, but never push a limit, so nothing is ever blocked
+# enforce — track and block once a limit is exceeded
+MODE_OFF = "off"
+MODE_OBSERVE = "observe"
+MODE_ENFORCE = "enforce"
+
+BUDGET_MODES = (MODE_OFF, MODE_OBSERVE, MODE_ENFORCE)
+
 BUDGET_ERROR_MESSAGE = (
     "The monthly budget for shared models has been reached. "
     "Please contact your platform administrator to raise the limit."
@@ -96,9 +105,35 @@ class Method:  # pylint: disable=E1101,R0903,W0201
     """
 
     @web.method()
+    def budgets_mode(self):
+        """Current cost-budgets mode: off, observe or enforce.
+
+        Legacy boolean `enabled` is still honoured so an existing config keeps working.
+        """
+        config = self.descriptor.config.get("cost_budgets", {})
+        #
+        mode = config.get("mode", None)
+        #
+        if mode is None:
+            return MODE_ENFORCE if config.get("enabled", False) else MODE_OFF
+        #
+        mode = str(mode).strip().lower()
+        #
+        if mode not in BUDGET_MODES:
+            log.warning("Unknown cost_budgets.mode %r, treating as off", mode)
+            return MODE_OFF
+        #
+        return mode
+
+    @web.method()
     def budgets_enabled(self):
-        """ Check the cost-budgets feature flag. """
-        return bool(self.descriptor.config.get("cost_budgets", {}).get("enabled", False))
+        """True when budgets do anything at all (tracking or enforcing)."""
+        return self.budgets_mode() != MODE_OFF
+
+    @web.method()
+    def budgets_enforcing(self):
+        """True only when limits should actually block calls."""
+        return self.budgets_mode() == MODE_ENFORCE
 
     @web.method()
     def apply_budget_tag(  # pylint: disable=R0913
@@ -156,6 +191,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         Re-checked only every BUDGET_SYNC_TTL seconds so the hot path stays cheap;
         an explicit budget change pushes immediately via the RPC instead of waiting.
         """
+        # Observe mode needs no LiteLLM write at all: an untracked tag still accrues
+        # spend in the daily aggregate the dashboard reads, and pushing no ceiling
+        # means nothing can be blocked.
+        if not self.budgets_enforcing():
+            return
+        #
         cache = self.runtime_cache.setdefault("budget_tags", {})
         #
         now = time.monotonic()
@@ -330,6 +371,79 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         headers["Content-Length"] = str(length)
         #
         return headers
+
+    @web.method()
+    def restore_budget_ceilings(self):
+        """Re-push stored limits for every project that has one.
+
+        Called when enforcement is switched on so limits apply straight away rather
+        than on each project's next shared call.
+        """
+        try:
+            budgets = context.rpc_manager.timeout(10).elitea_core_list_project_budgets() or {}
+        except:  # pylint: disable=W0702
+            log.exception("Failed to list project budgets while restoring ceilings")
+            return 0
+        #
+        restored = 0
+        #
+        for project_id in budgets:
+            try:
+                tag_name = make_budget_tag(int(project_id))
+                self.invalidate_budget_tag(tag_name)
+                self.ensure_budget_tag(
+                    int(project_id), tag_name, self.get_project_budget_limit,
+                )
+                restored += 1
+            except:  # pylint: disable=W0702
+                log.exception("Failed to restore budget ceiling for project %s", project_id)
+        #
+        if restored:
+            log.info("Restored %s project budget ceiling(s) on entering enforce mode", restored)
+        #
+        return restored
+
+    @web.method()
+    def release_budget_ceilings(self):
+        """Lift every Elitea budget ceiling currently set in LiteLLM.
+
+        Called when enforcement is turned off so a previously-pushed limit stops
+        blocking calls. Tags and their accrued spend are left intact.
+        """
+        try:
+            tags = self.service_node.call.litellm_api_call("tag_list") or []
+        except:  # pylint: disable=W0702
+            log.exception("Failed to list tags while releasing budget ceilings")
+            return 0
+        #
+        released = 0
+        #
+        for tag in tags:
+            tag_name = (tag or {}).get("name") or ""
+            #
+            if not tag_name.startswith(BUDGET_TAG_PREFIX):
+                continue
+            #
+            budget = (tag or {}).get("litellm_budget_table") or {}
+            max_budget = budget.get("max_budget")
+            #
+            if max_budget is None or max_budget >= UNLIMITED_BUDGET:
+                continue
+            #
+            try:
+                self.service_node.call.litellm_api_call(
+                    "tag_update_if_exists",
+                    tag_name,
+                    max_budget=UNLIMITED_BUDGET,
+                )
+                released += 1
+            except:  # pylint: disable=W0702
+                log.exception("Failed to release budget ceiling for %s", tag_name)
+        #
+        if released:
+            log.info("Released %s budget ceiling(s) after leaving enforce mode", released)
+        #
+        return released
 
     @web.method()
     def invalidate_budget_tag(self, tag_name):

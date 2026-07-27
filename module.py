@@ -35,12 +35,21 @@ class Module(module.ModuleModel):  # pylint: disable=R0903
     def reconfig(self):
         """Re-config"""
         # Budget limits are cached per tag on the request path, so drop them when an
-        # admin changes the flag or the defaults — otherwise the change would only
+        # admin changes the mode or the defaults — otherwise the change would only
         # apply after the cache TTL expires.
         self.invalidate_budget_tag_cache()
         #
+        # Leaving enforce mode must lift ceilings already pushed to LiteLLM, or calls
+        # would keep being blocked by a limit no longer in effect. Entering it must
+        # re-push them, so enforcement starts immediately instead of waiting for each
+        # project's next shared call.
+        if self.budgets_enforcing():
+            self.restore_budget_ceilings()
+        else:
+            self.release_budget_ceilings()
+        #
         log.info(
-            "Cost budgets reconfigured: enabled=%s defaults=%s",
-            self.budgets_enabled(),
+            "Cost budgets reconfigured: mode=%s defaults=%s",
+            self.budgets_mode(),
             self.descriptor.config.get("cost_budgets", {}).get("defaults", {}),
         )
