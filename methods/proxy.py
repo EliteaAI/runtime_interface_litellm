@@ -159,7 +159,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         routing through dev.elitea.ai/llm/v1).
 
         Returns:
-            Mapped model name (with project prefix if model exists in LiteLLM)
+            (mapped_model_name, is_shared) — is_shared is True only when the model
+            resolved via the public project, i.e. the caller consumes a shared model.
         """
         model_name = f"{project_id}_{raw_model_name}"
         model_info = self.service_node.call.litellm_api_call(
@@ -167,17 +168,20 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             model_name,
         )
         #
-        if not model_info and public_project_id != project_id:
+        if model_info:
+            return model_name, False
+        #
+        if public_project_id != project_id:
             model_name = f"{public_project_id}_{raw_model_name}"
             model_info = self.service_node.call.litellm_api_call(
                 "model_group_info",
                 model_name,
             )
+            #
+            if model_info:
+                return model_name, True
         #
-        if not model_info:
-            model_name = raw_model_name
-        #
-        return model_name
+        return raw_model_name, False
 
     @web.method()
     def prepare_request(self, proxy_target, proxy_auth):  # pylint: disable=R0911,R0912,R0914
@@ -315,17 +319,28 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
-                model_name = self._map_model_name(raw_model_name, project_id, public_project_id)
+                model_name, is_shared = self._map_model_name(
+                    raw_model_name, project_id, public_project_id,
+                )
                 #
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (JSON): %s -> %s", raw_model_name, model_name)
                     proxy_target["json"]["model"] = model_name
+                #
+                if is_shared:
+                    self.apply_budget_tag(
+                        proxy_target, project_id,
+                        form_data=False, endpoint=proxy_target_endpoint,
+                        user_id=user_id,
+                    )
             #
             # Also handle model mapping for form data (multipart requests like image edits)
             #
             if proxy_target.get("data") and "model" in (proxy_target["data"] if isinstance(proxy_target["data"], dict) else {}):
                 raw_model_name = proxy_target["data"]["model"]
-                model_name = self._map_model_name(raw_model_name, project_id, public_project_id)
+                model_name, is_shared = self._map_model_name(
+                    raw_model_name, project_id, public_project_id,
+                )
                 #
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (form data): %s -> %s", raw_model_name, model_name)
@@ -333,6 +348,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     if hasattr(proxy_target["data"], "to_dict"):
                         proxy_target["data"] = dict(proxy_target["data"])
                     proxy_target["data"]["model"] = model_name
+                #
+                if is_shared:
+                    self.apply_budget_tag(
+                        proxy_target, project_id,
+                        form_data=True, endpoint=proxy_target_endpoint,
+                        user_id=user_id,
+                    )
         #
         return None
 
