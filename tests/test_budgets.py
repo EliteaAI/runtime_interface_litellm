@@ -242,6 +242,60 @@ class TestUnlimitedSentinel(unittest.TestCase):
         self.assertEqual(budgets.UNLIMITED_BUDGET if limit is None else limit, 0.0)
 
 
+def aggregate_entities(activity, tag_names):
+    """Mirror of read_tags_spend's aggregation over breakdown.entities."""
+    result = {tag: 0.0 for tag in tag_names}
+    #
+    for day in (activity or {}).get("results") or []:
+        entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
+        for tag, entry in entities.items():
+            if tag not in result:
+                continue
+            metrics = (entry or {}).get("metrics") or entry or {}
+            result[tag] += float(metrics.get("spend", 0) or 0)
+    #
+    return result
+
+
+class TestMultiTagSpendAggregation(unittest.TestCase):
+    """One multi-tag call must yield per-tag spend, not just a combined total.
+
+    Verified live that top-level metadata.total_spend sums ALL requested tags, so
+    per-tag figures must come from each day's breakdown.entities instead.
+    """
+
+    def test_sums_each_tag_across_days(self):
+        activity = {"results": [
+            {"breakdown": {"entities": {"a": {"metrics": {"spend": 1.5}},
+                                        "b": {"metrics": {"spend": 0.25}}}}},
+            {"breakdown": {"entities": {"a": {"metrics": {"spend": 2.0}}}}},
+        ]}
+        out = aggregate_entities(activity, ["a", "b"])
+        self.assertAlmostEqual(out["a"], 3.5)
+        self.assertAlmostEqual(out["b"], 0.25)
+
+    def test_requested_tag_with_no_activity_is_zero_not_missing(self):
+        out = aggregate_entities({"results": []}, ["a", "b"])
+        self.assertEqual(out, {"a": 0.0, "b": 0.0})
+
+    def test_unrequested_tags_are_ignored(self):
+        # Other tags (User-Agent, Credential) ride along on real calls
+        activity = {"results": [
+            {"breakdown": {"entities": {"a": {"metrics": {"spend": 1.0}},
+                                        "User-Agent: curl": {"metrics": {"spend": 99.0}}}}},
+        ]}
+        out = aggregate_entities(activity, ["a"])
+        self.assertEqual(out, {"a": 1.0})
+
+    def test_handles_missing_metrics_wrapper(self):
+        activity = {"results": [{"breakdown": {"entities": {"a": {"spend": 4.0}}}}]}
+        self.assertAlmostEqual(aggregate_entities(activity, ["a"])["a"], 4.0)
+
+    def test_tolerates_empty_and_malformed_payloads(self):
+        for payload in (None, {}, {"results": None}, {"results": [None]}, {"results": [{}]}):
+            self.assertEqual(aggregate_entities(payload, ["a"]), {"a": 0.0})
+
+
 class TestMetadataKeySelection(unittest.TestCase):
     """Anthropic /v1/messages ignores `metadata`; its tags must go in `litellm_metadata`.
 
