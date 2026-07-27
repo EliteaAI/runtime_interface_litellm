@@ -177,7 +177,7 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
                 "date": (day or {}).get("date"),
                 "spend": float(day_metrics.get("spend", 0) or 0),
                 "total_tokens": int(day_metrics.get("total_tokens", 0) or 0),
-                "api_requests": int(day_metrics.get("api_requests", 0) or 0),
+                "api_requests": int(day_metrics.get("successful_requests", 0) or 0),
             })
             #
             breakdown = ((day or {}).get("breakdown") or {}).get("models") or {}
@@ -191,7 +191,10 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
                 #
                 bucket["spend"] += float(metrics.get("spend", 0) or 0)
                 bucket["total_tokens"] += int(metrics.get("total_tokens", 0) or 0)
-                bucket["api_requests"] += int(metrics.get("api_requests", 0) or 0)
+                # Rejected calls served nothing and cost nothing, so they are not usage.
+                # They also log under the pre-routing model name, which would otherwise
+                # split one model across two rows (e.g. "1_gpt-5" beside "gpt-5").
+                bucket["api_requests"] += int(metrics.get("successful_requests", 0) or 0)
         #
         daily.sort(key=lambda item: item["date"] or "")
         #
