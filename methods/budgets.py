@@ -18,6 +18,7 @@
 """ Method """
 
 import json
+import re
 import time
 import datetime
 
@@ -40,10 +41,21 @@ MODE_ENFORCE = "enforce"
 
 BUDGET_MODES = (MODE_OFF, MODE_OBSERVE, MODE_ENFORCE)
 
+# Deliberately period-neutral: the message must read correctly whatever the budget
+# period is, so it says "resets" rather than naming a month.
 BUDGET_ERROR_MESSAGE = (
-    "The monthly budget for shared models has been reached. "
-    "Please contact your platform administrator to raise the limit."
+    "The budget for shared models has been reached. Requests are unavailable "
+    "until the budget resets or an administrator raises the limit."
 )
+
+# Which budget tripped. The UI maps these to its own wording and usage links.
+SCOPE_PROJECT = "project"
+SCOPE_MEMBER = "member"
+
+BUDGET_ERROR_CODES = {
+    SCOPE_PROJECT: "project_budget_exceeded",
+    SCOPE_MEMBER: "member_budget_exceeded",
+}
 
 # Cap on buffering an error body before rewriting it; error payloads are tiny
 MAX_ERROR_BODY_BYTES = 64 * 1024
@@ -92,6 +104,24 @@ def is_budget_exceeded_body(body):
     return "budget" in lowered and (
         "budget_exceeded" in lowered or "budget has been exceeded" in lowered
     )
+
+
+def budget_error_scope(body):
+    """Which budget tripped, read from the tag name LiteLLM names in its error.
+
+    LiteLLM reports the first tag that is over budget, so exactly one scope applies
+    even when a request carries both a project and a per-user tag. Falls back to
+    project scope when the tag is missing or unrecognised: a slightly generic
+    message is better than telling the user the wrong budget blocked them.
+    """
+    try:
+        text = body.decode("utf-8", errors="ignore")
+    except AttributeError:
+        text = str(body)
+    #
+    match = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_user_(\d+)_", text)
+    #
+    return SCOPE_MEMBER if match else SCOPE_PROJECT
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -349,7 +379,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 "error": {
                     "message": BUDGET_ERROR_MESSAGE,
                     "type": "budget_exceeded",
-                    "code": "project_budget_exceeded",
+                    "code": BUDGET_ERROR_CODES[budget_error_scope(body)],
                 },
             }).encode("utf-8")
             #

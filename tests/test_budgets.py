@@ -95,6 +95,59 @@ class TestBudgetErrorDetection(unittest.TestCase):
         self.assertFalse(budgets.is_budget_exceeded_body(b"\xff\xfe\x00binary"))
 
 
+class TestBudgetErrorScope(unittest.TestCase):
+    """The UI shows a different message and usage link per scope, so a wrong scope
+    would send the user to a page that does not explain why they were blocked."""
+
+    def _body(self, tag):
+        return json.dumps({
+            "error": {
+                "message": f"Budget has been exceeded! Tag={tag} Current cost: 1.5, Max budget: 1.0",
+                "type": "budget_exceeded",
+            }
+        }).encode("utf-8")
+
+    def test_project_tag_is_project_scope(self):
+        scope = budgets.budget_error_scope(self._body("elitea_proj_25_202607"))
+        self.assertEqual(scope, budgets.SCOPE_PROJECT)
+
+    def test_user_tag_is_member_scope(self):
+        scope = budgets.budget_error_scope(self._body("elitea_proj_25_user_3_202607"))
+        self.assertEqual(scope, budgets.SCOPE_MEMBER)
+
+    def test_multi_digit_project_and_user_ids(self):
+        scope = budgets.budget_error_scope(self._body("elitea_proj_12905_user_31652_202607"))
+        self.assertEqual(scope, budgets.SCOPE_MEMBER)
+
+    def test_missing_tag_falls_back_to_project(self):
+        # Better a slightly generic message than blaming the wrong budget
+        body = b'{"error": {"message": "Budget has been exceeded!", "type": "budget_exceeded"}}'
+        self.assertEqual(budgets.budget_error_scope(body), budgets.SCOPE_PROJECT)
+
+    def test_unrecognised_tag_shape_falls_back_to_project(self):
+        scope = budgets.budget_error_scope(self._body("some_other_system_tag"))
+        self.assertEqual(scope, budgets.SCOPE_PROJECT)
+
+    def test_project_named_user_is_not_mistaken_for_member_scope(self):
+        # A project tag is "<prefix><pid>_<period>"; the word "user" can only mean
+        # member scope when it sits between two numeric ids
+        scope = budgets.budget_error_scope(self._body("elitea_proj_25_user_budget_202607"))
+        self.assertEqual(scope, budgets.SCOPE_PROJECT)
+
+    def test_handles_non_utf8_bytes(self):
+        self.assertEqual(budgets.budget_error_scope(b"\xff\xfe\x00binary"), budgets.SCOPE_PROJECT)
+
+    def test_every_scope_maps_to_an_error_code(self):
+        for scope in (budgets.SCOPE_PROJECT, budgets.SCOPE_MEMBER):
+            self.assertIn(scope, budgets.BUDGET_ERROR_CODES)
+
+    def test_error_message_is_period_neutral(self):
+        # Budgets are monthly today, but the copy must not need a rewrite if that changes
+        lowered = budgets.BUDGET_ERROR_MESSAGE.lower()
+        for period in ("monthly", "daily", "weekly", "this month"):
+            self.assertNotIn(period, lowered)
+
+
 class TestUserBudgetTagName(unittest.TestCase):
     def test_user_tag_includes_project_user_and_month(self):
         now = datetime.datetime(2026, 7, 27, tzinfo=datetime.timezone.utc)
