@@ -25,8 +25,14 @@ from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 from ..methods.budgets import make_budget_tag, make_user_budget_tag
 
 
-# Daily activity is paginated by day; a month never exceeds this
-MAX_ACTIVITY_PAGE_SIZE = 100
+# Activity is paginated by spend record — one per tag, day, model and key — so a page
+# holds far fewer tags than it looks. Kept large to keep the page count low when the
+# admin pages read every project at once.
+MAX_ACTIVITY_PAGE_SIZE = 1000
+
+# Backstop so a paging bug cannot loop indefinitely. At the page size above this covers
+# far more records than the 1000-project export cap can produce.
+MAX_ACTIVITY_PAGES = 50
 
 
 class RPC:  # pylint: disable=E1101,R0903,W0201
@@ -223,10 +229,14 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
 
     @web.method()
     def read_tags_spend(self, tag_names, now):
-        """Map tag -> current-month spend using a single multi-tag activity call.
+        """Map tag -> current-month spend, reading every page of the activity report.
 
         Per-tag figures come from each day's ``breakdown.entities``; the top-level
         metadata only carries a combined total across all requested tags.
+
+        Pagination is by raw spend record — one per tag, day, model and key — not by
+        day, so a handful of tags over a full month already exceeds one page. Reading
+        only the first page silently under-reports whichever tags fall past it.
         """
         result = {tag: 0.0 for tag in tag_names}
         #
@@ -235,27 +245,40 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         #
         period_start = now.replace(day=1)
         #
-        try:
-            activity = self.service_node.call.litellm_api_call(
-                "tag_daily_activity",
-                tags=tag_names,
-                start_date=f"{period_start:%Y-%m-%d}",
-                end_date=f"{now:%Y-%m-%d}",
-                page_size=MAX_ACTIVITY_PAGE_SIZE,
-            )
-        except:  # pylint: disable=W0702
-            log.exception("Failed to read spend for %s tags", len(tag_names))
-            return result
-        #
-        for day in (activity or {}).get("results") or []:
-            entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
+        for page in range(1, MAX_ACTIVITY_PAGES + 1):
+            try:
+                activity = self.service_node.call.litellm_api_call(
+                    "tag_daily_activity",
+                    tags=tag_names,
+                    start_date=f"{period_start:%Y-%m-%d}",
+                    end_date=f"{now:%Y-%m-%d}",
+                    page=page,
+                    page_size=MAX_ACTIVITY_PAGE_SIZE,
+                )
+            except:  # pylint: disable=W0702
+                log.exception(
+                    "Failed to read spend for %s tags at page %s", len(tag_names), page,
+                )
+                # Partial totals would read as a spend drop, so give up on the whole read
+                return {tag: 0.0 for tag in tag_names} if page == 1 else result
             #
-            for tag, entry in entities.items():
-                if tag not in result:
-                    continue
+            for day in (activity or {}).get("results") or []:
+                entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
                 #
-                metrics = (entry or {}).get("metrics") or entry or {}
-                result[tag] += float(metrics.get("spend", 0) or 0)
+                for tag, entry in entities.items():
+                    if tag not in result:
+                        continue
+                    #
+                    metrics = (entry or {}).get("metrics") or entry or {}
+                    result[tag] += float(metrics.get("spend", 0) or 0)
+            #
+            if not ((activity or {}).get("metadata") or {}).get("has_more"):
+                return result
+        #
+        log.warning(
+            "Spend for %s tags hit the %s page ceiling; totals may be short",
+            len(tag_names), MAX_ACTIVITY_PAGES,
+        )
         #
         return result
 
