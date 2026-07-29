@@ -32,3 +32,11 @@ cost_budgets:
     # One member's spend inside a project, so a single member cannot consume the
     # whole project budget. Applied in addition to the project limit.
     user_monthly_limit: null
+  #
+  # Percentage of a limit at which the Usage page warns. Per scope, since a shared
+  # team budget and one member's slice of it warrant different lead times.
+  # Only affects warnings: nothing is ever blocked before 100%.
+  warning_thresholds:
+    project_pct: 80
+    personal_project_pct: 80
+    user_pct: 80

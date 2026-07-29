@@ -60,6 +60,15 @@ BUDGET_ERROR_CODES = {
 # Cap on buffering an error body before rewriting it; error payloads are tiny
 MAX_ERROR_BODY_BYTES = 64 * 1024
 
+# Percent-of-limit at which the Usage page warns, when nothing is configured
+DEFAULT_WARNING_PCT = 80
+
+WARNING_PCT_KEYS = {
+    "project": "project_pct",
+    "personal_project": "personal_project_pct",
+    "user": "user_pct",
+}
+
 # How long a limit is trusted before re-reading it on the request path
 BUDGET_SYNC_TTL = 60.0
 
@@ -326,6 +335,24 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return defaults.get("personal_project_monthly_limit", None)
         #
         return defaults.get("project_monthly_limit", None)
+
+    @web.method()
+    def get_warning_threshold(self, scope):
+        """Percent-of-limit at which the Usage page warns for a budget scope.
+
+        Falls back to the default for an unknown scope or an out-of-range value, so a
+        bad config degrades to the previous behaviour rather than silencing warnings.
+        """
+        thresholds = self.descriptor.config.get("cost_budgets", {}).get(
+            "warning_thresholds", {},
+        )
+        #
+        try:
+            value = int(thresholds.get(WARNING_PCT_KEYS.get(scope, ""), DEFAULT_WARNING_PCT))
+        except (TypeError, ValueError):
+            return DEFAULT_WARNING_PCT
+        #
+        return value if 1 <= value <= 100 else DEFAULT_WARNING_PCT
 
     @web.method()
     def is_personal_project(self, project_id):
