@@ -51,7 +51,42 @@ def _load_budgets_module():
         sys.path.pop(0)
 
 
+def _load_rpc_module():
+    """Load rpc/budgets.py, whose spend readers are what the admin pages call.
+
+    Imported as part of a throwaway package so its ``from ..methods.budgets`` import
+    resolves to the already-stubbed module rather than the real plugin tree.
+    """
+    plugin_root = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    #
+    web_stub = sys.modules["pylon.core.tools.web"]
+    web_stub.rpc = lambda *a, **kw: (lambda func: func)
+    #
+    import importlib.util  # pylint: disable=C0415
+    #
+    pkg = types.ModuleType("_rilroot")
+    pkg.__path__ = []
+    methods_pkg = types.ModuleType("_rilroot.methods")
+    methods_pkg.__path__ = []
+    methods_pkg.budgets = budgets
+    #
+    sys.modules["_rilroot"] = pkg
+    sys.modules["_rilroot.methods"] = methods_pkg
+    sys.modules["_rilroot.methods.budgets"] = budgets
+    sys.modules["_rilroot.rpc"] = types.ModuleType("_rilroot.rpc")
+    #
+    spec = importlib.util.spec_from_file_location(
+        "_rilroot.rpc.budgets", os.path.join(plugin_root, "rpc", "budgets.py"),
+    )
+    module = importlib.util.module_from_spec(spec)
+    module.__package__ = "_rilroot.rpc"
+    spec.loader.exec_module(module)
+    #
+    return module
+
+
 budgets = _load_budgets_module()
+rpc_budgets = _load_rpc_module()
 
 
 class TestBudgetTagName(unittest.TestCase):
@@ -415,6 +450,188 @@ class TestMultiTagSpendAggregation(unittest.TestCase):
     def test_tolerates_empty_and_malformed_payloads(self):
         for payload in (None, {}, {"results": None}, {"results": [None]}, {"results": [{}]}):
             self.assertEqual(aggregate_entities(payload, ["a"]), {"a": 0.0})
+
+
+class FakeActivityService:
+    """Serves canned activity pages, recording the page numbers requested.
+
+    Binds the real read_tags_spend rather than mirroring it, so a change to the
+    paging logic cannot silently pass.
+    """
+
+    def __init__(self, pages, fail_on_page=None, fail_for_tag=None):
+        self.pages = pages
+        self.fail_on_page = fail_on_page
+        self.fail_for_tag = fail_for_tag
+        self.requested_pages = []
+        self.requested_tag_counts = []
+        self.service_node = types.SimpleNamespace(call=self)
+
+    def litellm_api_call(self, _endpoint, **kwargs):
+        page = kwargs.get("page", 1)
+        tags = kwargs.get("tags") or []
+        self.requested_pages.append(page)
+        self.requested_tag_counts.append(len(tags))
+        #
+        if page == self.fail_on_page:
+            raise RuntimeError("litellm unavailable")
+        #
+        if self.fail_for_tag is not None and self.fail_for_tag in tags:
+            raise RuntimeError("litellm unavailable")
+        #
+        # Serve only the entities belonging to the requested chunk
+        page_data = self.pages[page - 1] if page <= len(self.pages) else {"results": []}
+        #
+        return _restrict_to(page_data, set(tags))
+
+    read_tags_spend = rpc_budgets.RPC.read_tags_spend
+    read_tags_spend_chunk = rpc_budgets.RPC.read_tags_spend_chunk
+
+
+def _restrict_to(page_data, tags):
+    """Drop entities the caller did not ask for, as the real endpoint would."""
+    results = []
+    #
+    for day in (page_data or {}).get("results") or []:
+        entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
+        kept = {tag: entry for tag, entry in entities.items() if tag in tags}
+        results.append({"breakdown": {"entities": kept}})
+    #
+    return {"results": results, "metadata": (page_data or {}).get("metadata") or {}}
+
+
+def _page(entities, has_more=False):
+    """One activity page holding a single day's per-tag breakdown."""
+    return {
+        "results": [{"breakdown": {"entities": entities}}],
+        "metadata": {"has_more": has_more},
+    }
+
+
+class TestSpendPagination(unittest.TestCase):
+    """Activity is paginated by spend record, so multi-tag reads span pages.
+
+    Reading only the first page under-reports whichever tags fall past it, which is
+    silent because the shortfall looks like genuinely lower spend.
+    """
+
+    NOW = datetime.datetime(2026, 7, 29, tzinfo=datetime.timezone.utc)
+
+    def test_sums_a_tag_across_pages(self):
+        svc = FakeActivityService([
+            _page({"a": {"metrics": {"spend": 1.5}}}, has_more=True),
+            _page({"a": {"metrics": {"spend": 2.25}}}),
+        ])
+        out = svc.read_tags_spend(["a"], self.NOW)
+        #
+        self.assertAlmostEqual(out["a"], 3.75)
+        self.assertEqual(svc.requested_pages, [1, 2])
+
+    def test_stops_when_has_more_is_false(self):
+        svc = FakeActivityService([_page({"a": {"metrics": {"spend": 1.0}}})])
+        svc.read_tags_spend(["a"], self.NOW)
+        self.assertEqual(svc.requested_pages, [1])
+
+    def test_tag_appearing_only_on_a_later_page_is_still_counted(self):
+        # The exact regression: a quiet tag ordered past the first page read as zero
+        svc = FakeActivityService([
+            _page({"a": {"metrics": {"spend": 5.0}}}, has_more=True),
+            _page({"b": {"metrics": {"spend": 7.0}}}),
+        ])
+        out = svc.read_tags_spend(["a", "b"], self.NOW)
+        self.assertAlmostEqual(out["b"], 7.0)
+
+    def test_missing_metadata_is_treated_as_the_last_page(self):
+        svc = FakeActivityService([{"results": []}])
+        svc.read_tags_spend(["a"], self.NOW)
+        self.assertEqual(svc.requested_pages, [1])
+
+    def test_page_ceiling_bounds_a_server_that_always_says_has_more(self):
+        endless = [_page({"a": {"metrics": {"spend": 1.0}}}, has_more=True)] * 200
+        svc = FakeActivityService(endless)
+        out = svc.read_tags_spend(["a"], self.NOW)
+        #
+        self.assertEqual(len(svc.requested_pages), rpc_budgets.MAX_ACTIVITY_PAGES)
+        self.assertAlmostEqual(out["a"], float(rpc_budgets.MAX_ACTIVITY_PAGES))
+
+    def test_first_page_failure_yields_zeros_not_a_partial_total(self):
+        svc = FakeActivityService([], fail_on_page=1)
+        self.assertEqual(svc.read_tags_spend(["a", "b"], self.NOW), {"a": 0.0, "b": 0.0})
+
+    def test_later_page_failure_zeroes_the_chunk_rather_than_understating_it(self):
+        # A half-read total would silently claim less spend than really happened, which
+        # for a budget check is worse than reporting nothing for those tags
+        svc = FakeActivityService([
+            _page({"a": {"metrics": {"spend": 3.0}}}, has_more=True),
+        ], fail_on_page=2)
+        self.assertEqual(svc.read_tags_spend(["a"], self.NOW)["a"], 0.0)
+
+    def test_no_tags_makes_no_call(self):
+        svc = FakeActivityService([_page({})])
+        self.assertEqual(svc.read_tags_spend([], self.NOW), {})
+        self.assertEqual(svc.requested_pages, [])
+
+    def test_large_tag_list_is_split_into_chunks(self):
+        # Tags ride in the query string, so one request per project would build a URL
+        # a real deployment (16k+ projects) cannot send
+        cap = rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL
+        tags = [f"elitea_proj_{i}_202607" for i in range(cap * 2 + 5)]
+        svc = FakeActivityService([_page({})])
+        #
+        svc.read_tags_spend(tags, self.NOW)
+        #
+        self.assertEqual(len(svc.requested_tag_counts), 3)
+        self.assertEqual(svc.requested_tag_counts, [cap, cap, 5])
+
+    def test_no_chunk_exceeds_the_tag_cap(self):
+        tags = [f"elitea_proj_{i}_202607" for i in range(1000)]
+        svc = FakeActivityService([_page({})])
+        #
+        svc.read_tags_spend(tags, self.NOW)
+        #
+        for count in svc.requested_tag_counts:
+            self.assertLessEqual(count, rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL)
+
+    def test_every_tag_is_summed_across_chunks(self):
+        cap = rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL
+        tags = [f"t{i}" for i in range(cap + 3)]
+        # One page holding every tag; the fake serves each chunk only its own entities
+        svc = FakeActivityService([
+            _page({tag: {"metrics": {"spend": 1.0}} for tag in tags}),
+        ])
+        #
+        out = svc.read_tags_spend(tags, self.NOW)
+        #
+        self.assertEqual(len(out), len(tags))
+        self.assertTrue(all(value == 1.0 for value in out.values()))
+
+    def test_a_failed_chunk_does_not_lose_the_others(self):
+        cap = rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL
+        tags = [f"t{i}" for i in range(cap + 2)]
+        # The failing tag is in the second chunk
+        svc = FakeActivityService(
+            [_page({tag: {"metrics": {"spend": 2.0}} for tag in tags})],
+            fail_for_tag=f"t{cap}",
+        )
+        #
+        out = svc.read_tags_spend(tags, self.NOW)
+        #
+        self.assertAlmostEqual(out["t0"], 2.0)
+        # A partly-read chunk understates spend, so its tags report zero instead
+        self.assertEqual(out[f"t{cap}"], 0.0)
+
+    def test_single_chunk_makes_one_request(self):
+        svc = FakeActivityService([_page({"a": {"metrics": {"spend": 1.0}}})])
+        svc.read_tags_spend(["a"], self.NOW)
+        self.assertEqual(svc.requested_tag_counts, [1])
+
+    def test_unrequested_tags_are_still_ignored_across_pages(self):
+        svc = FakeActivityService([
+            _page({"a": {"metrics": {"spend": 1.0}},
+                   "User-Agent: curl": {"metrics": {"spend": 99.0}}}, has_more=True),
+            _page({"Credential: x": {"metrics": {"spend": 50.0}}}),
+        ])
+        self.assertEqual(svc.read_tags_spend(["a"], self.NOW), {"a": 1.0})
 
 
 class FakeModes:
