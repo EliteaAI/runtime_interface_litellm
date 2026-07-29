@@ -459,22 +459,45 @@ class FakeActivityService:
     paging logic cannot silently pass.
     """
 
-    def __init__(self, pages, fail_on_page=None):
+    def __init__(self, pages, fail_on_page=None, fail_for_tag=None):
         self.pages = pages
         self.fail_on_page = fail_on_page
+        self.fail_for_tag = fail_for_tag
         self.requested_pages = []
+        self.requested_tag_counts = []
         self.service_node = types.SimpleNamespace(call=self)
 
     def litellm_api_call(self, _endpoint, **kwargs):
         page = kwargs.get("page", 1)
+        tags = kwargs.get("tags") or []
         self.requested_pages.append(page)
+        self.requested_tag_counts.append(len(tags))
         #
         if page == self.fail_on_page:
             raise RuntimeError("litellm unavailable")
         #
-        return self.pages[page - 1] if page <= len(self.pages) else {"results": []}
+        if self.fail_for_tag is not None and self.fail_for_tag in tags:
+            raise RuntimeError("litellm unavailable")
+        #
+        # Serve only the entities belonging to the requested chunk
+        page_data = self.pages[page - 1] if page <= len(self.pages) else {"results": []}
+        #
+        return _restrict_to(page_data, set(tags))
 
     read_tags_spend = rpc_budgets.RPC.read_tags_spend
+    read_tags_spend_chunk = rpc_budgets.RPC.read_tags_spend_chunk
+
+
+def _restrict_to(page_data, tags):
+    """Drop entities the caller did not ask for, as the real endpoint would."""
+    results = []
+    #
+    for day in (page_data or {}).get("results") or []:
+        entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
+        kept = {tag: entry for tag, entry in entities.items() if tag in tags}
+        results.append({"breakdown": {"entities": kept}})
+    #
+    return {"results": results, "metadata": (page_data or {}).get("metadata") or {}}
 
 
 def _page(entities, has_more=False):
@@ -535,17 +558,72 @@ class TestSpendPagination(unittest.TestCase):
         svc = FakeActivityService([], fail_on_page=1)
         self.assertEqual(svc.read_tags_spend(["a", "b"], self.NOW), {"a": 0.0, "b": 0.0})
 
-    def test_later_page_failure_keeps_what_was_already_read(self):
-        # Discarding everything would show a spend drop; a short total is the lesser evil
+    def test_later_page_failure_zeroes_the_chunk_rather_than_understating_it(self):
+        # A half-read total would silently claim less spend than really happened, which
+        # for a budget check is worse than reporting nothing for those tags
         svc = FakeActivityService([
             _page({"a": {"metrics": {"spend": 3.0}}}, has_more=True),
         ], fail_on_page=2)
-        self.assertAlmostEqual(svc.read_tags_spend(["a"], self.NOW)["a"], 3.0)
+        self.assertEqual(svc.read_tags_spend(["a"], self.NOW)["a"], 0.0)
 
     def test_no_tags_makes_no_call(self):
         svc = FakeActivityService([_page({})])
         self.assertEqual(svc.read_tags_spend([], self.NOW), {})
         self.assertEqual(svc.requested_pages, [])
+
+    def test_large_tag_list_is_split_into_chunks(self):
+        # Tags ride in the query string, so one request per project would build a URL
+        # a real deployment (16k+ projects) cannot send
+        cap = rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL
+        tags = [f"elitea_proj_{i}_202607" for i in range(cap * 2 + 5)]
+        svc = FakeActivityService([_page({})])
+        #
+        svc.read_tags_spend(tags, self.NOW)
+        #
+        self.assertEqual(len(svc.requested_tag_counts), 3)
+        self.assertEqual(svc.requested_tag_counts, [cap, cap, 5])
+
+    def test_no_chunk_exceeds_the_tag_cap(self):
+        tags = [f"elitea_proj_{i}_202607" for i in range(1000)]
+        svc = FakeActivityService([_page({})])
+        #
+        svc.read_tags_spend(tags, self.NOW)
+        #
+        for count in svc.requested_tag_counts:
+            self.assertLessEqual(count, rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL)
+
+    def test_every_tag_is_summed_across_chunks(self):
+        cap = rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL
+        tags = [f"t{i}" for i in range(cap + 3)]
+        # One page holding every tag; the fake serves each chunk only its own entities
+        svc = FakeActivityService([
+            _page({tag: {"metrics": {"spend": 1.0}} for tag in tags}),
+        ])
+        #
+        out = svc.read_tags_spend(tags, self.NOW)
+        #
+        self.assertEqual(len(out), len(tags))
+        self.assertTrue(all(value == 1.0 for value in out.values()))
+
+    def test_a_failed_chunk_does_not_lose_the_others(self):
+        cap = rpc_budgets.MAX_TAGS_PER_ACTIVITY_CALL
+        tags = [f"t{i}" for i in range(cap + 2)]
+        # The failing tag is in the second chunk
+        svc = FakeActivityService(
+            [_page({tag: {"metrics": {"spend": 2.0}} for tag in tags})],
+            fail_for_tag=f"t{cap}",
+        )
+        #
+        out = svc.read_tags_spend(tags, self.NOW)
+        #
+        self.assertAlmostEqual(out["t0"], 2.0)
+        # A partly-read chunk understates spend, so its tags report zero instead
+        self.assertEqual(out[f"t{cap}"], 0.0)
+
+    def test_single_chunk_makes_one_request(self):
+        svc = FakeActivityService([_page({"a": {"metrics": {"spend": 1.0}}})])
+        svc.read_tags_spend(["a"], self.NOW)
+        self.assertEqual(svc.requested_tag_counts, [1])
 
     def test_unrequested_tags_are_still_ignored_across_pages(self):
         svc = FakeActivityService([

@@ -27,11 +27,17 @@ from ..methods.budgets import make_budget_tag, make_user_budget_tag
 
 # Activity is paginated by spend record — one per tag, day, model and key — so a page
 # holds far fewer tags than it looks. Kept large to keep the page count low when the
-# admin pages read every project at once.
+# admin pages read many projects at once.
 MAX_ACTIVITY_PAGE_SIZE = 1000
 
-# Backstop so a paging bug cannot loop indefinitely. At the page size above this covers
-# far more records than the 1000-project export cap can produce.
+# Tags are sent as one comma-joined query parameter, so the whole list cannot go in a
+# single request: a large environment would build a URL megabytes long and be rejected
+# before reaching LiteLLM. At ~25 bytes per tag this keeps the URL near 5KB, inside the
+# 8KB most proxies allow.
+MAX_TAGS_PER_ACTIVITY_CALL = 200
+
+# Pages per chunk. A chunk of the size above yields a few thousand records in a busy
+# month, so this leaves ample headroom while still bounding a runaway paging loop.
 MAX_ACTIVITY_PAGES = 50
 
 
@@ -229,21 +235,35 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
 
     @web.method()
     def read_tags_spend(self, tag_names, now):
-        """Map tag -> current-month spend, reading every page of the activity report.
+        """Map tag -> current-month spend for any number of tags.
 
-        Per-tag figures come from each day's ``breakdown.entities``; the top-level
-        metadata only carries a combined total across all requested tags.
-
-        Pagination is by raw spend record — one per tag, day, model and key — not by
-        day, so a handful of tags over a full month already exceeds one page. Reading
-        only the first page silently under-reports whichever tags fall past it.
+        Tags travel in the query string, so the list is split into chunks small enough
+        to keep the URL well inside what a proxy will accept. Each chunk is then read
+        page by page, because the report paginates by raw spend record — one per tag,
+        day, model and key — not by day, so even a few hundred tags span pages.
         """
         result = {tag: 0.0 for tag in tag_names}
         #
         if not tag_names:
             return result
         #
+        tags = list(tag_names)
+        #
+        for start in range(0, len(tags), MAX_TAGS_PER_ACTIVITY_CALL):
+            chunk = tags[start:start + MAX_TAGS_PER_ACTIVITY_CALL]
+            #
+            if not self.read_tags_spend_chunk(chunk, now, result):
+                # One failed chunk means the total is short for those tags only; the rest
+                # of the report is still worth returning
+                log.warning("Spend read failed for a chunk of %s tags", len(chunk))
+        #
+        return result
+
+    @web.method()
+    def read_tags_spend_chunk(self, tag_names, now, result):
+        """Accumulate one chunk's spend into result. False if the chunk failed."""
         period_start = now.replace(day=1)
+        wanted = set(tag_names)
         #
         for page in range(1, MAX_ACTIVITY_PAGES + 1):
             try:
@@ -259,28 +279,33 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
                 log.exception(
                     "Failed to read spend for %s tags at page %s", len(tag_names), page,
                 )
-                # Partial totals would read as a spend drop, so give up on the whole read
-                return {tag: 0.0 for tag in tag_names} if page == 1 else result
+                #
+                # Zero out this chunk: a partly-read chunk understates spend, which for a
+                # budget check is worse than reporting nothing for those tags.
+                for tag in wanted:
+                    result[tag] = 0.0
+                #
+                return False
             #
             for day in (activity or {}).get("results") or []:
                 entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
                 #
                 for tag, entry in entities.items():
-                    if tag not in result:
+                    if tag not in wanted:
                         continue
                     #
                     metrics = (entry or {}).get("metrics") or entry or {}
                     result[tag] += float(metrics.get("spend", 0) or 0)
             #
             if not ((activity or {}).get("metadata") or {}).get("has_more"):
-                return result
+                return True
         #
         log.warning(
             "Spend for %s tags hit the %s page ceiling; totals may be short",
             len(tag_names), MAX_ACTIVITY_PAGES,
         )
         #
-        return result
+        return True
 
     @web.method()
     def read_tag_spend(self, tag_name, now):
