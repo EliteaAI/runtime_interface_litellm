@@ -67,6 +67,48 @@
         "field": "cost_budgets_defaults_enabled",
         "value": true
       }
+    },
+    "cost_budgets_project_warning_pct": {
+      "type": "integer",
+      "title": "Team Project Budget Warning Threshold (%)",
+      "description": "Show a usage alert when a team project's spend reaches this percentage of its budget limit.",
+      "path": "cost_budgets.warning_thresholds.project_pct",
+      "section": "cost_budgets",
+      "default": 80,
+      "requires_restart": false,
+      "value_schema": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      }
+    },
+    "cost_budgets_personal_project_warning_pct": {
+      "type": "integer",
+      "title": "Personal Project Budget Warning Threshold (%)",
+      "description": "Show a usage alert when a user's own project spend reaches this percentage of its budget limit.",
+      "path": "cost_budgets.warning_thresholds.personal_project_pct",
+      "section": "cost_budgets",
+      "default": 80,
+      "requires_restart": false,
+      "value_schema": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      }
+    },
+    "cost_budgets_user_warning_pct": {
+      "type": "integer",
+      "title": "Default Per-Member Budget Warning Threshold (%)",
+      "description": "Show a usage alert when a member's spend inside a team project reaches this percentage of their own budget limit.",
+      "path": "cost_budgets.warning_thresholds.user_pct",
+      "section": "cost_budgets",
+      "default": 80,
+      "requires_restart": false,
+      "value_schema": {
+        "type": "integer",
+        "minimum": 1,
+        "maximum": 100
+      }
     }
   }
 }

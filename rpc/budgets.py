@@ -216,6 +216,11 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         """Current cost-budget mode, so the UI can hide the feature when it is off."""
         return self.budgets_mode()
 
+    @web.rpc("litellm_get_warning_threshold", "litellm_get_warning_threshold")
+    def litellm_get_warning_threshold(self, scope, **kwargs):
+        """Configured warning percentage for a budget scope, for the Usage page."""
+        return self.get_warning_threshold(scope)
+
     @web.method()
     def read_tags_spend(self, tag_names, now):
         """Map tag -> current-month spend using a single multi-tag activity call.

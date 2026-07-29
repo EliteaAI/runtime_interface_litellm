@@ -233,6 +233,74 @@ class TestDefaultLimits(unittest.TestCase):
         self.assertIsNone(mod.get_default_limit("project", 25))
 
 
+class FakeThresholds:
+    """Binds the real get_warning_threshold over a fake descriptor config.
+
+    Unlike the other fakes here this calls the production method rather than
+    mirroring it, so a change to the real logic cannot silently pass.
+    """
+
+    def __init__(self, config):
+        self.descriptor = types.SimpleNamespace(config=config)
+
+    get_warning_threshold = budgets.Method.get_warning_threshold
+
+
+class TestWarningThresholds(unittest.TestCase):
+    """Thresholds only change when warnings appear; nothing blocks before 100%."""
+
+    def setUp(self):
+        self.cfg = {
+            "cost_budgets": {
+                "warning_thresholds": {
+                    "project_pct": 70,
+                    "personal_project_pct": 50,
+                    "user_pct": 90,
+                },
+            },
+        }
+
+    def test_each_scope_reads_its_own_value(self):
+        mod = FakeThresholds(self.cfg)
+        self.assertEqual(mod.get_warning_threshold("project"), 70)
+        self.assertEqual(mod.get_warning_threshold("personal_project"), 50)
+        self.assertEqual(mod.get_warning_threshold("user"), 90)
+
+    def test_missing_config_uses_default(self):
+        mod = FakeThresholds({})
+        self.assertEqual(mod.get_warning_threshold("project"), 80)
+
+    def test_partial_config_defaults_only_the_missing_scope(self):
+        mod = FakeThresholds({"cost_budgets": {"warning_thresholds": {"project_pct": 60}}})
+        self.assertEqual(mod.get_warning_threshold("project"), 60)
+        self.assertEqual(mod.get_warning_threshold("user"), 80)
+
+    def test_unknown_scope_falls_back_rather_than_raising(self):
+        mod = FakeThresholds(self.cfg)
+        self.assertEqual(mod.get_warning_threshold("nonsense"), 80)
+
+    def test_out_of_range_values_fall_back(self):
+        # A bad value must not silence the warning entirely
+        for bad in (0, -5, 101, 1000):
+            mod = FakeThresholds({"cost_budgets": {"warning_thresholds": {"project_pct": bad}}})
+            self.assertEqual(mod.get_warning_threshold("project"), 80, bad)
+
+    def test_non_numeric_value_falls_back(self):
+        for bad in ("abc", None, [], {}):
+            mod = FakeThresholds({"cost_budgets": {"warning_thresholds": {"project_pct": bad}}})
+            self.assertEqual(mod.get_warning_threshold("project"), 80, bad)
+
+    def test_numeric_string_is_accepted(self):
+        # YAML edited by hand can quote the number
+        mod = FakeThresholds({"cost_budgets": {"warning_thresholds": {"project_pct": "65"}}})
+        self.assertEqual(mod.get_warning_threshold("project"), 65)
+
+    def test_boundary_values_are_valid(self):
+        for value in (1, 100):
+            mod = FakeThresholds({"cost_budgets": {"warning_thresholds": {"project_pct": value}}})
+            self.assertEqual(mod.get_warning_threshold("project"), value)
+
+
 class FakeLimits:
     """Stand-in for the explicit-row-then-default resolution."""
 
