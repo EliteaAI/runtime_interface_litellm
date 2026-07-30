@@ -336,6 +336,145 @@ class TestWarningThresholds(unittest.TestCase):
             self.assertEqual(mod.get_warning_threshold("project"), value)
 
 
+class FakeBulkLimits:
+    """Binds the real bulk and single-project limit resolvers over the same fake data.
+
+    Both are the production code, so a change to one that is not mirrored in the other
+    shows up as a disagreement rather than passing quietly.
+    """
+
+    def __init__(self, budgets, defaults=None, personal_ids=(), fail=False):
+        self.budgets = budgets
+        self.personal_ids = set(personal_ids)
+        self.fail = fail
+        self.list_calls = 0
+        self.get_calls = 0
+        self.descriptor = types.SimpleNamespace(
+            config={"cost_budgets": {"defaults": defaults or {}}},
+        )
+
+    # Stands in for the cross-plugin RPC manager both resolvers reach through
+    def timeout(self, _seconds):
+        return self
+
+    def elitea_core_list_project_budgets(self):
+        self.list_calls += 1
+        #
+        if self.fail:
+            raise RuntimeError("elitea_core unavailable")
+        #
+        return dict(self.budgets)
+
+    def elitea_core_get_project_budget(self, project_id):
+        self.get_calls += 1
+        return self.budgets.get(project_id)
+
+    def is_personal_project(self, project_id):
+        return int(project_id) in self.personal_ids
+
+    get_default_limit = budgets.Method.get_default_limit
+    litellm_get_effective_project_limits = (
+        rpc_budgets.RPC.litellm_get_effective_project_limits
+    )
+
+
+def _bulk(mod, ids):
+    """Run the bulk resolver with its RPC manager pointed at the fake."""
+    original = rpc_budgets.context
+    rpc_budgets.context = types.SimpleNamespace(rpc_manager=mod)
+    try:
+        return mod.litellm_get_effective_project_limits(ids)
+    finally:
+        rpc_budgets.context = original
+
+
+def _single(mod, project_id):
+    """Run the per-project resolver enforcement still uses, over the same fake."""
+    original = budgets.context
+    budgets.context = types.SimpleNamespace(rpc_manager=mod)
+    try:
+        return budgets.Method.get_project_budget_limit(mod, project_id)
+    finally:
+        budgets.context = original
+
+
+class TestBulkLimitResolution(unittest.TestCase):
+    """The admin pages list whole environments, so limits are read in one query.
+
+    Any divergence from the single-project resolver would change the limit shown for
+    every project, so each case asserts the two agree.
+    """
+
+    DEFAULTS = {
+        "enabled": True,
+        "project_monthly_limit": 100.0,
+        "personal_project_monthly_limit": 5.0,
+        "user_monthly_limit": 20.0,
+    }
+
+    def test_reads_all_budgets_in_one_call(self):
+        mod = FakeBulkLimits({pid: {"monthly_limit": 1.0, "enabled": True} for pid in range(50)})
+        #
+        _bulk(mod, list(range(50)))
+        #
+        # The whole point: one read for fifty projects, not fifty
+        self.assertEqual(mod.list_calls, 1)
+        self.assertEqual(mod.get_calls, 0)
+
+    def test_explicit_row_wins(self):
+        mod = FakeBulkLimits({3: {"monthly_limit": 7.0, "enabled": True}}, self.DEFAULTS)
+        self.assertEqual(_bulk(mod, [3])[3], 7.0)
+        self.assertEqual(_single(mod, 3), 7.0)
+
+    def test_disabled_row_is_unlimited_not_defaulted(self):
+        # An admin exempting a project must not be silently re-capped by the default
+        mod = FakeBulkLimits({3: {"monthly_limit": 7.0, "enabled": False}}, self.DEFAULTS)
+        self.assertIsNone(_bulk(mod, [3])[3])
+        self.assertIsNone(_single(mod, 3))
+
+    def test_missing_row_falls_back_to_team_default(self):
+        # Iterating the budget map instead of the requested ids would drop this project
+        mod = FakeBulkLimits({}, self.DEFAULTS)
+        self.assertEqual(_bulk(mod, [42])[42], 100.0)
+        self.assertEqual(_single(mod, 42), 100.0)
+
+    def test_missing_row_uses_the_personal_default_for_personal_projects(self):
+        mod = FakeBulkLimits({}, self.DEFAULTS, personal_ids=[3])
+        self.assertEqual(_bulk(mod, [3])[3], 5.0)
+        self.assertEqual(_single(mod, 3), 5.0)
+
+    def test_missing_row_is_unlimited_when_defaults_are_off(self):
+        # The live posture: defaults disabled, so only explicit rows cap anything
+        mod = FakeBulkLimits({}, {"enabled": False, "project_monthly_limit": 100.0})
+        self.assertIsNone(_bulk(mod, [42])[42])
+        self.assertIsNone(_single(mod, 42))
+
+    def test_row_without_a_limit_falls_back_to_default(self):
+        mod = FakeBulkLimits({3: {"monthly_limit": None, "enabled": True}}, self.DEFAULTS)
+        self.assertEqual(_bulk(mod, [3])[3], 100.0)
+        self.assertEqual(_single(mod, 3), 100.0)
+
+    def test_zero_limit_is_kept_not_treated_as_unset(self):
+        mod = FakeBulkLimits({3: {"monthly_limit": 0.0, "enabled": True}}, self.DEFAULTS)
+        self.assertEqual(_bulk(mod, [3])[3], 0.0)
+        self.assertEqual(_single(mod, 3), 0.0)
+
+    def test_string_keyed_budget_map_still_resolves(self):
+        # Callers elsewhere have been seen to receive stringified project ids
+        mod = FakeBulkLimits({"3": {"monthly_limit": 7.0, "enabled": True}}, self.DEFAULTS)
+        self.assertEqual(_bulk(mod, [3])[3], 7.0)
+
+    def test_every_requested_id_is_present_in_the_result(self):
+        mod = FakeBulkLimits({1: {"monthly_limit": 5.0, "enabled": True}}, self.DEFAULTS)
+        out = _bulk(mod, [1, 2, 3])
+        self.assertEqual(sorted(out), [1, 2, 3])
+
+    def test_a_failed_read_reports_unlimited_rather_than_raising(self):
+        # The budgets page must still render; a limit that cannot be read is not enforced
+        mod = FakeBulkLimits({}, self.DEFAULTS, fail=True)
+        self.assertEqual(_bulk(mod, [1, 2]), {1: None, 2: None})
+
+
 class FakeLimits:
     """Stand-in for the explicit-row-then-default resolution."""
 
