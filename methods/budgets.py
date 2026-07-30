@@ -96,6 +96,13 @@ def make_user_budget_tag(project_id, user_id, now=None):
     return f"{BUDGET_TAG_PREFIX}{project_id}_user_{user_id}_{now:%Y%m}"
 
 
+def user_id_from_tag(tag_name):
+    """Member id encoded in a per-user budget tag, or None for a project tag."""
+    match = re.search(rf"{BUDGET_TAG_PREFIX}\d+_user_(\d+)_", str(tag_name))
+    #
+    return int(match.group(1)) if match else None
+
+
 def is_anthropic_endpoint(endpoint):
     """True for Anthropic-native endpoints, which read tags from litellm_metadata."""
     return bool(endpoint) and endpoint.startswith("/v1/messages")
@@ -131,6 +138,27 @@ def budget_error_scope(body):
     match = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_user_(\d+)_", text)
     #
     return SCOPE_MEMBER if match else SCOPE_PROJECT
+
+
+def budget_error_target(body):
+    """Which project, and which member if any, the blocking tag belongs to.
+
+    The tag LiteLLM names in its error carries both ids, so no request context is needed
+    to work out who to notify. Returns (project_id, user_id), either possibly None.
+    """
+    try:
+        text = body.decode("utf-8", errors="ignore")
+    except AttributeError:
+        text = str(body)
+    #
+    member = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_user_(\d+)_", text)
+    #
+    if member:
+        return int(member.group(1)), int(member.group(2))
+    #
+    project = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_", text)
+    #
+    return (int(project.group(1)) if project else None), None
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -222,13 +250,16 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             log.exception("Failed to apply budget tags for project %s", project_id)
 
     @web.method()
-    def ensure_budget_tag(self, project_id, tag_name, limit_getter):
+    def ensure_budget_tag(self, project_id, tag_name, limit_getter, check_threshold=True):
         """Create/refresh a LiteLLM tag budget.
 
         Provisioning lazily on first shared call means enforcement self-heals if the
         tag is ever deleted on the LiteLLM side, without needing a scheduled job.
         Re-checked only every BUDGET_SYNC_TTL seconds so the hot path stays cheap;
         an explicit budget change pushes immediately via the RPC instead of waiting.
+
+        check_threshold=False is for bulk callers: a spend read per project is fine for
+        one tag on a request, but not for a loop over every project at once.
         """
         # Observe mode needs no LiteLLM write at all: an untracked tag still accrues
         # spend in the daily aggregate the dashboard reads, and pushing no ceiling
@@ -268,6 +299,89 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return
         #
         cache[tag_name] = (now, limit)
+        #
+        # Rides this same throttled tick rather than running per request, so the warning
+        # costs at most one spend read per tag per BUDGET_SYNC_TTL. Also reached when an
+        # admin saves a budget, which is deliberate: a limit set below current spend is
+        # worth flagging straight away rather than at the next call.
+        if check_threshold and limit is not None:
+            self.check_budget_threshold(tag_name, project_id, limit)
+
+    @web.method()
+    def check_budget_threshold(self, tag_name, project_id, limit):
+        """Notify once when a tag's spend reaches its configured warning threshold.
+
+        Spend comes from the counter LiteLLM maintains on the tag itself, which is what its
+        own enforcement reads, rather than the daily activity report.
+
+        Only ever notifies: a failure here must leave the call untouched, so everything is
+        swallowed. Deduplication lives in elitea_core, which compares against the threshold
+        already alerted for this period.
+        """
+        try:
+            user_id = user_id_from_tag(tag_name)
+            #
+            scope = "user" if user_id is not None else (
+                "personal_project" if self.is_personal_project(project_id) else "project"
+            )
+            #
+            threshold = self.get_warning_threshold(scope)
+            #
+            spend = self.read_tag_alert_spend(tag_name)
+            #
+            if spend is None or limit <= 0:
+                return
+            #
+            pct = spend / limit * 100
+            #
+            if pct < threshold or pct >= 100:
+                # At or over the limit the block itself raises the alert, so a warning
+                # here would only duplicate it
+                return
+            #
+            claimed = context.rpc_manager.timeout(10).elitea_core_claim_budget_alert(
+                project_id=project_id,
+                period=f"{datetime.datetime.now(datetime.timezone.utc):%Y%m}",
+                pct=int(threshold),
+                user_id=user_id,
+            )
+            #
+            if not claimed:
+                return
+            #
+            context.rpc_manager.timeout(15).elitea_core_notify_budget_event(
+                project_id=project_id,
+                kind="threshold",
+                pct=int(round(pct)),
+                user_id=user_id,
+            )
+        except:  # pylint: disable=W0702
+            log.exception("Failed to check budget threshold for tag %s", tag_name)
+
+    @web.method()
+    def read_tag_alert_spend(self, tag_name):
+        """Current-period spend for one tag, or None if it could not be read.
+
+        Uses the same daily aggregate the usage pages read, so a warning agrees with what
+        an admin sees. The running counter on the tag row itself would be cheaper, but
+        LiteLLM never returns it: /tag/info builds its response from an explicit field
+        list that omits spend, and enforcement reads that column directly over Prisma.
+
+        Cost is acceptable only because callers are throttled to once per tag per
+        BUDGET_SYNC_TTL — never call this per request.
+        """
+        try:
+            now = datetime.datetime.now(datetime.timezone.utc)
+            #
+            result = self.read_tag_spend(tag_name, now) or {}
+            #
+            if not result.get("available"):
+                return None
+            #
+            return float(result.get("spend", 0) or 0)
+        except:  # pylint: disable=W0702
+            log.exception("Failed to read spend for tag %s", tag_name)
+            return None
 
     @web.method()
     def get_project_budget_limit(self, project_id):
@@ -402,6 +516,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     headers=self._body_headers(response, len(body)),
                 )
             #
+            self.notify_budget_limit_reached(body)
+            #
             payload = json.dumps({
                 "error": {
                     "message": BUDGET_ERROR_MESSAGE,
@@ -417,6 +533,35 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         except:  # pylint: disable=W0702
             log.exception("Failed to post-process potential budget error")
             return None
+
+    @web.method()
+    def notify_budget_limit_reached(self, body):
+        """Notify once that a budget is exhausted, driven by the block itself.
+
+        The rejection is the event, so nothing has to poll for it. Claiming at 100 also
+        means a later threshold warning cannot fire for a budget already known to be full.
+        """
+        try:
+            project_id, user_id = budget_error_target(body)
+            #
+            if project_id is None:
+                return
+            #
+            claimed = context.rpc_manager.timeout(10).elitea_core_claim_budget_alert(
+                project_id=project_id,
+                period=f"{datetime.datetime.now(datetime.timezone.utc):%Y%m}",
+                pct=100,
+                user_id=user_id,
+            )
+            #
+            if not claimed:
+                return
+            #
+            context.rpc_manager.timeout(15).elitea_core_notify_budget_event(
+                project_id=project_id, kind="limit", user_id=user_id,
+            )
+        except:  # pylint: disable=W0702
+            log.exception("Failed to send budget limit notification")
 
     @web.method()
     def _body_headers(self, response, length):
@@ -448,8 +593,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             try:
                 tag_name = make_budget_tag(int(project_id))
                 self.invalidate_budget_tag(tag_name)
+                # No threshold check here: this runs for every budgeted project on a
+                # config change, and a spend read each would be a sweep over the whole
+                # environment. Each project is checked on its own next call instead.
                 self.ensure_budget_tag(
                     int(project_id), tag_name, self.get_project_budget_limit,
+                    check_threshold=False,
                 )
                 restored += 1
             except:  # pylint: disable=W0702
