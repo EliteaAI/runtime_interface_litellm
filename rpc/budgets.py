@@ -22,6 +22,8 @@ import datetime
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
+from tools import context  # pylint: disable=E0401
+
 from ..methods.budgets import make_budget_tag, make_user_budget_tag
 
 
@@ -101,9 +103,36 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
     def litellm_get_effective_project_limits(self, project_ids, **kwargs):
         """Effective limits for many projects, keyed by project id.
 
-        Batched so listing every project does not fan out into one call per row.
+        Reads every stored budget in one query rather than asking per project: the admin
+        pages list whole environments, where a per-project lookup is thousands of
+        cross-plugin calls. Resolution below must stay identical to the single-project
+        get_project_budget_limit, which enforcement still uses on the request path.
         """
-        return {pid: self.get_project_budget_limit(pid) for pid in project_ids}
+        try:
+            budgets = context.rpc_manager.timeout(15).elitea_core_list_project_budgets() or {}
+        except:  # pylint: disable=W0702
+            log.exception("Failed to list project budgets")
+            return {pid: None for pid in project_ids}
+        #
+        result = {}
+        #
+        # Iterate the requested ids, not the budget map: a project with no stored row
+        # still has to fall through to the configured default.
+        for project_id in project_ids:
+            budget = budgets.get(project_id, budgets.get(str(project_id)))
+            #
+            if budget is not None:
+                if not budget.get("enabled", True):
+                    result[project_id] = None
+                    continue
+                #
+                if budget.get("monthly_limit") is not None:
+                    result[project_id] = budget["monthly_limit"]
+                    continue
+            #
+            result[project_id] = self.get_default_limit("project", project_id)
+        #
+        return result
 
     @web.rpc("litellm_get_effective_user_limits", "litellm_get_effective_user_limits")
     def litellm_get_effective_user_limits(self, project_id, user_ids, **kwargs):
