@@ -591,6 +591,112 @@ class TestMultiTagSpendAggregation(unittest.TestCase):
             self.assertEqual(aggregate_entities(payload, ["a"]), {"a": 0.0})
 
 
+class TestBudgetErrorTarget(unittest.TestCase):
+    """Who to notify is read from the tag LiteLLM names, so no request context is needed."""
+
+    def _body(self, tag):
+        return json.dumps({
+            "error": {
+                "message": f"Budget has been exceeded! Tag={tag} Current cost: 2, Max budget: 1",
+                "type": "budget_exceeded",
+            }
+        }).encode("utf-8")
+
+    def test_project_tag_yields_project_only(self):
+        self.assertEqual(
+            budgets.budget_error_target(self._body("elitea_proj_25_202607")), (25, None),
+        )
+
+    def test_member_tag_yields_both_ids(self):
+        self.assertEqual(
+            budgets.budget_error_target(self._body("elitea_proj_25_user_3_202607")), (25, 3),
+        )
+
+    def test_multi_digit_ids(self):
+        self.assertEqual(
+            budgets.budget_error_target(self._body("elitea_proj_12905_user_31652_202607")),
+            (12905, 31652),
+        )
+
+    def test_no_tag_yields_nothing_to_notify(self):
+        # Better to send nothing than to guess a project and notify the wrong admins
+        self.assertEqual(budgets.budget_error_target(b'{"error": {}}'), (None, None))
+
+    def test_handles_non_utf8_bytes(self):
+        self.assertEqual(budgets.budget_error_target(b"\xff\xfe\x00binary"), (None, None))
+
+    def test_agrees_with_the_scope_helper(self):
+        for tag, scope in (
+            ("elitea_proj_25_202607", budgets.SCOPE_PROJECT),
+            ("elitea_proj_25_user_3_202607", budgets.SCOPE_MEMBER),
+        ):
+            body = self._body(tag)
+            _, user_id = budgets.budget_error_target(body)
+            expected_member = budgets.budget_error_scope(body) == budgets.SCOPE_MEMBER
+            self.assertEqual(user_id is not None, expected_member, tag)
+
+
+class TestUserIdFromTag(unittest.TestCase):
+    """A per-user tag routes its alert to that member; a project tag does not."""
+
+    def test_member_tag(self):
+        self.assertEqual(budgets.user_id_from_tag("elitea_proj_25_user_3_202607"), 3)
+
+    def test_project_tag_is_not_a_member(self):
+        self.assertIsNone(budgets.user_id_from_tag("elitea_proj_25_202607"))
+
+    def test_project_named_user_is_not_mistaken_for_a_member(self):
+        self.assertIsNone(budgets.user_id_from_tag("elitea_proj_25_user_budget_202607"))
+
+    def test_unrelated_tag(self):
+        self.assertIsNone(budgets.user_id_from_tag("User-Agent: curl"))
+
+
+def threshold_decision(spend, limit, threshold):
+    """Mirror of the guard in check_budget_threshold, for the cases worth pinning.
+
+    Notifying is gated on three things: a real limit, spend at or past the threshold, and
+    spend still under the limit — at 100% the block itself raises the alert instead.
+    """
+    if spend is None or limit is None or limit <= 0:
+        return False
+    #
+    pct = spend / limit * 100
+    #
+    return threshold <= pct < 100
+
+
+class TestThresholdDecision(unittest.TestCase):
+    def test_below_threshold_is_silent(self):
+        self.assertFalse(threshold_decision(7.0, 10.0, 80))
+
+    def test_at_threshold_notifies(self):
+        self.assertTrue(threshold_decision(8.0, 10.0, 80))
+
+    def test_between_threshold_and_limit_notifies(self):
+        self.assertTrue(threshold_decision(9.99, 10.0, 80))
+
+    def test_at_the_limit_defers_to_the_block(self):
+        # The rejection raises its own alert, so warning here would duplicate it
+        self.assertFalse(threshold_decision(10.0, 10.0, 80))
+
+    def test_over_the_limit_defers_to_the_block(self):
+        self.assertFalse(threshold_decision(25.0, 10.0, 80))
+
+    def test_unlimited_never_notifies(self):
+        self.assertFalse(threshold_decision(500.0, None, 80))
+
+    def test_zero_limit_is_not_divided_by(self):
+        self.assertFalse(threshold_decision(1.0, 0.0, 80))
+
+    def test_unreadable_spend_is_silent(self):
+        self.assertFalse(threshold_decision(None, 10.0, 80))
+
+    def test_configured_threshold_is_honoured(self):
+        self.assertTrue(threshold_decision(5.0, 10.0, 50))
+        self.assertFalse(threshold_decision(5.0, 10.0, 60))
+
+
 class FakeActivityService:
     """Serves canned activity pages, recording the page numbers requested.
 
