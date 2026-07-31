@@ -512,6 +512,144 @@ class TestLimitResolution(unittest.TestCase):
         self.assertEqual(FakeLimits({"monthly_limit": 0.0, "enabled": True}, 100.0).resolve(), 0.0)
 
 
+class FakeMemberLimits:
+    """Binds the real three-tier member resolver over fake member and project rows.
+
+    Production code, not a restatement of it: the member row, the project's member default
+    and the platform default all have to be consulted in the right order for a member to
+    end up capped by what an admin actually set.
+    """
+
+    def __init__(self, member_row, project_row=None, defaults=None):
+        self.member_row = member_row
+        self.project_row = project_row
+        self.get_project_calls = 0
+        self.descriptor = types.SimpleNamespace(
+            config={"cost_budgets": {"defaults": defaults or {}}},
+        )
+
+    def timeout(self, _seconds):
+        return self
+
+    def elitea_core_get_user_budget(self, project_id, user_id):  # pylint: disable=W0613
+        return self.member_row
+
+    def elitea_core_get_project_budget(self, project_id):  # pylint: disable=W0613
+        self.get_project_calls += 1
+        return self.project_row
+
+    def is_personal_project(self, project_id):  # pylint: disable=W0613
+        return False
+
+    get_default_limit = budgets.Method.get_default_limit
+    get_member_default_limit = budgets.Method.get_member_default_limit
+
+    def resolve(self, project_budget=budgets.UNSET):
+        original = budgets.context
+        budgets.context = types.SimpleNamespace(rpc_manager=self)
+        try:
+            return budgets.Method.get_user_budget_limit(self, 1, 2, project_budget)
+        finally:
+            budgets.context = original
+
+
+PLATFORM_DEFAULTS = {"enabled": True, "user_monthly_limit": 100.0}
+
+
+class TestMemberDefaultTier(unittest.TestCase):
+    """A project's member default sits between a member's own row and the platform default.
+
+    It is what "set a limit for everyone in this project" resolves to, so it must apply to
+    members with no row of their own while leaving members who have one untouched.
+    """
+
+    def test_explicit_member_row_beats_the_project_default(self):
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True},
+            {"member_default_limit": 20.0},
+            PLATFORM_DEFAULTS,
+        )
+        self.assertEqual(limits.resolve(), 7.0)
+
+    def test_project_default_beats_the_platform_default(self):
+        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve(), 20.0)
+
+    def test_no_project_default_falls_through_to_the_platform_default(self):
+        limits = FakeMemberLimits(None, {"member_default_limit": None}, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve(), 100.0)
+
+    def test_no_project_row_at_all_falls_through(self):
+        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve(), 100.0)
+
+    def test_member_row_without_a_limit_picks_up_the_project_default(self):
+        limits = FakeMemberLimits(
+            {"monthly_limit": None, "enabled": True},
+            {"member_default_limit": 20.0},
+            PLATFORM_DEFAULTS,
+        )
+        self.assertEqual(limits.resolve(), 20.0)
+
+    def test_project_default_overrides_a_member_marked_unlimited(self):
+        # A limit an admin set for everyone in the project must not be undone by a member
+        # row nobody meant to opt out — that row is often just the dialog's default state
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": False},
+            {"member_default_limit": 20.0},
+            PLATFORM_DEFAULTS,
+        )
+        self.assertEqual(limits.resolve(), 20.0)
+
+    def test_exempt_member_still_escapes_the_platform_default(self):
+        # With no project default there is nothing project-scoped to enforce, so the
+        # exemption keeps its original meaning
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": False}, {}, PLATFORM_DEFAULTS,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_exempt_member_with_no_project_row_is_unlimited(self):
+        limits = FakeMemberLimits({"monthly_limit": 7.0, "enabled": False}, None, PLATFORM_DEFAULTS)
+        self.assertIsNone(limits.resolve())
+
+    def test_zero_project_default_blocks_rather_than_falling_through(self):
+        limits = FakeMemberLimits(None, {"member_default_limit": 0.0}, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve(), 0.0)
+
+    def test_project_marked_unlimited_still_applies_its_member_default(self):
+        # enabled=false exempts the project's OWN limit; the member default is a separate value
+        limits = FakeMemberLimits(
+            None, {"enabled": False, "monthly_limit": None, "member_default_limit": 20.0},
+            PLATFORM_DEFAULTS,
+        )
+        self.assertEqual(limits.resolve(), 20.0)
+
+    def test_project_default_applies_even_when_platform_defaults_are_off(self):
+        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, {"enabled": False})
+        self.assertEqual(limits.resolve(), 20.0)
+
+    def test_unlimited_when_neither_tier_has_a_value(self):
+        limits = FakeMemberLimits(None, {}, {"enabled": False})
+        self.assertIsNone(limits.resolve())
+
+    def test_a_passed_project_row_is_not_re_read(self):
+        # The member list loops every member, so the project row must be read once, not per row
+        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve({"member_default_limit": 20.0}), 20.0)
+        self.assertEqual(limits.get_project_calls, 0)
+
+    def test_row_is_read_when_the_caller_passes_nothing(self):
+        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve(), 20.0)
+        self.assertEqual(limits.get_project_calls, 1)
+
+    def test_passing_none_explicitly_means_no_project_row(self):
+        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
+        self.assertEqual(limits.resolve(None), 100.0)
+        self.assertEqual(limits.get_project_calls, 0)
+
+
 class TestUnlimitedSentinel(unittest.TestCase):
     """null/unset limits must mean unlimited, and must lift a previously-set ceiling.
 

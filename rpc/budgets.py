@@ -136,8 +136,23 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
 
     @web.rpc("litellm_get_effective_user_limits", "litellm_get_effective_user_limits")
     def litellm_get_effective_user_limits(self, project_id, user_ids, **kwargs):
-        """Effective per-user limits within a project, keyed by user id."""
-        return {uid: self.get_user_budget_limit(project_id, uid) for uid in user_ids}
+        """Effective per-user limits within a project, keyed by user id.
+
+        The project row holds the member default every unset member falls back to, so it is
+        read once here rather than per member — the member list can be a whole project.
+        """
+        try:
+            project_budget = context.rpc_manager.timeout(5).elitea_core_get_project_budget(
+                project_id=project_id,
+            )
+        except:  # pylint: disable=W0702
+            log.exception("Failed to get budget for project %s", project_id)
+            project_budget = None
+        #
+        return {
+            uid: self.get_user_budget_limit(project_id, uid, project_budget)
+            for uid in user_ids
+        }
 
     @web.rpc("litellm_get_projects_spend", "litellm_get_projects_spend")
     def litellm_get_projects_spend(self, project_ids, **kwargs):
