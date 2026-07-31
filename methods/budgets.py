@@ -79,6 +79,9 @@ PERSONAL_PROJECTS_TTL = 300.0
 # ceiling nothing can reach. Keeps the tag (and its spend history) while not blocking.
 UNLIMITED_BUDGET = 1_000_000_000.0
 
+# Distinguishes "caller did not pass the project row" from "the project has no row"
+UNSET = object()
+
 
 def make_budget_tag(project_id, now=None):
     """Build the per-project monthly budget tag name."""
@@ -409,8 +412,17 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return self.get_default_limit("project", project_id)
 
     @web.method()
-    def get_user_budget_limit(self, project_id, user_id):
-        """Effective monthly per-user limit within a project, or None if unlimited."""
+    def get_user_budget_limit(self, project_id, user_id, project_budget=UNSET):
+        """Effective monthly per-user limit within a project, or None if unlimited.
+
+        Resolves in three tiers: the member's own row, then the project's member default,
+        then the platform default. Callers looping over many members should read the
+        project row once and pass it as project_budget rather than paying an RPC each.
+
+        A row with enabled=false exempts the member from the *platform* default only. A
+        limit an admin set on this project still applies, so "set a limit for everyone
+        here" cannot be silently undone by a member row nobody meant to opt out.
+        """
         try:
             budget = context.rpc_manager.timeout(5).elitea_core_get_user_budget(
                 project_id=project_id, user_id=user_id,
@@ -421,14 +433,33 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             )
             return None
         #
-        if budget is not None:
-            if not budget.get("enabled", True):
-                return None
-            #
-            if budget.get("monthly_limit") is not None:
-                return budget["monthly_limit"]
+        exempt = budget is not None and not budget.get("enabled", True)
         #
-        return self.get_default_limit("user", project_id)
+        if budget is not None and not exempt and budget.get("monthly_limit") is not None:
+            return budget["monthly_limit"]
+        #
+        return self.get_member_default_limit(project_id, project_budget, exempt=exempt)
+
+    @web.method()
+    def get_member_default_limit(self, project_id, project_budget=UNSET, exempt=False):
+        """The project's own member default, or the platform default when it has none.
+
+        The project's `enabled` flag is not consulted: it marks the project's *own* limit
+        exempt, while a member default is a separately-set value in its own right.
+        """
+        if project_budget is UNSET:
+            try:
+                project_budget = context.rpc_manager.timeout(5).elitea_core_get_project_budget(
+                    project_id=project_id,
+                )
+            except:  # pylint: disable=W0702
+                log.exception("Failed to get budget for project %s", project_id)
+                project_budget = None
+        #
+        if project_budget and project_budget.get("member_default_limit") is not None:
+            return project_budget["member_default_limit"]
+        #
+        return None if exempt else self.get_default_limit("user", project_id)
 
     @web.method()
     def get_default_limit(self, scope, project_id):
