@@ -75,6 +75,11 @@ BUDGET_SYNC_TTL = 60.0
 # How long the personal-project id list is cached (it changes only on project creation)
 PERSONAL_PROJECTS_TTL = 300.0
 
+# How long a computed warning state is served without re-reading spend. The banner is
+# requested on every chat, agent, pipeline and skill page load, and a spend read pages the
+# whole month's activity -- without this the interactive path would pay for it every time.
+BUDGET_WARNING_TTL = 60.0
+
 # LiteLLM ignores max_budget=null on /tag/update, so "unlimited" is expressed as a
 # ceiling nothing can reach. Keeps the tag (and its spend history) while not blocking.
 UNLIMITED_BUDGET = 1_000_000_000.0
@@ -506,6 +511,110 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return DEFAULT_WARNING_PCT
         #
         return value if 1 <= value <= 100 else DEFAULT_WARNING_PCT
+
+    @web.method()
+    def get_budget_warning_state(self, project_id, user_id):
+        """Whether to warn this user that a budget is nearing its limit, and which one.
+
+        Cached for BUDGET_WARNING_TTL because the caller is a page load: every chat, agent,
+        pipeline and skill view asks on open, and resolving this reads spend, which pages a
+        month of activity. One read per scope per minute is shared by every member of the
+        project.
+
+        The member budget takes priority over the project budget and only one scope is ever
+        returned, so the UI has no precedence rule to get wrong.
+        """
+        cache = self.runtime_cache.setdefault("budget_warning", {})
+        key = (int(project_id), int(user_id))
+        #
+        cached_at, payload = cache.get(key, (0.0, None))
+        #
+        if payload is not None and time.monotonic() - cached_at < BUDGET_WARNING_TTL:
+            return payload
+        #
+        payload = self._resolve_budget_warning(project_id, user_id)
+        cache[key] = (time.monotonic(), payload)
+        #
+        return payload
+
+    @web.method()
+    def _resolve_budget_warning(self, project_id, user_id):
+        """Compute the warning state, ignoring the cache. See get_budget_warning_state."""
+        no_warning = {
+            "scope": None, "percent_used": None, "warning_pct": None, "should_warn": False,
+        }
+        #
+        # Observe mode tracks spend but never blocks, so warning that requests are about to
+        # become unavailable would not be true
+        if not self.budgets_enforcing():
+            return no_warning
+        #
+        try:
+            # Member first: it is the one that stops this user specifically. Each scope is
+            # resolved lazily, so a member warning costs no project lookup or spend read.
+            scopes = (
+                (
+                    SCOPE_MEMBER,
+                    lambda: self.get_user_budget_limit(project_id, user_id),
+                    lambda: make_user_budget_tag(project_id, user_id),
+                ),
+                (
+                    SCOPE_PROJECT,
+                    lambda: self.get_project_budget_limit(project_id),
+                    lambda: make_budget_tag(project_id),
+                ),
+            )
+            #
+            for scope, get_limit, get_tag in scopes:
+                limit = get_limit()
+                #
+                if limit is None or limit <= 0:
+                    continue
+                #
+                state = self._warning_for_scope(scope, limit, get_tag(), project_id)
+                #
+                if state is not None:
+                    return state
+        except:  # pylint: disable=W0702
+            log.exception(
+                "Failed to resolve budget warning for project %s user %s", project_id, user_id,
+            )
+        #
+        return no_warning
+
+    @web.method()
+    def _warning_for_scope(self, scope, limit, tag_name, project_id):
+        """Warning state for one scope, or None when that scope has nothing to warn about.
+
+        The caller has already established the limit is finite and above zero.
+        """
+        spend = self.read_tag_alert_spend(tag_name)
+        #
+        # Unreadable spend yields no warning rather than a fabricated percentage
+        if spend is None:
+            return None
+        #
+        pct = spend / limit * 100
+        #
+        # Same scope keys check_budget_threshold uses, so the banner and the notification
+        # fire at the same percentage rather than at two different ones
+        threshold = self.get_warning_threshold(
+            "user" if scope == SCOPE_MEMBER else (
+                "personal_project" if self.is_personal_project(project_id) else "project"
+            )
+        )
+        #
+        # At or over the limit the block itself is the message, so this banner stays out of
+        # the way -- and a stale reading cannot contradict a rejection the user just saw
+        if pct < threshold or pct >= 100:
+            return None
+        #
+        return {
+            "scope": scope,
+            "percent_used": round(pct),
+            "warning_pct": threshold,
+            "should_warn": True,
+        }
 
     @web.method()
     def is_personal_project(self, project_id):
