@@ -7,6 +7,7 @@ Run standalone (no pylon runtime needed):
 import os
 import sys
 import json
+import time
 import types
 import datetime
 import unittest
@@ -651,6 +652,222 @@ class TestMemberDefaultTier(unittest.TestCase):
         limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
         self.assertEqual(limits.resolve(None), 100.0)
         self.assertEqual(limits.get_project_calls, 0)
+
+
+class FakeWarningState:
+    """Binds the real warning resolver over fake limits, spend and config.
+
+    Production code, not a restatement: the precedence rule, the threshold comparison and
+    the cache all have to hold, because this runs on every chat, agent, pipeline and skill
+    page load.
+    """
+
+    def __init__(  # pylint: disable=R0913
+            self, mode="enforce", member_limit=None, project_limit=None, spend=0.0,
+            thresholds=None, personal=False, spend_unreadable=False,
+    ):
+        self.mode = mode
+        self.member_limit = member_limit
+        self.project_limit = project_limit
+        self.spend = spend
+        self.personal = personal
+        self.spend_unreadable = spend_unreadable
+        self.spend_reads = []
+        self.runtime_cache = {}
+        self.descriptor = types.SimpleNamespace(
+            config={"cost_budgets": {
+                "mode": mode, "warning_thresholds": thresholds or {},
+            }},
+        )
+
+    def budgets_mode(self):
+        return self.mode
+
+    def get_user_budget_limit(self, project_id, user_id):  # pylint: disable=W0613
+        return self.member_limit
+
+    def get_project_budget_limit(self, project_id):  # pylint: disable=W0613
+        return self.project_limit
+
+    def read_tag_alert_spend(self, tag_name):
+        self.spend_reads.append(tag_name)
+        return None if self.spend_unreadable else self.spend
+
+    def is_personal_project(self, project_id):  # pylint: disable=W0613
+        return self.personal
+
+    budgets_enforcing = budgets.Method.budgets_enforcing
+    get_warning_threshold = budgets.Method.get_warning_threshold
+    get_budget_warning_state = budgets.Method.get_budget_warning_state
+    _resolve_budget_warning = budgets.Method._resolve_budget_warning
+    _warning_for_scope = budgets.Method._warning_for_scope
+
+    def resolve(self, project_id=1, user_id=2):
+        return self.get_budget_warning_state(project_id, user_id)
+
+
+class TestBudgetWarningState(unittest.TestCase):
+    """The banner above the chat input, resolved server-side so the UI has no rules to apply."""
+
+    def test_warns_when_spend_crosses_the_threshold(self):
+        state = FakeWarningState(project_limit=100.0, spend=85.0).resolve()
+        #
+        self.assertTrue(state["should_warn"])
+        self.assertEqual(state["scope"], budgets.SCOPE_PROJECT)
+        self.assertEqual(state["percent_used"], 85)
+        self.assertEqual(state["warning_pct"], 80)
+
+    def test_silent_below_the_threshold(self):
+        self.assertFalse(FakeWarningState(project_limit=100.0, spend=50.0).resolve()["should_warn"])
+
+    def test_warns_exactly_at_the_threshold(self):
+        # "greater than or equal to" per the spec, so 80 of 100 warns
+        self.assertTrue(FakeWarningState(project_limit=100.0, spend=80.0).resolve()["should_warn"])
+
+    def test_silent_at_and_over_the_limit(self):
+        # The block itself is the message there; a banner would only duplicate it, and a
+        # stale reading must never contradict a rejection the user just saw
+        for spend in (100.0, 140.0):
+            self.assertFalse(
+                FakeWarningState(project_limit=100.0, spend=spend).resolve()["should_warn"],
+                spend,
+            )
+
+    def test_member_scope_wins_over_project(self):
+        # Both over threshold: the member budget is the one stopping this user
+        state = FakeWarningState(
+            member_limit=10.0, project_limit=100.0, spend=9.0,
+        ).resolve()
+        #
+        self.assertEqual(state["scope"], budgets.SCOPE_MEMBER)
+
+    def test_project_scope_used_when_no_member_limit(self):
+        state = FakeWarningState(member_limit=None, project_limit=100.0, spend=90.0).resolve()
+        #
+        self.assertEqual(state["scope"], budgets.SCOPE_PROJECT)
+
+    def test_a_member_warning_costs_no_project_spend_read(self):
+        # Lazy resolution: the project scope must not be touched once the member warns
+        fake = FakeWarningState(member_limit=10.0, project_limit=100.0, spend=9.0)
+        fake.resolve()
+        #
+        self.assertEqual(len(fake.spend_reads), 1)
+        self.assertIn("_user_", fake.spend_reads[0])
+
+    def test_unlimited_budget_never_warns(self):
+        fake = FakeWarningState(member_limit=None, project_limit=None, spend=999.0)
+        #
+        self.assertFalse(fake.resolve()["should_warn"])
+        self.assertEqual(fake.spend_reads, [], "no spend read for an unlimited scope")
+
+    def test_zero_limit_does_not_divide(self):
+        self.assertFalse(FakeWarningState(project_limit=0.0, spend=5.0).resolve()["should_warn"])
+
+    def test_unreadable_spend_yields_no_warning(self):
+        # Better silent than a fabricated percentage
+        fake = FakeWarningState(project_limit=100.0, spend_unreadable=True)
+        self.assertFalse(fake.resolve()["should_warn"])
+
+    def test_per_scope_threshold_is_honoured(self):
+        fake = FakeWarningState(
+            project_limit=100.0, spend=55.0, thresholds={"project_pct": 50},
+        )
+        state = fake.resolve()
+        #
+        self.assertTrue(state["should_warn"])
+        self.assertEqual(state["warning_pct"], 50)
+
+    def test_personal_project_uses_its_own_threshold(self):
+        fake = FakeWarningState(
+            project_limit=100.0, spend=60.0, personal=True,
+            thresholds={"personal_project_pct": 55, "project_pct": 90},
+        )
+        state = fake.resolve()
+        #
+        self.assertTrue(state["should_warn"])
+        self.assertEqual(state["warning_pct"], 55)
+
+    def test_member_scope_uses_the_user_threshold(self):
+        fake = FakeWarningState(
+            member_limit=100.0, spend=70.0, thresholds={"user_pct": 65, "project_pct": 95},
+        )
+        state = fake.resolve()
+        #
+        self.assertEqual(state["scope"], budgets.SCOPE_MEMBER)
+        self.assertEqual(state["warning_pct"], 65)
+
+
+class TestBudgetWarningNotEnforcing(unittest.TestCase):
+    """Observe mode tracks spend but never blocks, so a warning there would be untrue."""
+
+    def test_observe_mode_never_warns(self):
+        fake = FakeWarningState(mode="observe", project_limit=100.0, spend=90.0)
+        self.assertFalse(fake.resolve()["should_warn"])
+
+    def test_off_mode_never_warns(self):
+        fake = FakeWarningState(mode="off", project_limit=100.0, spend=90.0)
+        self.assertFalse(fake.resolve()["should_warn"])
+
+    def test_no_spend_is_read_when_not_enforcing(self):
+        # The whole point: a page load must cost nothing when the feature cannot block
+        fake = FakeWarningState(mode="observe", project_limit=100.0, spend=90.0)
+        fake.resolve()
+        #
+        self.assertEqual(fake.spend_reads, [])
+
+
+class TestBudgetWarningCache(unittest.TestCase):
+    """The banner is requested on every run-page load, and resolving it pages a month of spend.
+
+    Without the cache holding, this feature puts that read on the interactive path.
+    """
+
+    def test_a_second_call_within_the_ttl_reads_spend_once(self):
+        fake = FakeWarningState(project_limit=100.0, spend=85.0)
+        #
+        first = fake.resolve()
+        second = fake.resolve()
+        #
+        self.assertEqual(len(fake.spend_reads), 1)
+        self.assertEqual(first, second)
+
+    def test_many_calls_still_read_spend_once(self):
+        fake = FakeWarningState(project_limit=100.0, spend=85.0)
+        #
+        for _ in range(20):
+            fake.resolve()
+        #
+        self.assertEqual(len(fake.spend_reads), 1)
+
+    def test_an_expired_entry_is_recomputed(self):
+        fake = FakeWarningState(project_limit=100.0, spend=85.0)
+        fake.resolve()
+        #
+        # Age the entry past the TTL rather than sleeping
+        key = (1, 2)
+        _, payload = fake.runtime_cache["budget_warning"][key]
+        fake.runtime_cache["budget_warning"][key] = (
+            time.monotonic() - budgets.BUDGET_WARNING_TTL - 1, payload,
+        )
+        fake.resolve()
+        #
+        self.assertEqual(len(fake.spend_reads), 2)
+
+    def test_different_users_are_cached_separately(self):
+        # A project-scope warning is shared, but a member limit is not
+        fake = FakeWarningState(member_limit=10.0, spend=9.0)
+        fake.resolve(user_id=2)
+        fake.resolve(user_id=3)
+        #
+        self.assertEqual(len(fake.spend_reads), 2)
+
+    def test_a_no_warning_result_is_cached_too(self):
+        # Otherwise the quiet case -- the common one -- pays the read every page load
+        fake = FakeWarningState(project_limit=100.0, spend=10.0)
+        fake.resolve()
+        fake.resolve()
+        #
+        self.assertEqual(len(fake.spend_reads), 1)
 
 
 class TestPersonalProjectHasNoMemberLimit(unittest.TestCase):

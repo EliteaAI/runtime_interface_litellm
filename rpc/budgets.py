@@ -293,6 +293,15 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         """Configured warning percentage for a budget scope, for the Usage page."""
         return self.get_warning_threshold(scope)
 
+    @web.rpc("litellm_get_budget_warning_state", "litellm_get_budget_warning_state")
+    def litellm_get_budget_warning_state(self, project_id, user_id, **kwargs):
+        """Whether to warn this user a budget is nearing its limit, for the run pages.
+
+        Deliberately small: the run pages ask on every open, so this returns a percentage
+        and nothing else -- no per-model or per-day breakdown to build.
+        """
+        return self.get_budget_warning_state(project_id, user_id)
+
     @web.method()
     def read_tags_spend(self, tag_names, now):
         """Map tag -> current-month spend for any number of tags.
