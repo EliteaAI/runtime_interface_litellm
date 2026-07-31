@@ -520,10 +520,12 @@ class FakeMemberLimits:
     end up capped by what an admin actually set.
     """
 
-    def __init__(self, member_row, project_row=None, defaults=None):
+    def __init__(self, member_row, project_row=None, defaults=None, personal=False):
         self.member_row = member_row
         self.project_row = project_row
+        self.personal = personal
         self.get_project_calls = 0
+        self.get_user_calls = 0
         self.descriptor = types.SimpleNamespace(
             config={"cost_budgets": {"defaults": defaults or {}}},
         )
@@ -532,6 +534,7 @@ class FakeMemberLimits:
         return self
 
     def elitea_core_get_user_budget(self, project_id, user_id):  # pylint: disable=W0613
+        self.get_user_calls += 1
         return self.member_row
 
     def elitea_core_get_project_budget(self, project_id):  # pylint: disable=W0613
@@ -539,7 +542,7 @@ class FakeMemberLimits:
         return self.project_row
 
     def is_personal_project(self, project_id):  # pylint: disable=W0613
-        return False
+        return self.personal
 
     get_default_limit = budgets.Method.get_default_limit
     get_member_default_limit = budgets.Method.get_member_default_limit
@@ -648,6 +651,79 @@ class TestMemberDefaultTier(unittest.TestCase):
         limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
         self.assertEqual(limits.resolve(None), 100.0)
         self.assertEqual(limits.get_project_calls, 0)
+
+
+class TestPersonalProjectHasNoMemberLimit(unittest.TestCase):
+    """A personal project's one member is its owner, so its project budget IS their budget.
+
+    A member limit there is a second ceiling on the same person. It also enforced while being
+    invisible: the Usage page shows only the project scope for a personal project, so users
+    were blocked at a platform default of $20 while the page reported 45% of $300 remaining.
+    """
+
+    def test_platform_default_does_not_apply(self):
+        # The reported bug: no stored limit anywhere, blocked by the inherited default
+        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS, personal=True)
+        self.assertIsNone(limits.resolve())
+
+    def test_explicit_member_row_does_not_apply(self):
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=True,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_project_member_default_does_not_apply(self):
+        limits = FakeMemberLimits(
+            None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS, personal=True,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_zero_member_limit_does_not_apply(self):
+        # Zero is normally a real, blocking limit; it must not survive here either
+        limits = FakeMemberLimits(
+            {"monthly_limit": 0.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=True,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_resolves_without_reading_any_budget_row(self):
+        # Short-circuits ahead of the row reads, so it costs no cross-plugin calls
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True}, {"member_default_limit": 20.0},
+            PLATFORM_DEFAULTS, personal=True,
+        )
+        limits.resolve()
+        self.assertEqual(limits.get_user_calls, 0)
+        self.assertEqual(limits.get_project_calls, 0)
+
+    def test_team_project_is_untouched(self):
+        # Regression guard: the same inputs on a team project still resolve every tier
+        self.assertEqual(
+            FakeMemberLimits(
+                {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS,
+            ).resolve(), 7.0,
+        )
+        self.assertEqual(
+            FakeMemberLimits(
+                None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS,
+            ).resolve(), 20.0,
+        )
+        self.assertEqual(
+            FakeMemberLimits(None, None, PLATFORM_DEFAULTS).resolve(), 100.0,
+        )
+
+
+class TestPersonalProjectLookupFailsOpen(unittest.TestCase):
+    """A projects-plugin outage must not lift member limits across the whole platform.
+
+    is_personal_project returns False when it cannot answer, so resolution degrades to the
+    pre-fix behaviour rather than silently making every member unlimited.
+    """
+
+    def test_unknown_personal_status_still_resolves_the_member_limit(self):
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=False,
+        )
+        self.assertEqual(limits.resolve(), 7.0)
 
 
 class TestUnlimitedSentinel(unittest.TestCase):
