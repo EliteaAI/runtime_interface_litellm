@@ -520,10 +520,12 @@ class FakeMemberLimits:
     end up capped by what an admin actually set.
     """
 
-    def __init__(self, member_row, project_row=None, defaults=None):
+    def __init__(self, member_row, project_row=None, defaults=None, personal=False):
         self.member_row = member_row
         self.project_row = project_row
+        self.personal = personal
         self.get_project_calls = 0
+        self.get_user_calls = 0
         self.descriptor = types.SimpleNamespace(
             config={"cost_budgets": {"defaults": defaults or {}}},
         )
@@ -532,6 +534,7 @@ class FakeMemberLimits:
         return self
 
     def elitea_core_get_user_budget(self, project_id, user_id):  # pylint: disable=W0613
+        self.get_user_calls += 1
         return self.member_row
 
     def elitea_core_get_project_budget(self, project_id):  # pylint: disable=W0613
@@ -539,7 +542,7 @@ class FakeMemberLimits:
         return self.project_row
 
     def is_personal_project(self, project_id):  # pylint: disable=W0613
-        return False
+        return self.personal
 
     get_default_limit = budgets.Method.get_default_limit
     get_member_default_limit = budgets.Method.get_member_default_limit
@@ -648,6 +651,79 @@ class TestMemberDefaultTier(unittest.TestCase):
         limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
         self.assertEqual(limits.resolve(None), 100.0)
         self.assertEqual(limits.get_project_calls, 0)
+
+
+class TestPersonalProjectHasNoMemberLimit(unittest.TestCase):
+    """A personal project's one member is its owner, so its project budget IS their budget.
+
+    A member limit there is a second ceiling on the same person. It also enforced while being
+    invisible: the Usage page shows only the project scope for a personal project, so users
+    were blocked at a platform default of $20 while the page reported 45% of $300 remaining.
+    """
+
+    def test_platform_default_does_not_apply(self):
+        # The reported bug: no stored limit anywhere, blocked by the inherited default
+        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS, personal=True)
+        self.assertIsNone(limits.resolve())
+
+    def test_explicit_member_row_does_not_apply(self):
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=True,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_project_member_default_does_not_apply(self):
+        limits = FakeMemberLimits(
+            None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS, personal=True,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_zero_member_limit_does_not_apply(self):
+        # Zero is normally a real, blocking limit; it must not survive here either
+        limits = FakeMemberLimits(
+            {"monthly_limit": 0.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=True,
+        )
+        self.assertIsNone(limits.resolve())
+
+    def test_resolves_without_reading_any_budget_row(self):
+        # Short-circuits ahead of the row reads, so it costs no cross-plugin calls
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True}, {"member_default_limit": 20.0},
+            PLATFORM_DEFAULTS, personal=True,
+        )
+        limits.resolve()
+        self.assertEqual(limits.get_user_calls, 0)
+        self.assertEqual(limits.get_project_calls, 0)
+
+    def test_team_project_is_untouched(self):
+        # Regression guard: the same inputs on a team project still resolve every tier
+        self.assertEqual(
+            FakeMemberLimits(
+                {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS,
+            ).resolve(), 7.0,
+        )
+        self.assertEqual(
+            FakeMemberLimits(
+                None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS,
+            ).resolve(), 20.0,
+        )
+        self.assertEqual(
+            FakeMemberLimits(None, None, PLATFORM_DEFAULTS).resolve(), 100.0,
+        )
+
+
+class TestPersonalProjectLookupFailsOpen(unittest.TestCase):
+    """A projects-plugin outage must not lift member limits across the whole platform.
+
+    is_personal_project returns False when it cannot answer, so resolution degrades to the
+    pre-fix behaviour rather than silently making every member unlimited.
+    """
+
+    def test_unknown_personal_status_still_resolves_the_member_limit(self):
+        limits = FakeMemberLimits(
+            {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=False,
+        )
+        self.assertEqual(limits.resolve(), 7.0)
 
 
 class TestUnlimitedSentinel(unittest.TestCase):
@@ -869,16 +945,27 @@ class FakeActivityService:
 
     read_tags_spend = rpc_budgets.RPC.read_tags_spend
     read_tags_spend_chunk = rpc_budgets.RPC.read_tags_spend_chunk
+    read_tag_spend = rpc_budgets.RPC.read_tag_spend
+    read_tag_usage_detail = rpc_budgets.RPC.read_tag_usage_detail
 
 
 def _restrict_to(page_data, tags):
-    """Drop entities the caller did not ask for, as the real endpoint would."""
+    """Drop entities the caller did not ask for, as the real endpoint would.
+
+    The rest of each day is passed through: the usage-detail reader consumes the date,
+    the day's own metrics and the per-model breakdown, none of which are tag-scoped.
+    """
     results = []
     #
     for day in (page_data or {}).get("results") or []:
-        entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
+        breakdown = (day or {}).get("breakdown") or {}
+        entities = breakdown.get("entities") or {}
         kept = {tag: entry for tag, entry in entities.items() if tag in tags}
-        results.append({"breakdown": {"entities": kept}})
+        #
+        results.append({
+            **(day or {}),
+            "breakdown": {**breakdown, "entities": kept},
+        })
     #
     return {"results": results, "metadata": (page_data or {}).get("metadata") or {}}
 
@@ -889,6 +976,184 @@ def _page(entities, has_more=False):
         "results": [{"breakdown": {"entities": entities}}],
         "metadata": {"has_more": has_more},
     }
+
+
+def _detail_page(days, has_more=False):
+    """An activity page shaped as read_tag_usage_detail consumes it.
+
+    days: [(date, spend, tokens, requests, {model: (spend, tokens, requests)})]
+    """
+    results = []
+    #
+    for date, spend, tokens, requests, models in days:
+        results.append({
+            "date": date,
+            "metrics": {
+                "spend": spend, "total_tokens": tokens, "successful_requests": requests,
+            },
+            "breakdown": {
+                "models": {
+                    name: {"metrics": {
+                        "spend": m_spend, "total_tokens": m_tokens,
+                        "successful_requests": m_requests,
+                    }}
+                    for name, (m_spend, m_tokens, m_requests) in (models or {}).items()
+                },
+            },
+        })
+    #
+    return {"results": results, "metadata": {"has_more": has_more}}
+
+
+class TestUsageDetailPagination(unittest.TestCase):
+    """The Usage page's chart and per-model table read one tag, page by page.
+
+    A single page holds only its own slice of the month, so reading one page dropped whole
+    days off the chart and understated the totals beside it.
+    """
+
+    NOW = datetime.datetime(2026, 7, 29, tzinfo=datetime.timezone.utc)
+
+    def test_days_from_later_pages_are_included(self):
+        svc = FakeActivityService([
+            _detail_page([("2026-07-27", 40.0, 100, 5, {"gpt-5": (40.0, 100, 5)})], has_more=True),
+            _detail_page([("2026-07-28", 96.5, 250, 9, {"gpt-5": (96.5, 250, 9)})]),
+        ])
+        out = svc.read_tag_usage_detail("t", self.NOW)
+        #
+        self.assertAlmostEqual(out["spend"], 136.5)
+        self.assertEqual(out["total_tokens"], 350)
+        self.assertEqual(out["api_requests"], 14)
+        self.assertEqual([d["date"] for d in out["daily"]], ["2026-07-27", "2026-07-28"])
+
+    def test_a_date_split_across_pages_is_merged_not_duplicated(self):
+        # Rows are per (tag, date, model, key), so one date can straddle a page boundary
+        svc = FakeActivityService([
+            _detail_page([("2026-07-27", 10.0, 50, 2, {"gpt-5": (10.0, 50, 2)})], has_more=True),
+            _detail_page([("2026-07-27", 5.0, 25, 1, {"haiku": (5.0, 25, 1)})]),
+        ])
+        out = svc.read_tag_usage_detail("t", self.NOW)
+        #
+        self.assertEqual(len(out["daily"]), 1)
+        self.assertAlmostEqual(out["daily"][0]["spend"], 15.0)
+        self.assertAlmostEqual(out["spend"], 15.0)
+
+    def test_model_totals_accumulate_across_pages(self):
+        svc = FakeActivityService([
+            _detail_page([("2026-07-27", 10.0, 50, 2, {"gpt-5": (10.0, 50, 2)})], has_more=True),
+            _detail_page([("2026-07-28", 6.0, 30, 3, {"gpt-5": (6.0, 30, 3)})]),
+        ])
+        out = svc.read_tag_usage_detail("t", self.NOW)
+        #
+        self.assertEqual(len(out["models"]), 1)
+        self.assertAlmostEqual(out["models"][0]["spend"], 16.0)
+        self.assertEqual(out["models"][0]["api_requests"], 5)
+
+    def test_days_are_sorted_by_date(self):
+        svc = FakeActivityService([
+            _detail_page([("2026-07-28", 1.0, 1, 1, {})], has_more=True),
+            _detail_page([("2026-07-26", 1.0, 1, 1, {})]),
+        ])
+        out = svc.read_tag_usage_detail("t", self.NOW)
+        self.assertEqual([d["date"] for d in out["daily"]], ["2026-07-26", "2026-07-28"])
+
+    def test_a_failure_mid_read_reports_unavailable(self):
+        svc = FakeActivityService([
+            _detail_page([("2026-07-27", 40.0, 100, 5, {})], has_more=True),
+            _detail_page([("2026-07-28", 96.5, 250, 9, {})]),
+        ], fail_on_page=2)
+        out = svc.read_tag_usage_detail("t", self.NOW)
+        #
+        self.assertFalse(out["available"])
+        self.assertEqual(out["spend"], 0.0)
+        self.assertEqual(out["daily"], [])
+
+    def test_page_ceiling_is_respected(self):
+        svc = FakeActivityService(
+            [_detail_page([("2026-07-27", 1.0, 1, 1, {})], has_more=True)] * 200,
+        )
+        svc.read_tag_usage_detail("t", self.NOW)
+        self.assertEqual(len(svc.requested_pages), rpc_budgets.MAX_ACTIVITY_PAGES)
+
+
+class TestSingleTagSpendPagination(unittest.TestCase):
+    """The Usage page reads one tag, and that read is paginated too.
+
+    LiteLLM's `metadata` totals cover only the requested page, so reading page one's
+    metadata reported a fraction of a busy tag's spend -- a user was shown 45% of their
+    budget used while enforcement had already blocked them.
+    """
+
+    NOW = datetime.datetime(2026, 7, 29, tzinfo=datetime.timezone.utc)
+
+    def test_sums_spend_across_every_page(self):
+        svc = FakeActivityService([
+            _page({"t": {"metrics": {"spend": 40.0, "total_tokens": 100}}}, has_more=True),
+            _page({"t": {"metrics": {"spend": 96.5, "total_tokens": 250}}}),
+        ])
+        out = svc.read_tag_spend("t", self.NOW)
+        #
+        self.assertAlmostEqual(out["spend"], 136.5)
+        self.assertEqual(out["total_tokens"], 350)
+        self.assertEqual(svc.requested_pages, [1, 2])
+
+    def test_requests_a_page_size_rather_than_taking_the_default(self):
+        # The endpoint defaults to 50 records; relying on it is what truncated the total
+        svc = FakeActivityService([_page({"t": {"metrics": {"spend": 1.0}}})])
+        svc.read_tag_spend("t", self.NOW)
+        self.assertEqual(svc.requested_pages, [1])
+
+    def test_stops_at_the_last_page(self):
+        svc = FakeActivityService([_page({"t": {"metrics": {"spend": 2.0}}})])
+        out = svc.read_tag_spend("t", self.NOW)
+        #
+        self.assertAlmostEqual(out["spend"], 2.0)
+        self.assertTrue(out["available"])
+        self.assertEqual(svc.requested_pages, [1])
+
+    def test_other_tags_on_the_same_page_are_ignored(self):
+        svc = FakeActivityService([
+            _page({"t": {"metrics": {"spend": 3.0}}, "other": {"metrics": {"spend": 99.0}}}),
+        ])
+        self.assertAlmostEqual(svc.read_tag_spend("t", self.NOW)["spend"], 3.0)
+
+    def test_a_tag_with_no_activity_is_zero_and_available(self):
+        # Distinct from unreadable: nothing spent is a real answer
+        svc = FakeActivityService([_page({})])
+        out = svc.read_tag_spend("t", self.NOW)
+        #
+        self.assertEqual(out["spend"], 0.0)
+        self.assertTrue(out["available"])
+
+    def test_a_later_page_failure_reports_unavailable_rather_than_a_short_total(self):
+        # A partial sum would look like genuinely lower spend and quietly raise the
+        # headroom shown to the user
+        svc = FakeActivityService([
+            _page({"t": {"metrics": {"spend": 40.0}}}, has_more=True),
+            _page({"t": {"metrics": {"spend": 96.5}}}),
+        ], fail_on_page=2)
+        out = svc.read_tag_spend("t", self.NOW)
+        #
+        self.assertEqual(out["spend"], 0.0)
+        self.assertFalse(out["available"])
+
+    def test_first_page_failure_is_unavailable(self):
+        svc = FakeActivityService([_page({"t": {"metrics": {"spend": 1.0}}})], fail_on_page=1)
+        out = svc.read_tag_spend("t", self.NOW)
+        #
+        self.assertEqual(out["spend"], 0.0)
+        self.assertFalse(out["available"])
+
+    def test_page_ceiling_bounds_a_server_that_always_says_has_more(self):
+        svc = FakeActivityService(
+            [_page({"t": {"metrics": {"spend": 1.0}}}, has_more=True)] * 200,
+        )
+        svc.read_tag_spend("t", self.NOW)
+        self.assertEqual(len(svc.requested_pages), rpc_budgets.MAX_ACTIVITY_PAGES)
+
+    def test_period_is_the_current_month(self):
+        svc = FakeActivityService([_page({})])
+        self.assertEqual(svc.read_tag_spend("t", self.NOW)["period"], "202607")
 
 
 class TestSpendPagination(unittest.TestCase):

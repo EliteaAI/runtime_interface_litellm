@@ -211,48 +211,64 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
             "available": False,
         }
         #
-        try:
-            activity = self.service_node.call.litellm_api_call(
-                "tag_daily_activity",
-                tags=[tag_name],
-                start_date=f"{period_start:%Y-%m-%d}",
-                end_date=f"{now:%Y-%m-%d}",
-                page_size=MAX_ACTIVITY_PAGE_SIZE,
-            )
-        except:  # pylint: disable=W0702
-            log.exception("Failed to read usage detail for tag %s", tag_name)
-            return result
-        #
         models = {}
-        daily = []
+        by_date = {}
         #
-        for day in (activity or {}).get("results") or []:
-            day_metrics = (day or {}).get("metrics") or {}
-            #
-            daily.append({
-                "date": (day or {}).get("date"),
-                "spend": float(day_metrics.get("spend", 0) or 0),
-                "total_tokens": int(day_metrics.get("total_tokens", 0) or 0),
-                "api_requests": int(day_metrics.get("successful_requests", 0) or 0),
-            })
-            #
-            breakdown = ((day or {}).get("breakdown") or {}).get("models") or {}
-            #
-            for model_name, entry in breakdown.items():
-                metrics = (entry or {}).get("metrics") or {}
-                bucket = models.setdefault(
-                    model_name,
-                    {"model": model_name, "spend": 0.0, "total_tokens": 0, "api_requests": 0},
+        # Paged for the same reason as read_tag_spend: one page carries only its own slice
+        # of the month, so a busy tag would lose whole days off its chart and its total
+        for page in range(1, MAX_ACTIVITY_PAGES + 1):
+            try:
+                activity = self.service_node.call.litellm_api_call(
+                    "tag_daily_activity",
+                    tags=[tag_name],
+                    start_date=f"{period_start:%Y-%m-%d}",
+                    end_date=f"{now:%Y-%m-%d}",
+                    page=page,
+                    page_size=MAX_ACTIVITY_PAGE_SIZE,
                 )
+            except:  # pylint: disable=W0702
+                log.exception(
+                    "Failed to read usage detail for tag %s at page %s", tag_name, page,
+                )
+                return result
+            #
+            for day in (activity or {}).get("results") or []:
+                day_metrics = (day or {}).get("metrics") or {}
+                date = (day or {}).get("date")
                 #
-                bucket["spend"] += float(metrics.get("spend", 0) or 0)
-                bucket["total_tokens"] += int(metrics.get("total_tokens", 0) or 0)
-                # Rejected calls served nothing and cost nothing, so they are not usage.
-                # They also log under the pre-routing model name, which would otherwise
-                # split one model across two rows (e.g. "1_gpt-5" beside "gpt-5").
-                bucket["api_requests"] += int(metrics.get("successful_requests", 0) or 0)
+                # A date can span pages, so days accumulate rather than being appended
+                bucket = by_date.setdefault(
+                    date, {"date": date, "spend": 0.0, "total_tokens": 0, "api_requests": 0},
+                )
+                bucket["spend"] += float(day_metrics.get("spend", 0) or 0)
+                bucket["total_tokens"] += int(day_metrics.get("total_tokens", 0) or 0)
+                bucket["api_requests"] += int(day_metrics.get("successful_requests", 0) or 0)
+                #
+                breakdown = ((day or {}).get("breakdown") or {}).get("models") or {}
+                #
+                for model_name, entry in breakdown.items():
+                    metrics = (entry or {}).get("metrics") or {}
+                    model = models.setdefault(
+                        model_name,
+                        {"model": model_name, "spend": 0.0, "total_tokens": 0, "api_requests": 0},
+                    )
+                    #
+                    model["spend"] += float(metrics.get("spend", 0) or 0)
+                    model["total_tokens"] += int(metrics.get("total_tokens", 0) or 0)
+                    # Rejected calls served nothing and cost nothing, so they are not usage.
+                    # They also log under the pre-routing model name, which would otherwise
+                    # split one model across two rows (e.g. "1_gpt-5" beside "gpt-5").
+                    model["api_requests"] += int(metrics.get("successful_requests", 0) or 0)
+            #
+            if not ((activity or {}).get("metadata") or {}).get("has_more"):
+                break
+        else:
+            log.warning(
+                "Usage detail for tag %s hit the %s page ceiling; totals may be short",
+                tag_name, MAX_ACTIVITY_PAGES,
+            )
         #
-        daily.sort(key=lambda item: item["date"] or "")
+        daily = sorted(by_date.values(), key=lambda item: item["date"] or "")
         #
         # Models with no spend and no calls only add noise to the UI
         model_rows = [row for row in models.values() if row["api_requests"] or row["spend"]]
@@ -353,7 +369,14 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
 
     @web.method()
     def read_tag_spend(self, tag_name, now):
-        """Sum current-month spend for one tag from LiteLLM's daily aggregate."""
+        """Sum current-month spend for one tag from LiteLLM's daily aggregate.
+
+        The report's `metadata` totals cover only the rows on the requested page, not the
+        whole date range, so they are summed page by page from the per-day breakdown
+        instead. Reading page one's metadata alone silently understated a busy tag: rows
+        are one per (tag, date, model, key), so a single project passes the default page
+        size well within a month, and the Usage page then showed a fraction of real spend.
+        """
         period_start = now.replace(day=1)
         #
         result = {
@@ -366,23 +389,53 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
             "available": False,
         }
         #
-        try:
-            activity = self.service_node.call.litellm_api_call(
-                "tag_daily_activity",
-                tags=[tag_name],
-                start_date=f"{period_start:%Y-%m-%d}",
-                end_date=f"{now:%Y-%m-%d}",
-            )
-        except:  # pylint: disable=W0702
-            log.exception("Failed to read spend for tag %s", tag_name)
-            return result
+        for page in range(1, MAX_ACTIVITY_PAGES + 1):
+            try:
+                activity = self.service_node.call.litellm_api_call(
+                    "tag_daily_activity",
+                    tags=[tag_name],
+                    start_date=f"{period_start:%Y-%m-%d}",
+                    end_date=f"{now:%Y-%m-%d}",
+                    page=page,
+                    page_size=MAX_ACTIVITY_PAGE_SIZE,
+                )
+            except:  # pylint: disable=W0702
+                log.exception("Failed to read spend for tag %s at page %s", tag_name, page)
+                #
+                # Every counter resets, not just spend: a partly-read total understates
+                # usage, which for a budget check is worse than reporting nothing at all
+                return {
+                    "tag": tag_name,
+                    "period": f"{now:%Y%m}",
+                    "spend": 0.0,
+                    "prompt_tokens": 0,
+                    "completion_tokens": 0,
+                    "total_tokens": 0,
+                    "available": False,
+                }
+            #
+            for day in (activity or {}).get("results") or []:
+                entities = ((day or {}).get("breakdown") or {}).get("entities") or {}
+                entry = entities.get(tag_name)
+                #
+                if entry is None:
+                    continue
+                #
+                metrics = (entry or {}).get("metrics") or entry or {}
+                #
+                result["spend"] += float(metrics.get("spend", 0) or 0)
+                result["prompt_tokens"] += int(metrics.get("prompt_tokens", 0) or 0)
+                result["completion_tokens"] += int(metrics.get("completion_tokens", 0) or 0)
+                result["total_tokens"] += int(metrics.get("total_tokens", 0) or 0)
+            #
+            result["available"] = True
+            #
+            if not ((activity or {}).get("metadata") or {}).get("has_more"):
+                return result
         #
-        metadata = (activity or {}).get("metadata") or {}
-        #
-        result["spend"] = float(metadata.get("total_spend", 0) or 0)
-        result["prompt_tokens"] = int(metadata.get("total_prompt_tokens", 0) or 0)
-        result["completion_tokens"] = int(metadata.get("total_completion_tokens", 0) or 0)
-        result["total_tokens"] = int(metadata.get("total_tokens", 0) or 0)
-        result["available"] = True
+        log.warning(
+            "Spend for tag %s hit the %s page ceiling; total may be short",
+            tag_name, MAX_ACTIVITY_PAGES,
+        )
         #
         return result

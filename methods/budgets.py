@@ -422,7 +422,15 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         A row with enabled=false exempts the member from the *platform* default only. A
         limit an admin set on this project still applies, so "set a limit for everyone
         here" cannot be silently undone by a member row nobody meant to opt out.
+
+        A personal project has one member, its owner, so its project budget already IS that
+        member's budget. A second limit there can only duplicate or silently override it --
+        and being invisible on a page that shows only the project scope, it blocked users
+        who could see budget remaining. Resolved before any row is read.
         """
+        if self.is_personal_project(project_id):
+            return None
+        #
         try:
             budget = context.rpc_manager.timeout(5).elitea_core_get_user_budget(
                 project_id=project_id, user_id=user_id,
