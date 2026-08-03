@@ -62,6 +62,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             team_name,
             models=allowed_models,
         )
+        # Opt in to LiteLLM >=1.83.14 keeping our caller-supplied budget/routing
+        # tags; harmless no-op on older versions that don't check this key.
+        self.service_node.call.litellm_api_call(
+            "team_update",
+            team_result["team_id"],
+            {"metadata": {"allow_client_tags": True}},
+        )
         key_result = self.service_node.call.litellm_api_call(
             "key_generate",
             key_name, team_result["team_id"],

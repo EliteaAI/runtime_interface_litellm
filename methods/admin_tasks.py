@@ -188,6 +188,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 failed_configuration_calls = 0
                 #
                 present_teams = set()
+                team_by_alias = {}
                 #
                 log.info("Getting team list")
                 teams = self.service_node.call.litellm_api_call(
@@ -196,6 +197,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 #
                 for team in teams:
                     present_teams.add(team["team_alias"])
+                    team_by_alias[team["team_alias"]] = team
                 #
                 log.info("Getting project list")
                 project_list = context.rpc_manager.timeout(120).project_list(
@@ -227,6 +229,22 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         if not dry_run:
                             self.make_project_entities(project_id)
                             present_teams.add(team_name)
+                    else:
+                        # Retrofit: opt existing teams into keeping our budget/routing
+                        # tags on LiteLLM >=1.83.14 (no-op on older versions).
+                        existing_team = team_by_alias.get(team_name) or {}
+                        existing_metadata = existing_team.get("metadata") or {}
+                        if not existing_metadata.get("allow_client_tags"):
+                            log.info(
+                                "%sOpting team into client tags: %s",
+                                prefix, team_name,
+                            )
+                            if not dry_run:
+                                self.service_node.call.litellm_api_call(
+                                    "team_update",
+                                    existing_team["team_id"],
+                                    {"metadata": {**existing_metadata, "allow_client_tags": True}},
+                                )
                     #
                     # Skip configurations for non-public projects when own LLMs disabled
                     #
