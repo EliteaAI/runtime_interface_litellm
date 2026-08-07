@@ -87,6 +87,10 @@ UNLIMITED_BUDGET = 1_000_000_000.0
 # Distinguishes "caller did not pass the project row" from "the project has no row"
 UNSET = object()
 
+# Cached in place of a limit: this tag has no budget and does not exist in LiteLLM, so
+# there is nothing to re-check until an admin sets one (which invalidates the entry).
+ABSENT = object()
+
 
 def make_budget_tag(project_id, now=None):
     """Build the per-project monthly budget tag name."""
@@ -278,12 +282,17 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         cache = self.runtime_cache.setdefault("budget_tags", {})
         #
         now = time.monotonic()
-        checked_at, _ = cache.get(tag_name, (0.0, None))
+        checked_at, cached_limit = cache.get(tag_name, (0.0, None))
         #
         if now - checked_at < BUDGET_SYNC_TTL:
             return
         #
         limit = limit_getter(project_id)
+        #
+        # Already confirmed absent from LiteLLM and still unbudgeted: nothing to check.
+        if limit is None and cached_limit is ABSENT:
+            cache[tag_name] = (now, ABSENT)
+            return
         #
         # None means unlimited: lift any previously-set ceiling instead of leaving the
         # old value enforcing, but don't create a tag that never had a budget.
@@ -291,17 +300,20 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         try:
             if limit is None:
-                self.service_node.call.litellm_api_call(
+                result = self.service_node.call.litellm_api_call(
                     "tag_update_if_exists",
                     tag_name,
                     max_budget=max_budget,
                 )
-            else:
-                self.service_node.call.litellm_api_call(
-                    "tag_upsert",
-                    tag_name,
-                    max_budget=max_budget,
-                )
+                #
+                cache[tag_name] = (now, ABSENT if result is None else limit)
+                return
+            #
+            self.service_node.call.litellm_api_call(
+                "tag_upsert",
+                tag_name,
+                max_budget=max_budget,
+            )
         except:  # pylint: disable=W0702
             log.exception("Failed to sync budget tag %s", tag_name)
             return
