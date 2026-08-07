@@ -870,6 +870,84 @@ class TestBudgetWarningCache(unittest.TestCase):
         self.assertEqual(len(fake.spend_reads), 1)
 
 
+class FakeTagSync:
+    """Minimal double for ensure_budget_tag's LiteLLM dispatch, cache, and invalidation."""
+
+    def __init__(self, results=None):
+        self.runtime_cache = {}
+        self.calls = []
+        self._results = results or {}
+        self.service_node = types.SimpleNamespace(call=self)
+
+    def litellm_api_call(self, method, tag_name, **_kwargs):
+        self.calls.append((method, tag_name))
+        return self._results.get(tag_name)
+
+    def budgets_enforcing(self):
+        return True
+
+    ensure_budget_tag = budgets.Method.ensure_budget_tag
+    invalidate_budget_tag = budgets.Method.invalidate_budget_tag
+    invalidate_budget_tag_cache = budgets.Method.invalidate_budget_tag_cache
+
+    def _age_cache_past_ttl(self, tag_name):
+        checked_at, limit = self.runtime_cache["budget_tags"][tag_name]
+        self.runtime_cache["budget_tags"][tag_name] = (
+            checked_at - budgets.BUDGET_SYNC_TTL - 1, limit,
+        )
+
+
+class TestBudgetTagAbsentCache(unittest.TestCase):
+    """A tag confirmed to have no budget must not be re-checked with LiteLLM every tick.
+
+    Absence is cached as the ABSENT sentinel in the same budget_tags entry a real limit
+    would occupy -- there is no separate cache to keep in sync with this one.
+    """
+
+    def test_first_unbudgeted_call_checks_litellm_and_caches_absence(self):
+        fake = FakeTagSync(results={"tag": None})
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        #
+        self.assertEqual(fake.calls, [("tag_update_if_exists", "tag")])
+        self.assertIs(fake.runtime_cache["budget_tags"]["tag"][1], budgets.ABSENT)
+
+    def test_second_call_past_ttl_skips_litellm_entirely(self):
+        fake = FakeTagSync(results={"tag": None})
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        fake._age_cache_past_ttl("tag")
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        #
+        self.assertEqual(len(fake.calls), 1)
+
+    def test_invalidate_budget_tag_clears_absence(self):
+        fake = FakeTagSync(results={"tag": None})
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        fake.invalidate_budget_tag("tag")
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        #
+        self.assertEqual(len(fake.calls), 2)
+        self.assertIs(fake.runtime_cache["budget_tags"]["tag"][1], budgets.ABSENT)
+
+    def test_invalidate_budget_tag_cache_clears_absence(self):
+        fake = FakeTagSync(results={"tag": None})
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        fake.invalidate_budget_tag_cache()
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        #
+        self.assertEqual(len(fake.calls), 2)
+
+    def test_setting_a_real_limit_upserts_and_clears_absence(self):
+        fake = FakeTagSync(results={"tag": None})
+        fake.ensure_budget_tag(1, "tag", lambda _pid: None, check_threshold=False)
+        self.assertIs(fake.runtime_cache["budget_tags"]["tag"][1], budgets.ABSENT)
+        #
+        fake._age_cache_past_ttl("tag")
+        fake.ensure_budget_tag(1, "tag", lambda _pid: 42.0, check_threshold=False)
+        #
+        self.assertEqual(fake.runtime_cache["budget_tags"]["tag"][1], 42.0)
+        self.assertEqual(fake.calls[-1], ("tag_upsert", "tag"))
+
+
 class TestPersonalProjectHasNoMemberLimit(unittest.TestCase):
     """A personal project's one member is its owner, so its project budget IS their budget.
 
