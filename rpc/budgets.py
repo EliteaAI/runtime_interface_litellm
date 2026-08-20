@@ -207,6 +207,10 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
             "daily": [],
             "spend": 0.0,
             "total_tokens": 0,
+            "input_tokens": 0,
+            "output_tokens": 0,
+            "cache_read_tokens": 0,
+            "cache_creation_tokens": 0,
             "api_requests": 0,
             "available": False,
         }
@@ -238,10 +242,19 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
                 #
                 # A date can span pages, so days accumulate rather than being appended
                 bucket = by_date.setdefault(
-                    date, {"date": date, "spend": 0.0, "total_tokens": 0, "api_requests": 0},
+                    date, {
+                        "date": date, "spend": 0.0, "total_tokens": 0,
+                        "input_tokens": 0, "output_tokens": 0,
+                        "cache_read_tokens": 0, "cache_creation_tokens": 0,
+                        "api_requests": 0,
+                    },
                 )
                 bucket["spend"] += float(day_metrics.get("spend", 0) or 0)
                 bucket["total_tokens"] += int(day_metrics.get("total_tokens", 0) or 0)
+                bucket["input_tokens"] += int(day_metrics.get("prompt_tokens", 0) or 0)
+                bucket["output_tokens"] += int(day_metrics.get("completion_tokens", 0) or 0)
+                bucket["cache_read_tokens"] += int(day_metrics.get("cache_read_input_tokens", 0) or 0)
+                bucket["cache_creation_tokens"] += int(day_metrics.get("cache_creation_input_tokens", 0) or 0)
                 bucket["api_requests"] += int(day_metrics.get("successful_requests", 0) or 0)
                 #
                 breakdown = ((day or {}).get("breakdown") or {}).get("models") or {}
@@ -278,6 +291,10 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         result["daily"] = daily
         result["spend"] = sum(row["spend"] for row in daily)
         result["total_tokens"] = sum(row["total_tokens"] for row in daily)
+        result["input_tokens"] = sum(row["input_tokens"] for row in daily)
+        result["output_tokens"] = sum(row["output_tokens"] for row in daily)
+        result["cache_read_tokens"] = sum(row["cache_read_tokens"] for row in daily)
+        result["cache_creation_tokens"] = sum(row["cache_creation_tokens"] for row in daily)
         result["api_requests"] = sum(row["api_requests"] for row in daily)
         result["available"] = True
         #
