@@ -247,6 +247,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             if project_id is None:
                 return "Error", 400
             #
+            proxy_auth["project_id"] = project_id
+            #
             public_project_id = self.get_public_project_id()
             #
             if proxy_target_endpoint.startswith("/v1/models"):
