@@ -17,12 +17,40 @@
 
 """ Route """
 
+import time
+
 import flask  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from tools import this, auth  # pylint: disable=E0401
+
+from ..utils.usage_audit import record_llm_proxy_usage
+
+
+def _tee_and_audit(iterator, *, user_id, user_email, project_id, is_error, start_time_ns, is_sse):
+    """Pass every chunk through unchanged, then emit an audit span for the
+    accumulated response once the stream ends - success or not.
+    """
+    buffer = bytearray()
+    try:
+        for chunk in iterator:
+            if chunk:
+                buffer.extend(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
+            yield chunk
+    finally:
+        end_time_ns = time.time_ns()
+        try:
+            record_llm_proxy_usage(
+                buffer, is_sse,
+                user_id=user_id, user_email=user_email, project_id=project_id,
+                duration_ms=(end_time_ns - start_time_ns) / 1e6,
+                is_error=is_error,
+                start_time_ns=start_time_ns, end_time_ns=end_time_ns,
+            )
+        except Exception:  # pylint: disable=W0703
+            log.exception("Failed to record LLM proxy usage audit")
 
 
 class Route:  # pylint: disable=E1101,R0903
@@ -41,6 +69,8 @@ class Route:  # pylint: disable=E1101,R0903
     )
     def litellm_route_http(self, url):  # pylint: disable=R
         """ Handler """
+        #
+        start_time_ns = time.time_ns()
         #
         # Target
         #
@@ -108,6 +138,20 @@ class Route:  # pylint: disable=E1101,R0903
             #
             if budget_error is not None:
                 return budget_error
+            #
+            project_id = proxy_auth.get("project_id")
+            #
+            if project_id is not None:
+                is_sse = "text/event-stream" in response["headers"].get("Content-Type", "")
+                iterator = _tee_and_audit(
+                    iterator,
+                    user_id=proxy_auth["user"].get("id"),
+                    user_email=proxy_auth["user"].get("email"),
+                    project_id=project_id,
+                    is_error=response["status_code"] >= 400,
+                    start_time_ns=start_time_ns,
+                    is_sse=is_sse,
+                )
             #
             return flask.Response(
                 flask.stream_with_context(iterator),
