@@ -24,6 +24,32 @@ from pylon.core.tools import log  # pylint: disable=E0611,E0401
 
 AUDIT_TRACER_NAME = "audit-trail"
 
+#
+# Requests made by Elitea's own runtime (agent/chat predict) travel through this
+# same proxy, but their token usage is already captured on the runtime side as
+# generation spans (AuditLangChainCallback / Langfuse). Such requests carry this
+# header so the proxy skips its own audit and analytics are not double-counted.
+# External clients (Claude Code and friends with a personal token) never send it
+# and remain audited here.
+#
+INTERNAL_AUDIT_HEADER = "X-Elitea-Audited"
+
+_TRUTHY_HEADER_VALUES = ("1", "true", "yes", "on")
+
+
+def is_audited_elsewhere(headers):
+    """True when the caller states this LLM call is already audited upstream."""
+    try:
+        value = headers.get(INTERNAL_AUDIT_HEADER)
+    except Exception:  # pylint: disable=W0703
+        return False
+    #
+    if value is None:
+        return False
+    #
+    return str(value).strip().lower() in _TRUTHY_HEADER_VALUES
+
+
 _PLUGIN_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 try:
     with open(os.path.join(_PLUGIN_DIR, "metadata.json"), "r") as _f:

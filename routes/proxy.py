@@ -26,7 +26,7 @@ from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from tools import this, auth  # pylint: disable=E0401
 
-from ..utils.usage_audit import record_llm_proxy_usage
+from ..utils.usage_audit import is_audited_elsewhere, record_llm_proxy_usage
 
 
 def _tee_and_audit(iterator, *, user_id, user_email, project_id, is_error, start_time_ns, is_sse):
@@ -141,7 +141,7 @@ class Route:  # pylint: disable=E1101,R0903
             #
             project_id = proxy_auth.get("project_id")
             #
-            if project_id is not None:
+            if project_id is not None and not is_audited_elsewhere(flask.request.headers):
                 is_sse = "text/event-stream" in response["headers"].get("Content-Type", "")
                 iterator = _tee_and_audit(
                     iterator,
