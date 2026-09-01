@@ -195,7 +195,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         proxy_target["headers"] = self.preprocess_headers(proxy_target["headers"])
         proxy_target["headers"]["Accept-Encoding"] = "identity"
         #
-        if proxy_auth["type"] == "token":
+        # "user" = runtime authenticated with the caller's session cookie (#6486)
+        if proxy_auth["type"] in ("token", "user"):
             user_name = proxy_auth["user"]["name"]
             user_id = proxy_auth["user"]["id"]
             #
@@ -375,7 +376,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         response["headers"]["Server"] = "Centry"
         #
-        if proxy_auth["type"] == "token":
+        # "user" = runtime authenticated with the caller's session cookie (#6486)
+        if proxy_auth["type"] in ("token", "user"):
             for header_key in list(dict(response["headers"])):
                 if header_key.lower().startswith("x-litellm-") or \
                         header_key.lower().startswith("llm_provider-"):
