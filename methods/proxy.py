@@ -27,6 +27,26 @@ from werkzeug.datastructures.headers import Headers  # pylint: disable=E0401
 from tools import context, project_constants, VaultClient, this  # pylint: disable=E0401
 
 
+LLM_ENDPOINT_WHITELIST = [
+    "/v1/models",
+    "/v1/completions",
+    "/v1/chat/completions",
+    "/v1/responses",
+    "/v1/messages",
+    "/v1/embeddings",
+    "/v1/images/generations",
+    "/v1/images/edits",
+    "/v1/images/variations",
+]
+
+LLM_ENDPOINT_PREFIX_WHITELIST = [
+    "/v1/models/",
+    "/v1/chat/completions/",
+    "/v1/responses/",
+    "/v1/messages/",
+]
+
+
 class Method:  # pylint: disable=E1101,R0903,W0201
     """
         Method Resource
@@ -88,40 +108,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         }
 
     @web.method()
+    def _is_llm_endpoint(self, target_endpoint):
+        """ Method """
+        if target_endpoint in LLM_ENDPOINT_WHITELIST:
+            return True
+        #
+        for target_prefix in LLM_ENDPOINT_PREFIX_WHITELIST:
+            if target_endpoint.startswith(target_prefix):
+                return True
+        #
+        return False
+
+    @web.method()
     def check_access(self, proxy_target, proxy_auth):
         """ Method """
-        #
-        # Whitelist
-        #
-        endpoint_whitelist = [
-            "/v1/models",
-            "/v1/completions",
-            "/v1/chat/completions",
-            "/v1/responses",
-            "/v1/messages",
-            "/v1/embeddings",
-            "/v1/images/generations",
-            "/v1/images/edits",
-            "/v1/images/variations",
-        ]
-        #
-        endpoint_prefix_whitelist = [
-            "/v1/models/",
-            "/v1/chat/completions/",
-            "/v1/responses/",
-            "/v1/messages/",
-        ]
-        #
-        target_endpoint = proxy_target["endpoint"]
-        target_whitelisted = target_endpoint in endpoint_whitelist
-        #
-        if not target_whitelisted:
-            for target_prefix in endpoint_prefix_whitelist:
-                if target_endpoint.startswith(target_prefix):
-                    target_whitelisted = True
-                    break
-        #
-        if target_whitelisted:
+        if self._is_llm_endpoint(proxy_target["endpoint"]):
             return None
         #
         # Check if user is admin
@@ -196,7 +197,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         proxy_target["headers"]["Accept-Encoding"] = "identity"
         #
         # "user" = runtime authenticated with the caller's session cookie (#6486)
-        if proxy_auth["type"] in ("token", "user"):
+        # Skip LiteLLM's native admin endpoints — they need their original credential, not a project virtual key.
+        if proxy_auth["type"] in ("token", "user") and self._is_llm_endpoint(proxy_target_endpoint):
             user_name = proxy_auth["user"]["name"]
             user_id = proxy_auth["user"]["id"]
             #
