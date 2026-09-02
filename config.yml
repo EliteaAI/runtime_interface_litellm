@@ -6,6 +6,21 @@ external_litellm_url: ""
 litellm_master_key: null
 allow_project_own_llms: true
 
+# Read-only access to LiteLLM's own spend table, used to list the members of a project who
+# actually spent. Same two keys the runtime engine uses, so a custom deployment configures
+# them the same way in both places.
+# elitea - derive the URL from the platform database, swapping only the database name
+# custom - use database_url verbatim
+litellm_database_mode: elitea
+litellm_db_name: litellm
+database_url: null
+#
+# Small on purpose: this pool serves the Usage page, not the request path, and results are
+# cached per project for a minute.
+spend_db:
+  pool_size: 2
+  max_overflow: 3
+
 # Monthly spend limits for SHARED models, enforced by LiteLLM via per-request tags.
 # Calls to a project's own (BYO) or externally-managed models are never counted.
 # Manage these from Admin -> Features -> Cost Budgets rather than editing by hand.
