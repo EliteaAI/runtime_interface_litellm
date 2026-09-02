@@ -177,6 +177,16 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
         #
         return {uid: spend_by_tag.get(tag, 0.0) for tag, uid in tags.items()}
 
+    @web.rpc("litellm_list_member_spend", "litellm_list_member_spend")
+    def litellm_list_member_spend(self, project_id, period=None, **kwargs):
+        """Members with recorded spend in a project, plus the project total.
+
+        Reads the spend table directly, so it enumerates whoever actually spent rather than
+        whoever is a member right now — a member who has since left still appears, and the
+        rows add up to the project total. Returns None when that table is unreachable.
+        """
+        return self.read_project_member_spend(project_id, period)
+
     @web.rpc("litellm_get_project_usage_detail", "litellm_get_project_usage_detail")
     def litellm_get_project_usage_detail(self, project_id, **kwargs):
         """Per-model and per-day current-month usage for a project."""
