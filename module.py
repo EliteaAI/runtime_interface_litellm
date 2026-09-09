@@ -31,22 +31,6 @@ class Module(module.ModuleModel):  # pylint: disable=R0903
         )
         #
         self.descriptor.register_tool("runtime_interface", self)
-        self._join_interface_registry()
-
-    def _join_interface_registry(self):
-        """Append to the shared interface list the usage plugin enumerates."""
-        # register_tool raises on duplicates, so the list is a separate tool owned by whoever is first
-        import sys  # pylint: disable=C0415
-
-        tools_module = sys.modules["tools"]
-        registry = getattr(tools_module, "runtime_interfaces", None)
-        #
-        if registry is None:
-            self.descriptor.register_tool("runtime_interfaces", [self])
-            return
-        #
-        if self not in registry:
-            registry.append(self)
 
     def reconfig(self):
         """Re-config"""
