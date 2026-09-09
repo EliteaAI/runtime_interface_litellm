@@ -17,6 +17,8 @@
 
 """ Method """
 
+import uuid
+
 import flask  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
@@ -45,6 +47,37 @@ LLM_ENDPOINT_PREFIX_WHITELIST = [
     "/v1/responses/",
     "/v1/messages/",
 ]
+
+# Twin contract: the indexer worker lifts elitea_core's platform run id onto the LLM
+# request under this name (#6569). Duplicated as a literal because this plugin cannot
+# import elitea_core. Consumed at this gateway — never forwarded to the model provider.
+ELITEA_RUN_ID_HEADER = "X-Elitea-Run-Id"
+
+# Where the extracted id is parked on proxy_auth — the dict this plugin already uses to carry
+# project_id from prepare_request to prepare_response. The usage plugin's hooks
+# (begin_llm_call / meter_llm_response) need the id on both sides of the upstream call, and by
+# then the header itself is gone from the request.
+PLATFORM_RUN_ID_AUTH_KEY = "platform_run_id"
+
+
+def extract_run_id(headers):
+    """Canonical platform run id from the request headers, or None.
+
+    Normalised: the usage plugin stores it in a Postgres ``uuid`` column, which canonicalises
+    on write, so an unhyphenated form here would not compare equal to what a report reads back.
+    Validated: the value arrives on a caller-supplied header, so an unparseable one is dropped
+    here rather than left to fail a usage insert later.
+    """
+    raw = headers.get(ELITEA_RUN_ID_HEADER)
+    #
+    if not raw:
+        return None
+    #
+    try:
+        return str(uuid.UUID(raw))
+    except (AttributeError, TypeError, ValueError):
+        log.warning("Ignoring malformed %s header", ELITEA_RUN_ID_HEADER)
+        return None
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -196,6 +229,16 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         proxy_target["headers"] = self.preprocess_headers(proxy_target["headers"])
         proxy_target["headers"]["Accept-Encoding"] = "identity"
         #
+        # Platform run id: correlates this LLM call with the predict/eval run that caused it.
+        # Removed from the outbound set unconditionally — it is an internal identifier that the
+        # model provider has no use for, and `remove` is a no-op when the header is absent.
+        # Read into proxy_auth first: everything downstream of this point (the log below, the
+        # usage hooks once their bodies land) must take the id from there, not from the headers.
+        #
+        platform_run_id = extract_run_id(proxy_target["headers"])
+        proxy_target["headers"].remove(ELITEA_RUN_ID_HEADER)
+        proxy_auth[PLATFORM_RUN_ID_AUTH_KEY] = platform_run_id
+        #
         # "user" = runtime authenticated with the caller's session cookie (#6486)
         # Skip LiteLLM's native admin endpoints — they need their original credential, not a project virtual key.
         if proxy_auth["type"] in ("token", "user") and self._is_llm_endpoint(proxy_target_endpoint):
@@ -299,6 +342,31 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     return "Error", 404
                 #
                 return result
+            #
+            # Verification point for run correlation (#6569): logged here, at the single relay
+            # every project LLM call passes through, so a run's LLM usage is traceable from the
+            # gateway alone. A missing id is a warning, not a debug detail — it means this
+            # call's usage cannot be attributed to any run.
+            #
+            request_json = proxy_target.get("json")
+            request_data = proxy_target.get("data")
+            raw_model = None
+            #
+            if isinstance(request_json, dict):
+                raw_model = request_json.get("model")
+            elif isinstance(request_data, dict):
+                raw_model = request_data.get("model")
+            #
+            if platform_run_id:
+                log.info(
+                    "LLM call: run_id=%s project_id=%s endpoint=%s model=%s",
+                    platform_run_id, project_id, proxy_target_endpoint, raw_model,
+                )
+            else:
+                log.warning(
+                    "LLM call without platform run id: project_id=%s endpoint=%s model=%s",
+                    project_id, proxy_target_endpoint, raw_model,
+                )
             #
             vault_client = VaultClient(project_id)
             project_secrets = vault_client.get_secrets()
