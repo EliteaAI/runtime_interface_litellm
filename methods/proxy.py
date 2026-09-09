@@ -322,6 +322,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         log.debug("Dropping param: %s", drop_param)
                         proxy_target["json"].pop(drop_param, None)
             #
+            # Same idea as additional_drop_params above, but scoped to specific model
+            # name prefixes instead of every request. Matched against the raw client-sent
+            # model name, since _map_model_name() below hasn't run yet.
+            model_drop_params = additional_litellm_params.get("model_drop_params", {})
+            #
+            if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
+                request_model_name = proxy_target["json"]["model"]
+                for model_prefix, drop_params in model_drop_params.items():
+                    if not request_model_name.startswith(model_prefix):
+                        continue
+                    for drop_param in drop_params:
+                        if drop_param in proxy_target["json"]:
+                            log.debug("Dropping param for model %s: %s", request_model_name, drop_param)
+                            proxy_target["json"].pop(drop_param, None)
+            #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
                 model_name, is_shared = self._map_model_name(
