@@ -6,6 +6,13 @@ external_litellm_url: ""
 litellm_master_key: null
 allow_project_own_llms: true
 
+# Advanced, raw-config-only overrides for the /llm/v1 proxy pass-through. Not in the
+# Admin UI on purpose - edit via the runtime config API.
+# additional_litellm_params:
+#   additional_drop_params: []          # param names to drop from every request
+#   model_drop_params:                  # param names to drop, but only for these
+#     some.model.prefix: [temperature]  # matched by client-sent model name prefix
+
 # Read-only access to LiteLLM's own spend table, used to list the members of a project who
 # actually spent. Same two keys the runtime engine uses, so a custom deployment configures
 # them the same way in both places.
