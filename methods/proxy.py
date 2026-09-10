@@ -28,6 +28,11 @@ from werkzeug.datastructures.headers import Headers  # pylint: disable=E0401
 
 from tools import context, project_constants, VaultClient, this  # pylint: disable=E0401
 
+from ..utils.metering import (
+    MODE_OFF, PLATFORM_PROVIDER_AUTH_KEY, PLATFORM_RAW_MODEL_AUTH_KEY,
+    resolve_provider, usage_hooks, usage_mode,
+)
+
 
 LLM_ENDPOINT_WHITELIST = [
     "/v1/models",
@@ -405,6 +410,15 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             log.debug("Dropping param for model %s: %s", request_model_name, drop_param)
                             proxy_target["json"].pop(drop_param, None)
             #
+            metering_mode = usage_mode(usage_hooks())
+            #
+            # Streamed OpenAI-family calls carry no usage frame unless this is asked for.
+            # Gated on the mode so mode=off leaves the wire byte-identical to before.
+            if metering_mode != MODE_OFF and isinstance(proxy_target["json"], dict) \
+                    and proxy_target["json"].get("stream") \
+                    and "stream_options" not in proxy_target["json"]:
+                proxy_target["json"]["stream_options"] = {"include_usage": True}
+            #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
                 model_name, is_shared = self._map_model_name(
@@ -420,6 +434,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         proxy_target, project_id,
                         form_data=False, endpoint=proxy_target_endpoint,
                         user_id=user_id,
+                    )
+                #
+                if metering_mode != MODE_OFF:
+                    proxy_auth[PLATFORM_RAW_MODEL_AUTH_KEY] = raw_model_name
+                    proxy_auth[PLATFORM_PROVIDER_AUTH_KEY] = resolve_provider(
+                        project_id, raw_model_name,
                     )
             #
             # Also handle model mapping for form data (multipart requests like image edits)
