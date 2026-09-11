@@ -80,6 +80,25 @@ def _install_stubs():
 tools, metering, proxy = _install_stubs()
 
 
+class FormData(dict):
+    """A werkzeug ImmutableMultiDict, near enough: a mapping that is not a dict of scalars.
+
+    The real thing stores every field as a list and returns the first value from .get(), which
+    is why dict(form) yields lists while .to_dict() yields the flat mapping the relay needs.
+    """
+
+    def __init__(self, fields):
+        super().__init__({key: [value] for key, value in fields.items()})
+
+    def get(self, key, default=None):
+        values = super().get(key)
+        #
+        return values[0] if values else default
+
+    def to_dict(self):
+        return {key: values[0] for key, values in self.items()}
+
+
 class RecordingHooks:
     """Stands in for the usage plugin's registered tool."""
 
@@ -273,6 +292,37 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         #
         _, _, raw_model_name, scope = self.handed[-1]
         self.assertEqual((raw_model_name, scope), ("dall-e-3", 7))
+
+    def test_a_real_multipart_form_is_not_read_as_modelless(self):
+        # A multipart request arrives as werkzeug's ImmutableMultiDict, never a dict. An
+        # isinstance check reads it as having no model, so image edits went out unmapped and
+        # unmetered while the plain-dict test above stayed green.
+        proxy_target, _ = self._prepare(
+            is_shared=False, body=None, data=FormData({"model": "dall-e-3"}),
+        )
+        #
+        _, _, raw_model_name, scope = self.handed[-1]
+        self.assertEqual((raw_model_name, scope), ("dall-e-3", 7))
+        self.assertEqual(proxy_target["data"]["model"], "7_dall-e-3")
+
+    def test_a_rewritten_multipart_field_stays_a_scalar(self):
+        # dict(multi_dict) copies values as lists, so litellm would receive
+        # {"model": ["7_dall-e-3"]} and reject the request.
+        proxy_target, _ = self._prepare(
+            is_shared=False, body=None,
+            data=FormData({"model": "dall-e-3", "size": "1024x1024"}),
+        )
+        #
+        self.assertIsInstance(proxy_target["data"]["model"], str)
+        self.assertEqual(proxy_target["data"]["size"], "1024x1024")
+
+    def test_a_multipart_form_with_no_model_is_left_alone(self):
+        # /v1/audio/transcriptions posts a file and no model field.
+        form = FormData({"file": "audio.mp3"})
+        proxy_target, _ = self._prepare(is_shared=False, body={}, data=form)
+        #
+        self.assertIs(proxy_target["data"], form)
+        self.assertEqual(self.handed[-1][2], None)
 
     def test_a_call_with_no_model_still_reaches_the_hook(self):
         # Nothing to name, but usage still decides whether the call is metered.

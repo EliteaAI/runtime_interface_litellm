@@ -81,6 +81,20 @@ def extract_run_id(headers):
         return None
 
 
+def model_of(body):
+    """The model a request body names, whether it arrived as JSON or as form fields.
+
+    Form bodies are werkzeug multi-dicts, not dicts, so an isinstance check reads them as
+    modelless and silently drops multipart calls (image edits) out of mapping and metering.
+    """
+    if not hasattr(body, "get"):
+        return None
+    #
+    name = body.get("model")
+    #
+    return name if isinstance(name, str) else None
+
+
 class Method:  # pylint: disable=E1101,R0903,W0201
     """
         Method Resource
@@ -353,10 +367,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             request_data = proxy_target.get("data")
             raw_model = None
             #
-            if isinstance(request_json, dict):
-                raw_model = request_json.get("model")
-            elif isinstance(request_data, dict):
-                raw_model = request_data.get("model")
+            raw_model = model_of(request_json) or model_of(request_data)
             #
             if platform_run_id:
                 log.info(
@@ -433,8 +444,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             # Also handle model mapping for form data (multipart requests like image edits)
             #
-            if proxy_target.get("data") and "model" in (proxy_target["data"] if isinstance(proxy_target["data"], dict) else {}):
-                raw_model_name = proxy_target["data"]["model"]
+            raw_model_name = model_of(proxy_target.get("data"))
+            #
+            if raw_model_name:
                 model_name, is_shared = self._map_model_name(
                     raw_model_name, project_id, public_project_id,
                 )
@@ -442,8 +454,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (form data): %s -> %s", raw_model_name, model_name)
                     #
+                    # to_dict, not dict(): a multi-dict copies as lists of values
                     if hasattr(proxy_target["data"], "to_dict"):
-                        proxy_target["data"] = dict(proxy_target["data"])
+                        proxy_target["data"] = proxy_target["data"].to_dict()
                     proxy_target["data"]["model"] = model_name
                 #
                 if is_shared:
