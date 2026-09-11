@@ -15,25 +15,13 @@
 #   See the License for the specific language governing permissions and
 #   limitations under the License.
 
-""" Access to the usage plugin's metering hooks, plus the provider lookup cache """
+""" The two metering call sites, forwarded to the usage plugin
 
-import cachetools  # pylint: disable=E0401
+No policy lives here on purpose: whether a call is metered, how a provider is looked up and what
+a streamed body must carry are all the usage plugin's decisions. This file only reaches it.
+"""
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
-
-from tools import context  # pylint: disable=E0401
-
-MODE_OFF = "off"
-
-# Where prepare_request parks the credential family and the raw model name on proxy_auth, the
-# dict this plugin already uses to carry state to the response side. LiteLLM rewrites the
-# outbound model name; the costs catalog is keyed by the raw one.
-PLATFORM_PROVIDER_AUTH_KEY = "platform_provider"
-PLATFORM_RAW_MODEL_AUTH_KEY = "platform_raw_model"
-
-# Same shape as the platform's other request-path caches (projects, auth): a cachetools
-# TTLCache, sized and expired by the library rather than by hand.
-_provider_cache = cachetools.TTLCache(maxsize=4096, ttl=60)
 
 
 def usage_hooks():
@@ -50,37 +38,29 @@ def usage_hooks():
         return None
 
 
-def usage_mode(hooks):
-    """Metering mode, or "off" whenever it cannot be established."""
+def prepare_llm_call(proxy_target, proxy_auth, raw_model_name=None, model_project_id=None):
+    """Hand over the two facts only this plugin knows: the raw name and where it resolved."""
+    hooks = usage_hooks()
+    #
     if hooks is None:
-        return MODE_OFF
+        return
     #
     try:
-        return hooks.usage_get_mode()
+        hooks.prepare_llm_call(proxy_target, proxy_auth, raw_model_name, model_project_id)
     except:  # pylint: disable=W0702
-        log.exception("Failed to read usage mode")
-        return MODE_OFF
+        log.exception("Failed to prepare LLM call metering")
 
 
-def resolve_provider(project_id, raw_model_name):
-    """Credential family behind a model, cached because the lookup queries Postgres.
-
-    `configurations` lives in this pylon, so the RPC dispatches in-process — no broker hop and
-    no deadlock window. What must not happen once per LLM call is its DB query, which is what
-    this cache removes. A failure degrades metering to body sniffing; it never fails the call.
-    """
-    key = (project_id, raw_model_name)
+def meter_llm_call(proxy_target, proxy_auth, response, iterator):
+    """The iterator to serve; identity unless the usage plugin wants this call metered."""
+    hooks = usage_hooks()
     #
-    if key in _provider_cache:
-        return _provider_cache[key]
+    if hooks is None:
+        return iterator
     #
     try:
-        provider = context.rpc_manager.timeout(10).configurations_get_model_provider(
-            project_id=project_id, model_name=raw_model_name,
-        )
+        return hooks.meter_llm_call(proxy_target, proxy_auth, response, iterator)
     except:  # pylint: disable=W0702
-        log.exception("Failed to resolve provider for model %s", raw_model_name)
-        return None
-    #
-    _provider_cache[key] = provider
-    return provider
+        # A metering failure must never cost the user their response
+        log.exception("Failed to meter LLM call")
+        return iterator

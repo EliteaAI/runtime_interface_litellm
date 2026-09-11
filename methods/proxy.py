@@ -28,10 +28,7 @@ from werkzeug.datastructures.headers import Headers  # pylint: disable=E0401
 
 from tools import context, project_constants, VaultClient, this  # pylint: disable=E0401
 
-from ..utils.metering import (
-    MODE_OFF, PLATFORM_PROVIDER_AUTH_KEY, PLATFORM_RAW_MODEL_AUTH_KEY,
-    resolve_provider, usage_hooks, usage_mode,
-)
+from ..utils.metering import prepare_llm_call
 
 
 LLM_ENDPOINT_WHITELIST = [
@@ -59,9 +56,8 @@ LLM_ENDPOINT_PREFIX_WHITELIST = [
 ELITEA_RUN_ID_HEADER = "X-Elitea-Run-Id"
 
 # Where the extracted id is parked on proxy_auth — the dict this plugin already uses to carry
-# project_id from prepare_request to prepare_response. The usage plugin's hooks
-# (begin_llm_call / meter_llm_response) need the id on both sides of the upstream call, and by
-# then the header itself is gone from the request.
+# project_id from prepare_request to prepare_response. The usage plugin reads the id from there
+# when the response is metered, by which time the header itself is gone from the request.
 PLATFORM_RUN_ID_AUTH_KEY = "platform_run_id"
 
 
@@ -410,14 +406,10 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             log.debug("Dropping param for model %s: %s", request_model_name, drop_param)
                             proxy_target["json"].pop(drop_param, None)
             #
-            metering_mode = usage_mode(usage_hooks())
-            #
-            # Streamed OpenAI-family calls carry no usage frame unless this is asked for.
-            # Gated on the mode so mode=off leaves the wire byte-identical to before.
-            if metering_mode != MODE_OFF and isinstance(proxy_target["json"], dict) \
-                    and proxy_target["json"].get("stream") \
-                    and "stream_options" not in proxy_target["json"]:
-                proxy_target["json"]["stream_options"] = {"include_usage": True}
+            # The two facts metering cannot work out for itself: the name the caller asked
+            # for, and the project the model resolved in. Collected here, handed over below.
+            metered_model_name = None
+            metered_project_id = None
             #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
@@ -436,11 +428,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         user_id=user_id,
                     )
                 #
-                if metering_mode != MODE_OFF:
-                    proxy_auth[PLATFORM_RAW_MODEL_AUTH_KEY] = raw_model_name
-                    proxy_auth[PLATFORM_PROVIDER_AUTH_KEY] = resolve_provider(
-                        project_id, raw_model_name,
-                    )
+                metered_model_name = raw_model_name
+                metered_project_id = public_project_id if is_shared else project_id
             #
             # Also handle model mapping for form data (multipart requests like image edits)
             #
@@ -463,6 +452,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         form_data=True, endpoint=proxy_target_endpoint,
                         user_id=user_id,
                     )
+                #
+                metered_model_name = raw_model_name
+                metered_project_id = public_project_id if is_shared else project_id
+            #
+            prepare_llm_call(proxy_target, proxy_auth, metered_model_name, metered_project_id)
         #
         return None
 

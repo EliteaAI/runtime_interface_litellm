@@ -17,6 +17,8 @@
 
 """ Route """
 
+import time
+
 import flask  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
@@ -24,36 +26,32 @@ from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from tools import this, auth  # pylint: disable=E0401
 
-from ..utils.metering import (
-    PLATFORM_PROVIDER_AUTH_KEY, PLATFORM_RAW_MODEL_AUTH_KEY, usage_hooks,
-)
-from ..utils.usage_audit import is_audited_elsewhere
+from ..utils.metering import meter_llm_call
+from ..utils.usage_audit import is_audited_elsewhere, record_llm_proxy_usage
 
 
-def metered_iterator(proxy_target, proxy_auth, response, iterator):
-    """The iterator to serve, metered when the usage plugin is up and asking for it."""
-    hooks = usage_hooks()
-    project_id = proxy_auth.get("project_id")
-    #
-    if hooks is None or project_id is None or is_audited_elsewhere(flask.request.headers):
-        return iterator
-    #
+def _tee_and_audit(iterator, *, user_id, user_email, project_id, is_error, start_time_ns, is_sse):
+    """Pass every chunk through unchanged, then emit an audit span for the
+    accumulated response once the stream ends - success or not.
+    """
+    buffer = bytearray()
     try:
-        usage_context = hooks.begin_llm_call(
-            project_id=project_id,
-            user_id=proxy_auth["user"].get("id"),
-            # Raw name: LiteLLM rewrote the outbound one, the costs catalog keeps the raw
-            model_name=proxy_auth.get(PLATFORM_RAW_MODEL_AUTH_KEY),
-            endpoint=proxy_target["endpoint"],
-            headers=flask.request.headers,
-            provider=proxy_auth.get(PLATFORM_PROVIDER_AUTH_KEY),
-        )
-        #
-        return hooks.meter_llm_response(usage_context, response, iterator)
-    except:  # pylint: disable=W0702
-        # A metering failure must never cost the user their response
-        log.exception("Failed to meter LLM call")
-        return iterator
+        for chunk in iterator:
+            if chunk:
+                buffer.extend(chunk if isinstance(chunk, bytes) else str(chunk).encode("utf-8"))
+            yield chunk
+    finally:
+        end_time_ns = time.time_ns()
+        try:
+            record_llm_proxy_usage(
+                buffer, is_sse,
+                user_id=user_id, user_email=user_email, project_id=project_id,
+                duration_ms=(end_time_ns - start_time_ns) / 1e6,
+                is_error=is_error,
+                start_time_ns=start_time_ns, end_time_ns=end_time_ns,
+            )
+        except Exception:  # pylint: disable=W0703
+            log.exception("Failed to record LLM proxy usage audit")
 
 
 class Route:  # pylint: disable=E1101,R0903
@@ -72,6 +70,8 @@ class Route:  # pylint: disable=E1101,R0903
     )
     def litellm_route_http(self, url):  # pylint: disable=R
         """ Handler """
+        #
+        start_time_ns = time.time_ns()
         #
         # Target
         #
@@ -140,7 +140,22 @@ class Route:  # pylint: disable=E1101,R0903
             if budget_error is not None:
                 return budget_error
             #
-            iterator = metered_iterator(proxy_target, proxy_auth, response, iterator)
+            project_id = proxy_auth.get("project_id")
+            #
+            if project_id is not None and not is_audited_elsewhere(flask.request.headers):
+                is_sse = "text/event-stream" in response["headers"].get("Content-Type", "")
+                iterator = _tee_and_audit(
+                    iterator,
+                    user_id=proxy_auth["user"].get("id"),
+                    user_email=proxy_auth["user"].get("email"),
+                    project_id=project_id,
+                    is_error=response["status_code"] >= 400,
+                    start_time_ns=start_time_ns,
+                    is_sse=is_sse,
+                )
+            #
+            # Whether this is billable is the usage plugin's call, never a caller's header
+            iterator = meter_llm_call(proxy_target, proxy_auth, response, iterator)
             #
             return flask.Response(
                 flask.stream_with_context(iterator),
