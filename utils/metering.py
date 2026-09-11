@@ -17,7 +17,7 @@
 
 """ Access to the usage plugin's metering hooks, plus the provider lookup cache """
 
-import time
+import cachetools  # pylint: disable=E0401
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 
@@ -31,10 +31,9 @@ MODE_OFF = "off"
 PLATFORM_PROVIDER_AUTH_KEY = "platform_provider"
 PLATFORM_RAW_MODEL_AUTH_KEY = "platform_raw_model"
 
-PROVIDER_CACHE_TTL = 60.0
-PROVIDER_CACHE_LIMIT = 4096
-
-_provider_cache = {}
+# Same shape as the platform's other request-path caches (projects, auth): a cachetools
+# TTLCache, sized and expired by the library rather than by hand.
+_provider_cache = cachetools.TTLCache(maxsize=4096, ttl=60)
 
 
 def usage_hooks():
@@ -64,25 +63,24 @@ def usage_mode(hooks):
 
 
 def resolve_provider(project_id, raw_model_name):
-    """Credential family behind a model, cached briefly — never an RPC hop per LLM call."""
+    """Credential family behind a model, cached because the lookup queries Postgres.
+
+    `configurations` lives in this pylon, so the RPC dispatches in-process — no broker hop and
+    no deadlock window. What must not happen once per LLM call is its DB query, which is what
+    this cache removes. A failure degrades metering to body sniffing; it never fails the call.
+    """
     key = (project_id, raw_model_name)
-    cached = _provider_cache.get(key)
-    now = time.monotonic()
     #
-    if cached is not None and cached[1] > now:
-        return cached[0]
+    if key in _provider_cache:
+        return _provider_cache[key]
     #
     try:
         provider = context.rpc_manager.timeout(10).configurations_get_model_provider(
             project_id=project_id, model_name=raw_model_name,
         )
     except:  # pylint: disable=W0702
-        # Metering degrades to sniffing the body; it must never fail the call
         log.exception("Failed to resolve provider for model %s", raw_model_name)
         return None
     #
-    if len(_provider_cache) >= PROVIDER_CACHE_LIMIT:
-        _provider_cache.clear()
-    #
-    _provider_cache[key] = (provider, now + PROVIDER_CACHE_TTL)
+    _provider_cache[key] = provider
     return provider

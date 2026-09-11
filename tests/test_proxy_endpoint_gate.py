@@ -46,7 +46,13 @@ def _load_proxy_module():
     headers_pkg = types.ModuleType("werkzeug")
     datastructures_pkg = types.ModuleType("werkzeug.datastructures")
     headers_mod = types.ModuleType("werkzeug.datastructures.headers")
-    headers_mod.Headers = dict
+    class HeadersStub(dict):
+        """Enough of werkzeug's Headers for the request path: case-insensitive-free, removable."""
+
+        def remove(self, key):
+            self.pop(key, None)
+
+    headers_mod.Headers = HeadersStub
     #
     for name, mod in [
         ("pylon", pylon), ("pylon.core", pylon_core), ("pylon.core.tools", pylon_tools),
@@ -57,12 +63,15 @@ def _load_proxy_module():
     ]:
         sys.modules.setdefault(name, mod)
     #
-    sys.path.insert(0, os.path.join(plugin_root, "methods"))
-    try:
-        import proxy  # pylint: disable=C0415
-        return proxy
-    finally:
-        sys.path.pop(0)
+    # proxy.py uses relative imports (..utils.metering), so it must be loaded as a member of a
+    # package rooted at the plugin, not as a bare top-level module on sys.path.
+    package = types.ModuleType("plugin_under_test")
+    package.__path__ = [plugin_root]
+    sys.modules.setdefault("plugin_under_test", package)
+    #
+    import importlib  # pylint: disable=C0415
+    #
+    return importlib.import_module("plugin_under_test.methods.proxy")
 
 
 proxy = _load_proxy_module()
@@ -94,7 +103,8 @@ class TestIsLlmEndpoint(unittest.TestCase):
         # with the original Authorization header, not a project-scoped virtual key.
         proxy_target = {
             "endpoint": "/v2/user/info",
-            "headers": {"Authorization": "Bearer original-admin-cred"},
+            # A Headers, not a plain dict: prepare_request strips the run-id header off it.
+            "headers": proxy.Headers({"Authorization": "Bearer original-admin-cred"}),
             "json": None,
             "data": None,
         }
