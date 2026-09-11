@@ -28,6 +28,8 @@ from werkzeug.datastructures.headers import Headers  # pylint: disable=E0401
 
 from tools import context, project_constants, VaultClient, this  # pylint: disable=E0401
 
+from ..utils.metering import prepare_llm_call
+
 
 LLM_ENDPOINT_WHITELIST = [
     "/v1/models",
@@ -54,9 +56,8 @@ LLM_ENDPOINT_PREFIX_WHITELIST = [
 ELITEA_RUN_ID_HEADER = "X-Elitea-Run-Id"
 
 # Where the extracted id is parked on proxy_auth — the dict this plugin already uses to carry
-# project_id from prepare_request to prepare_response. The usage plugin's hooks
-# (begin_llm_call / meter_llm_response) need the id on both sides of the upstream call, and by
-# then the header itself is gone from the request.
+# project_id from prepare_request to prepare_response. The usage plugin reads the id from there
+# when the response is metered, by which time the header itself is gone from the request.
 PLATFORM_RUN_ID_AUTH_KEY = "platform_run_id"
 
 
@@ -78,6 +79,20 @@ def extract_run_id(headers):
     except (AttributeError, TypeError, ValueError):
         log.warning("Ignoring malformed %s header", ELITEA_RUN_ID_HEADER)
         return None
+
+
+def model_of(body):
+    """The model a request body names, whether it arrived as JSON or as form fields.
+
+    Form bodies are werkzeug multi-dicts, not dicts, so an isinstance check reads them as
+    modelless and silently drops multipart calls (image edits) out of mapping and metering.
+    """
+    if not hasattr(body, "get"):
+        return None
+    #
+    name = body.get("model")
+    #
+    return name if isinstance(name, str) else None
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -352,10 +367,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             request_data = proxy_target.get("data")
             raw_model = None
             #
-            if isinstance(request_json, dict):
-                raw_model = request_json.get("model")
-            elif isinstance(request_data, dict):
-                raw_model = request_data.get("model")
+            raw_model = model_of(request_json) or model_of(request_data)
             #
             if platform_run_id:
                 log.info(
@@ -405,6 +417,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             log.debug("Dropping param for model %s: %s", request_model_name, drop_param)
                             proxy_target["json"].pop(drop_param, None)
             #
+            # The two facts metering cannot work out for itself: the name the caller asked
+            # for, and the project the model resolved in. Collected here, handed over below.
+            metered_model_name = None
+            metered_project_id = None
+            #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
                 model_name, is_shared = self._map_model_name(
@@ -421,11 +438,15 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         form_data=False, endpoint=proxy_target_endpoint,
                         user_id=user_id,
                     )
+                #
+                metered_model_name = raw_model_name
+                metered_project_id = public_project_id if is_shared else project_id
             #
             # Also handle model mapping for form data (multipart requests like image edits)
             #
-            if proxy_target.get("data") and "model" in (proxy_target["data"] if isinstance(proxy_target["data"], dict) else {}):
-                raw_model_name = proxy_target["data"]["model"]
+            raw_model_name = model_of(proxy_target.get("data"))
+            #
+            if raw_model_name:
                 model_name, is_shared = self._map_model_name(
                     raw_model_name, project_id, public_project_id,
                 )
@@ -433,8 +454,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (form data): %s -> %s", raw_model_name, model_name)
                     #
+                    # to_dict, not dict(): a multi-dict copies as lists of values
                     if hasattr(proxy_target["data"], "to_dict"):
-                        proxy_target["data"] = dict(proxy_target["data"])
+                        proxy_target["data"] = proxy_target["data"].to_dict()
                     proxy_target["data"]["model"] = model_name
                 #
                 if is_shared:
@@ -443,6 +465,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         form_data=True, endpoint=proxy_target_endpoint,
                         user_id=user_id,
                     )
+                #
+                metered_model_name = raw_model_name
+                metered_project_id = public_project_id if is_shared else project_id
+            #
+            prepare_llm_call(proxy_target, proxy_auth, metered_model_name, metered_project_id)
         #
         return None
 

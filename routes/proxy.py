@@ -26,6 +26,7 @@ from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from tools import this, auth  # pylint: disable=E0401
 
+from ..utils.metering import meter_llm_call
 from ..utils.usage_audit import is_audited_elsewhere, record_llm_proxy_usage
 
 
@@ -152,6 +153,9 @@ class Route:  # pylint: disable=E1101,R0903
                     start_time_ns=start_time_ns,
                     is_sse=is_sse,
                 )
+            #
+            # Whether this is billable is the usage plugin's call, never a caller's header
+            iterator = meter_llm_call(proxy_target, proxy_auth, response, iterator)
             #
             return flask.Response(
                 flask.stream_with_context(iterator),
