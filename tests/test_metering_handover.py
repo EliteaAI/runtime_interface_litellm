@@ -252,7 +252,6 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         method._map_model_name = lambda raw, project_id, public_id: (
             f"{1 if is_shared else project_id}_{raw}", is_shared,
         )
-        method.apply_budget_tag = lambda *a, **kw: None
         #
         proxy_target = {
             "endpoint": "/v1/chat/completions",
@@ -340,7 +339,6 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         )
         method.get_public_project_id = lambda: 1
         method._map_model_name = lambda raw, project_id, public_id: (raw, False)
-        method.apply_budget_tag = lambda *a, **kw: None
         #
         proxy_target = {
             "endpoint": "/v1/chat/completions",
