@@ -469,7 +469,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 metered_model_name = raw_model_name
                 metered_project_id = public_project_id if is_shared else project_id
             #
-            prepare_llm_call(proxy_target, proxy_auth, metered_model_name, metered_project_id)
+            denial = prepare_llm_call(
+                proxy_target, proxy_auth, metered_model_name, metered_project_id,
+            )
+            #
+            # Returned before any stream is opened, so a refusal leaks nothing
+            if denial is not None:
+                return denial
         #
         return None
 

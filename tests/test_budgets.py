@@ -108,82 +108,6 @@ class TestBudgetTagName(unittest.TestCase):
         self.assertTrue(tag.startswith(budgets.BUDGET_TAG_PREFIX))
 
 
-class TestBudgetErrorDetection(unittest.TestCase):
-    def test_detects_litellm_budget_exceeded_payload(self):
-        body = json.dumps({
-            "error": {
-                "message": "Budget has been exceeded! Tag=elitea_proj_3_202607 Current cost: 1.5, Max budget: 1.0",
-                "type": "budget_exceeded",
-            }
-        }).encode("utf-8")
-        self.assertTrue(budgets.is_budget_exceeded_body(body))
-
-    def test_ignores_unrelated_400(self):
-        body = b'{"error": {"message": "invalid model name", "type": "bad_request"}}'
-        self.assertFalse(budgets.is_budget_exceeded_body(body))
-
-    def test_ignores_body_mentioning_budget_only_incidentally(self):
-        # The word alone must not trigger a rewrite of someone else's error
-        body = b'{"error": {"message": "your budget planning tool failed"}}'
-        self.assertFalse(budgets.is_budget_exceeded_body(body))
-
-    def test_handles_non_utf8_bytes(self):
-        self.assertFalse(budgets.is_budget_exceeded_body(b"\xff\xfe\x00binary"))
-
-
-class TestBudgetErrorScope(unittest.TestCase):
-    """The UI shows a different message and usage link per scope, so a wrong scope
-    would send the user to a page that does not explain why they were blocked."""
-
-    def _body(self, tag):
-        return json.dumps({
-            "error": {
-                "message": f"Budget has been exceeded! Tag={tag} Current cost: 1.5, Max budget: 1.0",
-                "type": "budget_exceeded",
-            }
-        }).encode("utf-8")
-
-    def test_project_tag_is_project_scope(self):
-        scope = budgets.budget_error_scope(self._body("elitea_proj_25_202607"))
-        self.assertEqual(scope, budgets.SCOPE_PROJECT)
-
-    def test_user_tag_is_member_scope(self):
-        scope = budgets.budget_error_scope(self._body("elitea_proj_25_user_3_202607"))
-        self.assertEqual(scope, budgets.SCOPE_MEMBER)
-
-    def test_multi_digit_project_and_user_ids(self):
-        scope = budgets.budget_error_scope(self._body("elitea_proj_12905_user_31652_202607"))
-        self.assertEqual(scope, budgets.SCOPE_MEMBER)
-
-    def test_missing_tag_falls_back_to_project(self):
-        # Better a slightly generic message than blaming the wrong budget
-        body = b'{"error": {"message": "Budget has been exceeded!", "type": "budget_exceeded"}}'
-        self.assertEqual(budgets.budget_error_scope(body), budgets.SCOPE_PROJECT)
-
-    def test_unrecognised_tag_shape_falls_back_to_project(self):
-        scope = budgets.budget_error_scope(self._body("some_other_system_tag"))
-        self.assertEqual(scope, budgets.SCOPE_PROJECT)
-
-    def test_project_named_user_is_not_mistaken_for_member_scope(self):
-        # A project tag is "<prefix><pid>_<period>"; the word "user" can only mean
-        # member scope when it sits between two numeric ids
-        scope = budgets.budget_error_scope(self._body("elitea_proj_25_user_budget_202607"))
-        self.assertEqual(scope, budgets.SCOPE_PROJECT)
-
-    def test_handles_non_utf8_bytes(self):
-        self.assertEqual(budgets.budget_error_scope(b"\xff\xfe\x00binary"), budgets.SCOPE_PROJECT)
-
-    def test_every_scope_maps_to_an_error_code(self):
-        for scope in (budgets.SCOPE_PROJECT, budgets.SCOPE_MEMBER):
-            self.assertIn(scope, budgets.BUDGET_ERROR_CODES)
-
-    def test_error_message_is_period_neutral(self):
-        # Budgets are monthly today, but the copy must not need a rewrite if that changes
-        lowered = budgets.BUDGET_ERROR_MESSAGE.lower()
-        for period in ("monthly", "daily", "weekly", "this month"):
-            self.assertNotIn(period, lowered)
-
-
 class TestUserBudgetTagName(unittest.TestCase):
     def test_user_tag_includes_project_user_and_month(self):
         now = datetime.datetime(2026, 7, 27, tzinfo=datetime.timezone.utc)
@@ -208,65 +132,6 @@ class TestUserBudgetTagName(unittest.TestCase):
         # A project tag must never be confused with user 202607's tag
         now = datetime.datetime(2026, 7, 27, tzinfo=datetime.timezone.utc)
         self.assertNotIn("_user_", budgets.make_budget_tag(25, now))
-
-
-class FakeDefaults:
-    """Stand-in exposing get_default_limit's real logic over fake config."""
-
-    def __init__(self, defaults, personal_ids):
-        self.defaults = defaults
-        self.personal_ids = personal_ids
-
-    def is_personal_project(self, project_id):
-        return int(project_id) in self.personal_ids
-
-    def get_default_limit(self, scope, project_id):
-        defaults = self.defaults
-        #
-        if not defaults.get("enabled", False):
-            return None
-        #
-        if scope == "user":
-            return defaults.get("user_monthly_limit", None)
-        #
-        if self.is_personal_project(project_id):
-            return defaults.get("personal_project_monthly_limit", None)
-        #
-        return defaults.get("project_monthly_limit", None)
-
-
-class TestDefaultLimits(unittest.TestCase):
-    """Defaults close the 'unlimited by default' hole for unbudgeted projects."""
-
-    def setUp(self):
-        self.cfg = {
-            "enabled": True,
-            "project_monthly_limit": 100.0,
-            "personal_project_monthly_limit": 5.0,
-            "user_monthly_limit": 20.0,
-        }
-
-    def test_disabled_defaults_mean_unlimited(self):
-        mod = FakeDefaults({"enabled": False, "project_monthly_limit": 100.0}, {3})
-        self.assertIsNone(mod.get_default_limit("project", 3))
-        self.assertIsNone(mod.get_default_limit("user", 3))
-
-    def test_personal_project_gets_lower_default(self):
-        mod = FakeDefaults(self.cfg, personal_ids={3})
-        self.assertEqual(mod.get_default_limit("project", 3), 5.0)
-
-    def test_team_project_gets_project_default(self):
-        mod = FakeDefaults(self.cfg, personal_ids={3})
-        self.assertEqual(mod.get_default_limit("project", 25), 100.0)
-
-    def test_user_scope_ignores_personal_distinction(self):
-        mod = FakeDefaults(self.cfg, personal_ids={3})
-        self.assertEqual(mod.get_default_limit("user", 3), 20.0)
-        self.assertEqual(mod.get_default_limit("user", 25), 20.0)
-
-    def test_null_default_for_scope_means_unlimited(self):
-        mod = FakeDefaults({"enabled": True}, personal_ids={3})
-        self.assertIsNone(mod.get_default_limit("project", 25))
 
 
 class FakeThresholds:
@@ -335,323 +200,6 @@ class TestWarningThresholds(unittest.TestCase):
         for value in (1, 100):
             mod = FakeThresholds({"cost_budgets": {"warning_thresholds": {"project_pct": value}}})
             self.assertEqual(mod.get_warning_threshold("project"), value)
-
-
-class FakeBulkLimits:
-    """Binds the real bulk and single-project limit resolvers over the same fake data.
-
-    Both are the production code, so a change to one that is not mirrored in the other
-    shows up as a disagreement rather than passing quietly.
-    """
-
-    def __init__(self, budgets, defaults=None, personal_ids=(), fail=False):
-        self.budgets = budgets
-        self.personal_ids = set(personal_ids)
-        self.fail = fail
-        self.list_calls = 0
-        self.get_calls = 0
-        self.descriptor = types.SimpleNamespace(
-            config={"cost_budgets": {"defaults": defaults or {}}},
-        )
-
-    # Stands in for the cross-plugin RPC manager both resolvers reach through
-    def timeout(self, _seconds):
-        return self
-
-    def elitea_core_list_project_budgets(self):
-        self.list_calls += 1
-        #
-        if self.fail:
-            raise RuntimeError("elitea_core unavailable")
-        #
-        return dict(self.budgets)
-
-    def elitea_core_get_project_budget(self, project_id):
-        self.get_calls += 1
-        return self.budgets.get(project_id)
-
-    def is_personal_project(self, project_id):
-        return int(project_id) in self.personal_ids
-
-    get_default_limit = budgets.Method.get_default_limit
-    litellm_get_effective_project_limits = (
-        rpc_budgets.RPC.litellm_get_effective_project_limits
-    )
-
-
-def _bulk(mod, ids):
-    """Run the bulk resolver with its RPC manager pointed at the fake."""
-    original = rpc_budgets.context
-    rpc_budgets.context = types.SimpleNamespace(rpc_manager=mod)
-    try:
-        return mod.litellm_get_effective_project_limits(ids)
-    finally:
-        rpc_budgets.context = original
-
-
-def _single(mod, project_id):
-    """Run the per-project resolver enforcement still uses, over the same fake."""
-    original = budgets.context
-    budgets.context = types.SimpleNamespace(rpc_manager=mod)
-    try:
-        return budgets.Method.get_project_budget_limit(mod, project_id)
-    finally:
-        budgets.context = original
-
-
-class TestBulkLimitResolution(unittest.TestCase):
-    """The admin pages list whole environments, so limits are read in one query.
-
-    Any divergence from the single-project resolver would change the limit shown for
-    every project, so each case asserts the two agree.
-    """
-
-    DEFAULTS = {
-        "enabled": True,
-        "project_monthly_limit": 100.0,
-        "personal_project_monthly_limit": 5.0,
-        "user_monthly_limit": 20.0,
-    }
-
-    def test_reads_all_budgets_in_one_call(self):
-        mod = FakeBulkLimits({pid: {"monthly_limit": 1.0, "enabled": True} for pid in range(50)})
-        #
-        _bulk(mod, list(range(50)))
-        #
-        # The whole point: one read for fifty projects, not fifty
-        self.assertEqual(mod.list_calls, 1)
-        self.assertEqual(mod.get_calls, 0)
-
-    def test_explicit_row_wins(self):
-        mod = FakeBulkLimits({3: {"monthly_limit": 7.0, "enabled": True}}, self.DEFAULTS)
-        self.assertEqual(_bulk(mod, [3])[3], 7.0)
-        self.assertEqual(_single(mod, 3), 7.0)
-
-    def test_disabled_row_is_unlimited_not_defaulted(self):
-        # An admin exempting a project must not be silently re-capped by the default
-        mod = FakeBulkLimits({3: {"monthly_limit": 7.0, "enabled": False}}, self.DEFAULTS)
-        self.assertIsNone(_bulk(mod, [3])[3])
-        self.assertIsNone(_single(mod, 3))
-
-    def test_missing_row_falls_back_to_team_default(self):
-        # Iterating the budget map instead of the requested ids would drop this project
-        mod = FakeBulkLimits({}, self.DEFAULTS)
-        self.assertEqual(_bulk(mod, [42])[42], 100.0)
-        self.assertEqual(_single(mod, 42), 100.0)
-
-    def test_missing_row_uses_the_personal_default_for_personal_projects(self):
-        mod = FakeBulkLimits({}, self.DEFAULTS, personal_ids=[3])
-        self.assertEqual(_bulk(mod, [3])[3], 5.0)
-        self.assertEqual(_single(mod, 3), 5.0)
-
-    def test_missing_row_is_unlimited_when_defaults_are_off(self):
-        # The live posture: defaults disabled, so only explicit rows cap anything
-        mod = FakeBulkLimits({}, {"enabled": False, "project_monthly_limit": 100.0})
-        self.assertIsNone(_bulk(mod, [42])[42])
-        self.assertIsNone(_single(mod, 42))
-
-    def test_row_without_a_limit_falls_back_to_default(self):
-        mod = FakeBulkLimits({3: {"monthly_limit": None, "enabled": True}}, self.DEFAULTS)
-        self.assertEqual(_bulk(mod, [3])[3], 100.0)
-        self.assertEqual(_single(mod, 3), 100.0)
-
-    def test_zero_limit_is_kept_not_treated_as_unset(self):
-        mod = FakeBulkLimits({3: {"monthly_limit": 0.0, "enabled": True}}, self.DEFAULTS)
-        self.assertEqual(_bulk(mod, [3])[3], 0.0)
-        self.assertEqual(_single(mod, 3), 0.0)
-
-    def test_string_keyed_budget_map_still_resolves(self):
-        # Callers elsewhere have been seen to receive stringified project ids
-        mod = FakeBulkLimits({"3": {"monthly_limit": 7.0, "enabled": True}}, self.DEFAULTS)
-        self.assertEqual(_bulk(mod, [3])[3], 7.0)
-
-    def test_every_requested_id_is_present_in_the_result(self):
-        mod = FakeBulkLimits({1: {"monthly_limit": 5.0, "enabled": True}}, self.DEFAULTS)
-        out = _bulk(mod, [1, 2, 3])
-        self.assertEqual(sorted(out), [1, 2, 3])
-
-    def test_a_failed_read_reports_unlimited_rather_than_raising(self):
-        # The budgets page must still render; a limit that cannot be read is not enforced
-        mod = FakeBulkLimits({}, self.DEFAULTS, fail=True)
-        self.assertEqual(_bulk(mod, [1, 2]), {1: None, 2: None})
-
-
-class FakeLimits:
-    """Stand-in for the explicit-row-then-default resolution."""
-
-    def __init__(self, row, default):
-        self.row = row
-        self.default = default
-
-    def resolve(self):
-        budget = self.row
-        #
-        if budget is not None:
-            if not budget.get("enabled", True):
-                return None
-            if budget.get("monthly_limit") is not None:
-                return budget["monthly_limit"]
-        #
-        return self.default
-
-
-class TestLimitResolution(unittest.TestCase):
-    def test_explicit_row_wins_over_default(self):
-        self.assertEqual(FakeLimits({"monthly_limit": 7.0, "enabled": True}, 100.0).resolve(), 7.0)
-
-    def test_no_row_falls_back_to_default(self):
-        self.assertEqual(FakeLimits(None, 100.0).resolve(), 100.0)
-
-    def test_disabled_row_is_deliberately_exempt(self):
-        # An admin disabling a budget must not be silently re-capped by the default
-        self.assertIsNone(FakeLimits({"monthly_limit": 7.0, "enabled": False}, 100.0).resolve())
-
-    def test_row_without_limit_falls_back_to_default(self):
-        self.assertEqual(FakeLimits({"monthly_limit": None, "enabled": True}, 100.0).resolve(), 100.0)
-
-    def test_zero_explicit_limit_is_respected_not_treated_as_missing(self):
-        self.assertEqual(FakeLimits({"monthly_limit": 0.0, "enabled": True}, 100.0).resolve(), 0.0)
-
-
-class FakeMemberLimits:
-    """Binds the real three-tier member resolver over fake member and project rows.
-
-    Production code, not a restatement of it: the member row, the project's member default
-    and the platform default all have to be consulted in the right order for a member to
-    end up capped by what an admin actually set.
-    """
-
-    def __init__(self, member_row, project_row=None, defaults=None, personal=False):
-        self.member_row = member_row
-        self.project_row = project_row
-        self.personal = personal
-        self.get_project_calls = 0
-        self.get_user_calls = 0
-        self.descriptor = types.SimpleNamespace(
-            config={"cost_budgets": {"defaults": defaults or {}}},
-        )
-
-    def timeout(self, _seconds):
-        return self
-
-    def elitea_core_get_user_budget(self, project_id, user_id):  # pylint: disable=W0613
-        self.get_user_calls += 1
-        return self.member_row
-
-    def elitea_core_get_project_budget(self, project_id):  # pylint: disable=W0613
-        self.get_project_calls += 1
-        return self.project_row
-
-    def is_personal_project(self, project_id):  # pylint: disable=W0613
-        return self.personal
-
-    get_default_limit = budgets.Method.get_default_limit
-    get_member_default_limit = budgets.Method.get_member_default_limit
-
-    def resolve(self, project_budget=budgets.UNSET):
-        original = budgets.context
-        budgets.context = types.SimpleNamespace(rpc_manager=self)
-        try:
-            return budgets.Method.get_user_budget_limit(self, 1, 2, project_budget)
-        finally:
-            budgets.context = original
-
-
-PLATFORM_DEFAULTS = {"enabled": True, "user_monthly_limit": 100.0}
-
-
-class TestMemberDefaultTier(unittest.TestCase):
-    """A project's member default sits between a member's own row and the platform default.
-
-    It is what "set a limit for everyone in this project" resolves to, so it must apply to
-    members with no row of their own while leaving members who have one untouched.
-    """
-
-    def test_explicit_member_row_beats_the_project_default(self):
-        limits = FakeMemberLimits(
-            {"monthly_limit": 7.0, "enabled": True},
-            {"member_default_limit": 20.0},
-            PLATFORM_DEFAULTS,
-        )
-        self.assertEqual(limits.resolve(), 7.0)
-
-    def test_project_default_beats_the_platform_default(self):
-        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve(), 20.0)
-
-    def test_no_project_default_falls_through_to_the_platform_default(self):
-        limits = FakeMemberLimits(None, {"member_default_limit": None}, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve(), 100.0)
-
-    def test_no_project_row_at_all_falls_through(self):
-        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve(), 100.0)
-
-    def test_member_row_without_a_limit_picks_up_the_project_default(self):
-        limits = FakeMemberLimits(
-            {"monthly_limit": None, "enabled": True},
-            {"member_default_limit": 20.0},
-            PLATFORM_DEFAULTS,
-        )
-        self.assertEqual(limits.resolve(), 20.0)
-
-    def test_project_default_overrides_a_member_marked_unlimited(self):
-        # A limit an admin set for everyone in the project must not be undone by a member
-        # row nobody meant to opt out — that row is often just the dialog's default state
-        limits = FakeMemberLimits(
-            {"monthly_limit": 7.0, "enabled": False},
-            {"member_default_limit": 20.0},
-            PLATFORM_DEFAULTS,
-        )
-        self.assertEqual(limits.resolve(), 20.0)
-
-    def test_exempt_member_still_escapes_the_platform_default(self):
-        # With no project default there is nothing project-scoped to enforce, so the
-        # exemption keeps its original meaning
-        limits = FakeMemberLimits(
-            {"monthly_limit": 7.0, "enabled": False}, {}, PLATFORM_DEFAULTS,
-        )
-        self.assertIsNone(limits.resolve())
-
-    def test_exempt_member_with_no_project_row_is_unlimited(self):
-        limits = FakeMemberLimits({"monthly_limit": 7.0, "enabled": False}, None, PLATFORM_DEFAULTS)
-        self.assertIsNone(limits.resolve())
-
-    def test_zero_project_default_blocks_rather_than_falling_through(self):
-        limits = FakeMemberLimits(None, {"member_default_limit": 0.0}, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve(), 0.0)
-
-    def test_project_marked_unlimited_still_applies_its_member_default(self):
-        # enabled=false exempts the project's OWN limit; the member default is a separate value
-        limits = FakeMemberLimits(
-            None, {"enabled": False, "monthly_limit": None, "member_default_limit": 20.0},
-            PLATFORM_DEFAULTS,
-        )
-        self.assertEqual(limits.resolve(), 20.0)
-
-    def test_project_default_applies_even_when_platform_defaults_are_off(self):
-        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, {"enabled": False})
-        self.assertEqual(limits.resolve(), 20.0)
-
-    def test_unlimited_when_neither_tier_has_a_value(self):
-        limits = FakeMemberLimits(None, {}, {"enabled": False})
-        self.assertIsNone(limits.resolve())
-
-    def test_a_passed_project_row_is_not_re_read(self):
-        # The member list loops every member, so the project row must be read once, not per row
-        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve({"member_default_limit": 20.0}), 20.0)
-        self.assertEqual(limits.get_project_calls, 0)
-
-    def test_row_is_read_when_the_caller_passes_nothing(self):
-        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve(), 20.0)
-        self.assertEqual(limits.get_project_calls, 1)
-
-    def test_passing_none_explicitly_means_no_project_row(self):
-        limits = FakeMemberLimits(None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS)
-        self.assertEqual(limits.resolve(None), 100.0)
-        self.assertEqual(limits.get_project_calls, 0)
 
 
 class FakeWarningState:
@@ -948,79 +496,6 @@ class TestBudgetTagAbsentCache(unittest.TestCase):
         self.assertEqual(fake.calls[-1], ("tag_upsert", "tag"))
 
 
-class TestPersonalProjectHasNoMemberLimit(unittest.TestCase):
-    """A personal project's one member is its owner, so its project budget IS their budget.
-
-    A member limit there is a second ceiling on the same person. It also enforced while being
-    invisible: the Usage page shows only the project scope for a personal project, so users
-    were blocked at a platform default of $20 while the page reported 45% of $300 remaining.
-    """
-
-    def test_platform_default_does_not_apply(self):
-        # The reported bug: no stored limit anywhere, blocked by the inherited default
-        limits = FakeMemberLimits(None, None, PLATFORM_DEFAULTS, personal=True)
-        self.assertIsNone(limits.resolve())
-
-    def test_explicit_member_row_does_not_apply(self):
-        limits = FakeMemberLimits(
-            {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=True,
-        )
-        self.assertIsNone(limits.resolve())
-
-    def test_project_member_default_does_not_apply(self):
-        limits = FakeMemberLimits(
-            None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS, personal=True,
-        )
-        self.assertIsNone(limits.resolve())
-
-    def test_zero_member_limit_does_not_apply(self):
-        # Zero is normally a real, blocking limit; it must not survive here either
-        limits = FakeMemberLimits(
-            {"monthly_limit": 0.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=True,
-        )
-        self.assertIsNone(limits.resolve())
-
-    def test_resolves_without_reading_any_budget_row(self):
-        # Short-circuits ahead of the row reads, so it costs no cross-plugin calls
-        limits = FakeMemberLimits(
-            {"monthly_limit": 7.0, "enabled": True}, {"member_default_limit": 20.0},
-            PLATFORM_DEFAULTS, personal=True,
-        )
-        limits.resolve()
-        self.assertEqual(limits.get_user_calls, 0)
-        self.assertEqual(limits.get_project_calls, 0)
-
-    def test_team_project_is_untouched(self):
-        # Regression guard: the same inputs on a team project still resolve every tier
-        self.assertEqual(
-            FakeMemberLimits(
-                {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS,
-            ).resolve(), 7.0,
-        )
-        self.assertEqual(
-            FakeMemberLimits(
-                None, {"member_default_limit": 20.0}, PLATFORM_DEFAULTS,
-            ).resolve(), 20.0,
-        )
-        self.assertEqual(
-            FakeMemberLimits(None, None, PLATFORM_DEFAULTS).resolve(), 100.0,
-        )
-
-
-class TestPersonalProjectLookupFailsOpen(unittest.TestCase):
-    """A projects-plugin outage must not lift member limits across the whole platform.
-
-    is_personal_project returns False when it cannot answer, so resolution degrades to the
-    pre-fix behaviour rather than silently making every member unlimited.
-    """
-
-    def test_unknown_personal_status_still_resolves_the_member_limit(self):
-        limits = FakeMemberLimits(
-            {"monthly_limit": 7.0, "enabled": True}, None, PLATFORM_DEFAULTS, personal=False,
-        )
-        self.assertEqual(limits.resolve(), 7.0)
-
-
 class TestUnlimitedSentinel(unittest.TestCase):
     """null/unset limits must mean unlimited, and must lift a previously-set ceiling.
 
@@ -1098,51 +573,6 @@ class TestMultiTagSpendAggregation(unittest.TestCase):
     def test_tolerates_empty_and_malformed_payloads(self):
         for payload in (None, {}, {"results": None}, {"results": [None]}, {"results": [{}]}):
             self.assertEqual(aggregate_entities(payload, ["a"]), {"a": 0.0})
-
-
-class TestBudgetErrorTarget(unittest.TestCase):
-    """Who to notify is read from the tag LiteLLM names, so no request context is needed."""
-
-    def _body(self, tag):
-        return json.dumps({
-            "error": {
-                "message": f"Budget has been exceeded! Tag={tag} Current cost: 2, Max budget: 1",
-                "type": "budget_exceeded",
-            }
-        }).encode("utf-8")
-
-    def test_project_tag_yields_project_only(self):
-        self.assertEqual(
-            budgets.budget_error_target(self._body("elitea_proj_25_202607")), (25, None),
-        )
-
-    def test_member_tag_yields_both_ids(self):
-        self.assertEqual(
-            budgets.budget_error_target(self._body("elitea_proj_25_user_3_202607")), (25, 3),
-        )
-
-    def test_multi_digit_ids(self):
-        self.assertEqual(
-            budgets.budget_error_target(self._body("elitea_proj_12905_user_31652_202607")),
-            (12905, 31652),
-        )
-
-    def test_no_tag_yields_nothing_to_notify(self):
-        # Better to send nothing than to guess a project and notify the wrong admins
-        self.assertEqual(budgets.budget_error_target(b'{"error": {}}'), (None, None))
-
-    def test_handles_non_utf8_bytes(self):
-        self.assertEqual(budgets.budget_error_target(b"\xff\xfe\x00binary"), (None, None))
-
-    def test_agrees_with_the_scope_helper(self):
-        for tag, scope in (
-            ("elitea_proj_25_202607", budgets.SCOPE_PROJECT),
-            ("elitea_proj_25_user_3_202607", budgets.SCOPE_MEMBER),
-        ):
-            body = self._body(tag)
-            _, user_id = budgets.budget_error_target(body)
-            expected_member = budgets.budget_error_scope(body) == budgets.SCOPE_MEMBER
-            self.assertEqual(user_id is not None, expected_member, tag)
 
 
 class TestUserIdFromTag(unittest.TestCase):
@@ -1717,6 +1147,171 @@ class TestSharedModelSignal(unittest.TestCase):
         # Limitation L1: public-project calls match the own-project branch
         module = FakeModule({"1_gpt-5.4-mini"})
         self.assertEqual(module.map_model_name("gpt-5.4-mini", 1, 1), ("1_gpt-5.4-mini", False))
+
+
+class FakeRpcManager:
+    """Records which elitea_core RPC a delegate reaches for, and with which kwargs.
+
+    The ladder itself now lives in elitea_core and is tested there. What is still this
+    plugin's own code is the forwarding: the right RPC name, the kwargs threaded through,
+    and the fail-soft answer when the call cannot be made.
+    """
+
+    def __init__(self, result=None, raises=False):
+        self.result = result
+        self.raises = raises
+        self.calls = []
+
+    def timeout(self, _seconds):
+        return self
+
+    def __getattr__(self, rpc_name):
+        def call(**kwargs):
+            self.calls.append((rpc_name, kwargs))
+            if self.raises:
+                raise RuntimeError("rpc unavailable")
+            return self.result
+        #
+        return call
+
+
+class FakeDelegate:
+    """Binds the real delegating methods over a recording rpc_manager."""
+
+    def __init__(self, result=None, raises=False):
+        self.rpc = FakeRpcManager(result, raises)
+
+    _effective_limit = budgets.Method._effective_limit
+    get_project_budget_limit = budgets.Method.get_project_budget_limit
+    get_user_budget_limit = budgets.Method.get_user_budget_limit
+    get_member_default_limit = budgets.Method.get_member_default_limit
+    get_default_limit = budgets.Method.get_default_limit
+    is_personal_project = budgets.Method.is_personal_project
+
+
+class DelegateCase(unittest.TestCase):
+    """Swaps the stubbed tools.context.rpc_manager for a recorder around each test."""
+
+    def _delegate(self, result=None, raises=False):
+        mod = FakeDelegate(result, raises)
+        self.addCleanup(setattr, budgets.context, "rpc_manager",
+                        getattr(budgets.context, "rpc_manager", None))
+        budgets.context.rpc_manager = mod.rpc
+        return mod
+
+
+class TestLimitDelegation(DelegateCase):
+    def test_project_limit_asks_elitea_core_for_the_project_limit(self):
+        mod = self._delegate(12.5)
+        self.assertEqual(mod.get_project_budget_limit(25), 12.5)
+        self.assertEqual(
+            mod.rpc.calls, [("elitea_core_get_effective_project_limit", {"project_id": 25})],
+        )
+
+    def test_project_limit_forwards_a_row_the_caller_already_read(self):
+        mod = self._delegate(12.5)
+        row = {"monthly_limit": 12.5, "enabled": True}
+        mod.get_project_budget_limit(25, project_budget=row)
+        self.assertEqual(mod.rpc.calls[0][1], {"project_id": 25, "project_budget": row})
+
+    def test_project_limit_omits_the_row_when_the_caller_has_none(self):
+        mod = self._delegate(12.5)
+        mod.get_project_budget_limit(25)
+        self.assertNotIn("project_budget", mod.rpc.calls[0][1])
+
+    def test_an_explicit_none_row_is_still_forwarded(self):
+        # None means "no row exists", which is not the same as "not read yet"
+        mod = self._delegate(None)
+        mod.get_project_budget_limit(25, project_budget=None)
+        self.assertEqual(mod.rpc.calls[0][1], {"project_id": 25, "project_budget": None})
+
+    def test_member_limit_asks_for_the_member_limit_with_both_ids(self):
+        mod = self._delegate(7.0)
+        self.assertEqual(mod.get_user_budget_limit(25, 3), 7.0)
+        self.assertEqual(
+            mod.rpc.calls,
+            [("elitea_core_get_effective_member_limit", {"project_id": 25, "user_id": 3})],
+        )
+
+    def test_member_default_forwards_the_exempt_flag(self):
+        mod = self._delegate(20.0)
+        self.assertEqual(mod.get_member_default_limit(25, exempt=True), 20.0)
+        self.assertEqual(
+            mod.rpc.calls,
+            [("elitea_core_get_effective_member_default",
+              {"project_id": 25, "exempt": True})],
+        )
+
+    def test_scope_default_asks_for_the_platform_default(self):
+        mod = self._delegate(100.0)
+        self.assertEqual(mod.get_default_limit("user", 25), 100.0)
+        self.assertEqual(
+            mod.rpc.calls,
+            [("elitea_core_get_budget_default_limit", {"scope": "user", "project_id": 25})],
+        )
+
+    def test_personal_project_check_is_delegated_and_coerced_to_bool(self):
+        mod = self._delegate(1)
+        self.assertIs(mod.is_personal_project(3), True)
+        self.assertEqual(
+            mod.rpc.calls, [("elitea_core_is_personal_project", {"project_id": 3})],
+        )
+
+
+class TestLimitDelegationFailsSoft(DelegateCase):
+    """An unreadable limit must never be read as a zero ceiling."""
+
+    def test_project_limit_is_unlimited_when_the_rpc_fails(self):
+        self.assertIsNone(self._delegate(raises=True).get_project_budget_limit(25))
+
+    def test_member_limit_is_unlimited_when_the_rpc_fails(self):
+        self.assertIsNone(self._delegate(raises=True).get_user_budget_limit(25, 3))
+
+    def test_member_default_is_unlimited_when_the_rpc_fails(self):
+        self.assertIsNone(self._delegate(raises=True).get_member_default_limit(25))
+
+    def test_scope_default_is_unlimited_when_the_rpc_fails(self):
+        self.assertIsNone(self._delegate(raises=True).get_default_limit("user", 25))
+
+    def test_a_project_reads_as_a_team_project_when_the_rpc_fails(self):
+        # Treating it as personal would silently drop its member limits
+        self.assertIs(self._delegate(raises=True).is_personal_project(3), False)
+
+
+class TestBulkLimitDelegation(DelegateCase):
+    def test_bulk_project_limits_are_delegated_with_a_list(self):
+        mod = self._delegate({1: 5.0, 2: None})
+        self.assertEqual(rpc_budgets.RPC.litellm_get_effective_project_limits(mod, (1, 2)),
+                         {1: 5.0, 2: None})
+        self.assertEqual(
+            mod.rpc.calls,
+            [("elitea_core_get_effective_project_limits", {"project_ids": [1, 2]})],
+        )
+
+    def test_bulk_member_limits_are_delegated_with_a_list(self):
+        mod = self._delegate({3: 7.0})
+        self.assertEqual(
+            rpc_budgets.RPC.litellm_get_effective_user_limits(mod, 25, (3,)), {3: 7.0},
+        )
+        self.assertEqual(
+            mod.rpc.calls,
+            [("elitea_core_get_effective_member_limits",
+              {"project_id": 25, "user_ids": [3]})],
+        )
+
+    def test_bulk_project_limits_report_unlimited_rather_than_raising(self):
+        mod = self._delegate(raises=True)
+        self.assertEqual(
+            rpc_budgets.RPC.litellm_get_effective_project_limits(mod, [1, 2]),
+            {1: None, 2: None},
+        )
+
+    def test_bulk_member_limits_report_unlimited_rather_than_raising(self):
+        mod = self._delegate(raises=True)
+        self.assertEqual(
+            rpc_budgets.RPC.litellm_get_effective_user_limits(mod, 25, [3, 4]),
+            {3: None, 4: None},
+        )
 
 
 if __name__ == "__main__":

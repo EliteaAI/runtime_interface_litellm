@@ -135,11 +135,6 @@ class Route:  # pylint: disable=E1101,R0903
             #
             self.prepare_response(proxy_target, proxy_auth, response)
             #
-            budget_error = self.make_budget_error_response(response, iterator)
-            #
-            if budget_error is not None:
-                return budget_error
-            #
             project_id = proxy_auth.get("project_id")
             #
             if project_id is not None and not is_audited_elsewhere(flask.request.headers):

@@ -101,58 +101,25 @@ class RPC:  # pylint: disable=E1101,R0903,W0201
 
     @web.rpc("litellm_get_effective_project_limits", "litellm_get_effective_project_limits")
     def litellm_get_effective_project_limits(self, project_ids, **kwargs):
-        """Effective limits for many projects, keyed by project id.
-
-        Reads every stored budget in one query rather than asking per project: the admin
-        pages list whole environments, where a per-project lookup is thousands of
-        cross-plugin calls. Resolution below must stay identical to the single-project
-        get_project_budget_limit, which enforcement still uses on the request path.
-        """
+        """Effective limits for many projects, keyed by project id. Delegates to elitea_core."""
         try:
-            budgets = context.rpc_manager.timeout(15).elitea_core_list_project_budgets() or {}
+            return context.rpc_manager.timeout(15).elitea_core_get_effective_project_limits(
+                project_ids=list(project_ids),
+            )
         except:  # pylint: disable=W0702
-            log.exception("Failed to list project budgets")
-            return {pid: None for pid in project_ids}
-        #
-        result = {}
-        #
-        # Iterate the requested ids, not the budget map: a project with no stored row
-        # still has to fall through to the configured default.
-        for project_id in project_ids:
-            budget = budgets.get(project_id, budgets.get(str(project_id)))
-            #
-            if budget is not None:
-                if not budget.get("enabled", True):
-                    result[project_id] = None
-                    continue
-                #
-                if budget.get("monthly_limit") is not None:
-                    result[project_id] = budget["monthly_limit"]
-                    continue
-            #
-            result[project_id] = self.get_default_limit("project", project_id)
-        #
-        return result
+            log.exception("Failed to resolve effective project limits")
+            return {project_id: None for project_id in project_ids}
 
     @web.rpc("litellm_get_effective_user_limits", "litellm_get_effective_user_limits")
     def litellm_get_effective_user_limits(self, project_id, user_ids, **kwargs):
-        """Effective per-user limits within a project, keyed by user id.
-
-        The project row holds the member default every unset member falls back to, so it is
-        read once here rather than per member — the member list can be a whole project.
-        """
+        """Effective per-user limits within a project, keyed by user id. Delegates."""
         try:
-            project_budget = context.rpc_manager.timeout(5).elitea_core_get_project_budget(
-                project_id=project_id,
+            return context.rpc_manager.timeout(15).elitea_core_get_effective_member_limits(
+                project_id=project_id, user_ids=list(user_ids),
             )
         except:  # pylint: disable=W0702
-            log.exception("Failed to get budget for project %s", project_id)
-            project_budget = None
-        #
-        return {
-            uid: self.get_user_budget_limit(project_id, uid, project_budget)
-            for uid in user_ids
-        }
+            log.exception("Failed to resolve effective member limits for project %s", project_id)
+            return {user_id: None for user_id in user_ids}
 
     @web.rpc("litellm_get_projects_spend", "litellm_get_projects_spend")
     def litellm_get_projects_spend(self, project_ids, **kwargs):

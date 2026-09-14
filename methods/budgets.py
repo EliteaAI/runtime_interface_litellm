@@ -22,8 +22,6 @@ import re
 import time
 import datetime
 
-import flask  # pylint: disable=E0401
-
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
@@ -41,24 +39,9 @@ MODE_ENFORCE = "enforce"
 
 BUDGET_MODES = (MODE_OFF, MODE_OBSERVE, MODE_ENFORCE)
 
-# Deliberately period-neutral: the message must read correctly whatever the budget
-# period is, so it says "resets" rather than naming a month.
-BUDGET_ERROR_MESSAGE = (
-    "The budget for shared models has been reached. Requests are unavailable "
-    "until the budget resets or an administrator raises the limit."
-)
-
 # Which budget tripped. The UI maps these to its own wording and usage links.
 SCOPE_PROJECT = "project"
 SCOPE_MEMBER = "member"
-
-BUDGET_ERROR_CODES = {
-    SCOPE_PROJECT: "project_budget_exceeded",
-    SCOPE_MEMBER: "member_budget_exceeded",
-}
-
-# Cap on buffering an error body before rewriting it; error payloads are tiny
-MAX_ERROR_BODY_BYTES = 64 * 1024
 
 # Percent-of-limit at which the Usage page warns, when nothing is configured
 DEFAULT_WARNING_PCT = 80
@@ -71,9 +54,6 @@ WARNING_PCT_KEYS = {
 
 # How long a limit is trusted before re-reading it on the request path
 BUDGET_SYNC_TTL = 60.0
-
-# How long the personal-project id list is cached (it changes only on project creation)
-PERSONAL_PROJECTS_TTL = 300.0
 
 # How long a computed warning state is served without re-reading spend. The banner is
 # requested on every chat, agent, pipeline and skill page load, and a spend read pages the
@@ -118,59 +98,6 @@ def user_id_from_tag(tag_name):
 def is_anthropic_endpoint(endpoint):
     """True for Anthropic-native endpoints, which read tags from litellm_metadata."""
     return bool(endpoint) and endpoint.startswith("/v1/messages")
-
-
-def is_budget_exceeded_body(body):
-    """Detect LiteLLM's budget-exceeded error in a response body."""
-    try:
-        text = body.decode("utf-8", errors="ignore")
-    except AttributeError:
-        text = str(body)
-    #
-    lowered = text.lower()
-    #
-    return "budget" in lowered and (
-        "budget_exceeded" in lowered or "budget has been exceeded" in lowered
-    )
-
-
-def budget_error_scope(body):
-    """Which budget tripped, read from the tag name LiteLLM names in its error.
-
-    LiteLLM reports the first tag that is over budget, so exactly one scope applies
-    even when a request carries both a project and a per-user tag. Falls back to
-    project scope when the tag is missing or unrecognised: a slightly generic
-    message is better than telling the user the wrong budget blocked them.
-    """
-    try:
-        text = body.decode("utf-8", errors="ignore")
-    except AttributeError:
-        text = str(body)
-    #
-    match = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_user_(\d+)_", text)
-    #
-    return SCOPE_MEMBER if match else SCOPE_PROJECT
-
-
-def budget_error_target(body):
-    """Which project, and which member if any, the blocking tag belongs to.
-
-    The tag LiteLLM names in its error carries both ids, so no request context is needed
-    to work out who to notify. Returns (project_id, user_id), either possibly None.
-    """
-    try:
-        text = body.decode("utf-8", errors="ignore")
-    except AttributeError:
-        text = str(body)
-    #
-    member = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_user_(\d+)_", text)
-    #
-    if member:
-        return int(member.group(1)), int(member.group(2))
-    #
-    project = re.search(rf"{BUDGET_TAG_PREFIX}(\d+)_", text)
-    #
-    return (int(project.group(1)) if project else None), None
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -404,107 +331,47 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return None
 
     @web.method()
-    def get_project_budget_limit(self, project_id):
-        """Effective monthly limit (USD) for a project, or None if unlimited.
-
-        Falls back to a configured default so a project nobody has explicitly
-        budgeted is not silently unlimited. An explicit row with enabled=false
-        means "deliberately exempt" and is honoured as unlimited.
-        """
-        try:
-            budget = context.rpc_manager.timeout(5).elitea_core_get_project_budget(
-                project_id=project_id,
-            )
-        except:  # pylint: disable=W0702
-            log.exception("Failed to get budget for project %s", project_id)
-            return None
-        #
-        if budget is not None:
-            if not budget.get("enabled", True):
-                return None
-            #
-            if budget.get("monthly_limit") is not None:
-                return budget["monthly_limit"]
-        #
-        return self.get_default_limit("project", project_id)
+    def get_project_budget_limit(self, project_id, project_budget=UNSET):
+        """Effective monthly limit (USD) for a project. Delegates — one ladder, in elitea_core."""
+        return self._effective_limit(
+            "elitea_core_get_effective_project_limit",
+            project_id=project_id,
+            **({} if project_budget is UNSET else {"project_budget": project_budget}),
+        )
 
     @web.method()
     def get_user_budget_limit(self, project_id, user_id, project_budget=UNSET):
-        """Effective monthly per-user limit within a project, or None if unlimited.
-
-        Resolves in three tiers: the member's own row, then the project's member default,
-        then the platform default. Callers looping over many members should read the
-        project row once and pass it as project_budget rather than paying an RPC each.
-
-        A row with enabled=false exempts the member from the *platform* default only. A
-        limit an admin set on this project still applies, so "set a limit for everyone
-        here" cannot be silently undone by a member row nobody meant to opt out.
-
-        A personal project has one member, its owner, so its project budget already IS that
-        member's budget. A second limit there can only duplicate or silently override it --
-        and being invisible on a page that shows only the project scope, it blocked users
-        who could see budget remaining. Resolved before any row is read.
-        """
-        if self.is_personal_project(project_id):
-            return None
-        #
-        try:
-            budget = context.rpc_manager.timeout(5).elitea_core_get_user_budget(
-                project_id=project_id, user_id=user_id,
-            )
-        except:  # pylint: disable=W0702
-            log.exception(
-                "Failed to get user budget for project %s user %s", project_id, user_id,
-            )
-            return None
-        #
-        exempt = budget is not None and not budget.get("enabled", True)
-        #
-        if budget is not None and not exempt and budget.get("monthly_limit") is not None:
-            return budget["monthly_limit"]
-        #
-        return self.get_member_default_limit(project_id, project_budget, exempt=exempt)
+        """Effective monthly per-member limit within a project. Delegates to elitea_core."""
+        return self._effective_limit(
+            "elitea_core_get_effective_member_limit",
+            project_id=project_id, user_id=user_id,
+            **({} if project_budget is UNSET else {"project_budget": project_budget}),
+        )
 
     @web.method()
     def get_member_default_limit(self, project_id, project_budget=UNSET, exempt=False):
-        """The project's own member default, or the platform default when it has none.
-
-        The project's `enabled` flag is not consulted: it marks the project's *own* limit
-        exempt, while a member default is a separately-set value in its own right.
-        """
-        if project_budget is UNSET:
-            try:
-                project_budget = context.rpc_manager.timeout(5).elitea_core_get_project_budget(
-                    project_id=project_id,
-                )
-            except:  # pylint: disable=W0702
-                log.exception("Failed to get budget for project %s", project_id)
-                project_budget = None
-        #
-        if project_budget and project_budget.get("member_default_limit") is not None:
-            return project_budget["member_default_limit"]
-        #
-        return None if exempt else self.get_default_limit("user", project_id)
+        """The project's member default, or the platform default. Delegates to elitea_core."""
+        return self._effective_limit(
+            "elitea_core_get_effective_member_default",
+            project_id=project_id, exempt=exempt,
+            **({} if project_budget is UNSET else {"project_budget": project_budget}),
+        )
 
     @web.method()
     def get_default_limit(self, scope, project_id):
-        """Configured default limit for a scope, or None when defaults are off.
+        """Configured default limit for a scope. Delegates to elitea_core."""
+        return self._effective_limit(
+            "elitea_core_get_budget_default_limit", scope=scope, project_id=project_id,
+        )
 
-        Personal projects get their own default because they are auto-created per
-        user and would otherwise all be unlimited.
-        """
-        defaults = self.descriptor.config.get("cost_budgets", {}).get("defaults", {})
-        #
-        if not defaults.get("enabled", False):
+    @web.method()
+    def _effective_limit(self, rpc_name, **kwargs):
+        """None on any failure: an unreadable limit must not be read as a zero ceiling."""
+        try:
+            return getattr(context.rpc_manager.timeout(5), rpc_name)(**kwargs)
+        except:  # pylint: disable=W0702
+            log.exception("Failed to resolve %s", rpc_name)
             return None
-        #
-        if scope == "user":
-            return defaults.get("user_monthly_limit", None)
-        #
-        if self.is_personal_project(project_id):
-            return defaults.get("personal_project_monthly_limit", None)
-        #
-        return defaults.get("project_monthly_limit", None)
 
     @web.method()
     def get_warning_threshold(self, scope):
@@ -630,109 +497,14 @@ class Method:  # pylint: disable=E1101,R0903,W0201
 
     @web.method()
     def is_personal_project(self, project_id):
-        """True when the project is a user's auto-created personal project."""
-        cache = self.runtime_cache.get("personal_project_ids", None)
-        #
-        if cache is None or time.monotonic() - cache[0] > PERSONAL_PROJECTS_TTL:
-            try:
-                ids = set(context.rpc_manager.timeout(10).projects_get_personal_project_ids())
-            except:  # pylint: disable=W0702
-                log.exception("Failed to list personal projects")
-                return False
-            #
-            cache = (time.monotonic(), ids)
-            self.runtime_cache["personal_project_ids"] = cache
-        #
-        return int(project_id) in cache[1]
-
-    @web.method()
-    def make_budget_error_response(self, response, iterator):
-        """Rewrite a LiteLLM budget-exceeded error into a friendly, stable payload.
-
-        Returns None for anything else so normal responses stream untouched. Applies
-        to the failing turn itself, since a turn can be long and must not wait.
-        """
-        if not self.budgets_enabled():
-            return None
-        #
-        if response.get("status_code") not in (400, 429):
-            return None
-        #
+        """True when the project is a user's auto-created personal project. Delegates."""
         try:
-            body = b""
-            #
-            for chunk in iterator:
-                if isinstance(chunk, str):
-                    chunk = chunk.encode("utf-8")
-                body += chunk
-                #
-                if len(body) > MAX_ERROR_BODY_BYTES:
-                    break
-            #
-            if not is_budget_exceeded_body(body):
-                return flask.Response(
-                    body,
-                    status=response["status_code"],
-                    headers=self._body_headers(response, len(body)),
-                )
-            #
-            self.notify_budget_limit_reached(body)
-            #
-            payload = json.dumps({
-                "error": {
-                    "message": BUDGET_ERROR_MESSAGE,
-                    "type": "budget_exceeded",
-                    "code": BUDGET_ERROR_CODES[budget_error_scope(body)],
-                },
-            }).encode("utf-8")
-            #
-            headers = self._body_headers(response, len(payload))
-            headers["Content-Type"] = "application/json"
-            #
-            return flask.Response(payload, status=response["status_code"], headers=headers)
-        except:  # pylint: disable=W0702
-            log.exception("Failed to post-process potential budget error")
-            return None
-
-    @web.method()
-    def notify_budget_limit_reached(self, body):
-        """Notify once that a budget is exhausted, driven by the block itself.
-
-        The rejection is the event, so nothing has to poll for it. Claiming at 100 also
-        means a later threshold warning cannot fire for a budget already known to be full.
-        """
-        try:
-            project_id, user_id = budget_error_target(body)
-            #
-            if project_id is None:
-                return
-            #
-            claimed = context.rpc_manager.timeout(10).elitea_core_claim_budget_alert(
+            return bool(context.rpc_manager.timeout(10).elitea_core_is_personal_project(
                 project_id=project_id,
-                period=f"{datetime.datetime.now(datetime.timezone.utc):%Y%m}",
-                pct=100,
-                user_id=user_id,
-            )
-            #
-            if not claimed:
-                return
-            #
-            context.rpc_manager.timeout(15).elitea_core_notify_budget_event(
-                project_id=project_id, kind="limit", user_id=user_id,
-            )
+            ))
         except:  # pylint: disable=W0702
-            log.exception("Failed to send budget limit notification")
-
-    @web.method()
-    def _body_headers(self, response, length):
-        """Rebuild response headers for a fully-buffered body."""
-        headers = response["headers"]
-        #
-        headers.remove("Content-Length")
-        headers.remove("Transfer-Encoding")
-        headers["Content-Length"] = str(length)
-        #
-        return headers
+            log.exception("Failed to check whether project %s is personal", project_id)
+            return False
 
     @web.method()
     def restore_budget_ceilings(self):
