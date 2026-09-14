@@ -142,6 +142,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return self.budgets_mode() == MODE_ENFORCE
 
     @web.method()
+    def budget_enforcement_live(self):
+        """True when either inference plane blocks on limits — this one, or the usage gate.
+
+        The usage plugin can enforce while this plugin only observes (the rollout state where
+        exactly one system denies), and a user hitting a hard refusal must still be warned first.
+        """
+        if self.budgets_enforcing():
+            return True
+        #
+        try:
+            return context.rpc_manager.timeout(5).usage_mode() == MODE_ENFORCE
+        except:  # pylint: disable=W0702
+            return False
+
+    @web.method()
     def apply_budget_tag(  # pylint: disable=R0913
             self, proxy_target, project_id, form_data=False, endpoint=None, user_id=None,
     ):
@@ -425,7 +440,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         # Observe mode tracks spend but never blocks, so warning that requests are about to
         # become unavailable would not be true
-        if not self.budgets_enforcing():
+        if not self.budget_enforcement_live():
             return no_warning
         #
         try:

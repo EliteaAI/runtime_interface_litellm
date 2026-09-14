@@ -48,8 +48,4 @@ class Module(module.ModuleModel):  # pylint: disable=R0903
         else:
             self.release_budget_ceilings()
         #
-        log.info(
-            "Cost budgets reconfigured: mode=%s defaults=%s",
-            self.budgets_mode(),
-            self.descriptor.config.get("cost_budgets", {}).get("defaults", {}),
-        )
+        log.info("Cost budgets reconfigured: mode=%s", self.budgets_mode())

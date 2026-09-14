@@ -40,20 +40,8 @@ cost_budgets:
   # Note: switching away from enforce lifts any ceilings already pushed to LiteLLM.
   mode: "off"
   #
-  # Per-scope limits applied ONLY where nothing has been set explicitly on the
-  # Budgets page. null (or unset) means unlimited for that scope, so each default
-  # can be turned off independently without disabling the feature.
-  # Ignored entirely unless mode is "enforce".
-  defaults:
-    enabled: false
-    # Team/shared projects.
-    project_monthly_limit: null
-    # Each user's own project. API and token calls made without a project header
-    # are billed here, so this is effectively the per-user cap for direct API use.
-    personal_project_monthly_limit: null
-    # One member's spend inside a project, so a single member cannot consume the
-    # whole project budget. Applied in addition to the project limit.
-    user_monthly_limit: null
+  # The per-scope default limits live in elitea_core's config, next to the ladder that
+  # reads them (elitea_core/rpc/budget_limits.py); this plugin only delegates.
   #
   # Percentage of a limit at which the Usage page warns. Per scope, since a shared
   # team budget and one member's slice of it warrant different lead times.
