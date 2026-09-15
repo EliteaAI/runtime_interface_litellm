@@ -1,8 +1,8 @@
 """Unit tests for the legacy LiteLLM budget-ceiling release (issue #6573).
 
 Enforcement moved to the `usage` plugin, so any `elitea_proj_*` ceiling still set in
-LiteLLM would keep blocking calls with nothing left here able to lift it. The release
-runs once per start and must be idempotent.
+LiteLLM would keep blocking calls with nothing left here able to lift it. The release is a
+one-time R-2.0.7 admin task, and must be idempotent so a re-run is harmless.
 
 Run standalone (no pylon runtime needed):
     python3 tests/test_ceiling_release.py
@@ -79,7 +79,9 @@ class TestReleaseBudgetCeilings(unittest.TestCase):
     def test_a_capped_elitea_tag_is_lifted_to_unlimited(self):
         method, calls = _method([_tag("elitea_proj_25_202609", 5.0)])
         #
-        self.assertEqual(method.release_budget_ceilings(), 1)
+        self.assertEqual(
+            method.release_budget_ceilings(), {"ok": True, "released": 1, "failed": []},
+        )
         self.assertEqual(
             calls.updated(),
             [("tag_update_if_exists", ("elitea_proj_25_202609",),
@@ -87,23 +89,29 @@ class TestReleaseBudgetCeilings(unittest.TestCase):
         )
 
     def test_running_twice_is_a_no_op_the_second_time(self):
-        # Second run sees the already-lifted value; idempotence is what makes a
-        # per-start release safe.
+        # Second run sees the already-lifted value; idempotence is what makes re-running
+        # the admin task harmless.
         method, calls = _method([_tag("elitea_proj_25_202609", ceilings.UNLIMITED_BUDGET)])
         #
-        self.assertEqual(method.release_budget_ceilings(), 0)
+        self.assertEqual(
+            method.release_budget_ceilings(), {"ok": True, "released": 0, "failed": []},
+        )
         self.assertEqual(calls.updated(), [])
 
     def test_tags_owned_by_someone_else_are_left_alone(self):
         method, calls = _method([_tag("customer_acme", 1.0), _tag("elitea_other", 2.0)])
         #
-        self.assertEqual(method.release_budget_ceilings(), 0)
+        self.assertEqual(
+            method.release_budget_ceilings(), {"ok": True, "released": 0, "failed": []},
+        )
         self.assertEqual(calls.updated(), [])
 
     def test_a_tag_with_no_ceiling_is_skipped(self):
         method, calls = _method([_tag("elitea_proj_3_202609", None), {"name": "elitea_proj_4_202609"}])
         #
-        self.assertEqual(method.release_budget_ceilings(), 0)
+        self.assertEqual(
+            method.release_budget_ceilings(), {"ok": True, "released": 0, "failed": []},
+        )
         self.assertEqual(calls.updated(), [])
 
     def test_one_failing_update_does_not_stop_the_rest(self):
@@ -112,26 +120,30 @@ class TestReleaseBudgetCeilings(unittest.TestCase):
             fail_on={"tag_update_if_exists"},
         )
         #
-        self.assertEqual(method.release_budget_ceilings(), 0)
+        self.assertEqual(method.release_budget_ceilings(), {
+            "ok": False, "released": 0,
+            "failed": ["elitea_proj_1_202609", "elitea_proj_2_202609"],
+        })
         self.assertEqual(len(calls.updated()), 2)
 
-    def test_an_unreachable_litellm_is_reported_as_zero_released(self):
+    def test_an_unreachable_litellm_is_reported_as_a_failure(self):
         method, _ = _method(fail_on={"tag_list"})
         #
-        self.assertEqual(method.release_budget_ceilings(), 0)
+        result = method.release_budget_ceilings()
+        #
+        self.assertFalse(result["ok"])
+        self.assertEqual(result["released"], 0)
+        self.assertIn("boom", result["error"])
 
-    def test_scheduling_runs_the_release_on_a_daemon_thread(self):
+    def test_the_task_runner_passes_arguments_the_task_ignores(self):
+        # register_admin_task hands the task whatever the admin UI submitted.
         method, calls = _method([_tag("elitea_proj_9_202609", 3.0)])
-        ceilings.RELEASE_DELAY_SECONDS = 0
         #
-        method.schedule_budget_ceiling_release()
-        for thread in __import__("threading").enumerate():
-            if thread.name == "litellm-ceiling-release":
-                self.assertTrue(thread.daemon)
-                thread.join(timeout=5)
-        #
+        self.assertEqual(
+            method.release_budget_ceilings("dry_run", extra=1),
+            {"ok": True, "released": 1, "failed": []},
+        )
         self.assertEqual(len(calls.updated()), 1)
-
 
 if __name__ == "__main__":
     unittest.main(verbosity=2)

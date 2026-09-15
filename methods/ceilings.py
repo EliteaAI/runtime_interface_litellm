@@ -18,52 +18,33 @@
 
 """ Legacy LiteLLM budget-ceiling release """
 
-import threading
-import time
-
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 from pylon.core.tools import web  # pylint: disable=E0611,E0401
 
 BUDGET_TAG_PREFIX = "elitea_proj_"
 UNLIMITED_BUDGET = 1_000_000_000.0
-RELEASE_DELAY_SECONDS = 30
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
     """ Method Resource """
 
-    @web.method()
-    def schedule_budget_ceiling_release(self):
-        """Enforcement moved to the usage plugin, so any ceiling still set here blocks calls
-        that nothing in this plugin can unblock any more. Lift them once per start."""
-        thread = threading.Thread(
-            target=self._release_budget_ceilings_later,
-            name="litellm-ceiling-release",
-            daemon=True,
-        )
-        thread.start()
+    @web.method("release_budget_ceilings")
+    def release_budget_ceilings(self, *args, **kwargs):  # pylint: disable=W0613
+        """Admin task: lift every legacy Elitea budget ceiling set in LiteLLM.
 
-    @web.method()
-    def _release_budget_ceilings_later(self):
-        """Delayed so the LiteLLM service node has a chance to come up first."""
-        time.sleep(RELEASE_DELAY_SECONDS)
-        #
-        try:
-            self.release_budget_ceilings()
-        except:  # pylint: disable=W0702
-            log.exception("Failed to release legacy budget ceilings")
-
-    @web.method()
-    def release_budget_ceilings(self):
-        """Lift every legacy Elitea budget ceiling set in LiteLLM. Idempotent: tags already
-        unlimited are skipped, and tags plus their accrued spend are left intact."""
+        Enforcement moved to the usage plugin, so a ceiling still set here blocks calls that
+        nothing in this plugin can unblock any more. One-time migration, run per deployment.
+        Idempotent: tags already unlimited are skipped, and tags plus their accrued spend are
+        left intact.
+        """
         try:
             tags = self.service_node.call.litellm_api_call("tag_list") or []
-        except:  # pylint: disable=W0702
+        except Exception as exc:  # pylint: disable=W0703
             log.exception("Failed to list tags while releasing budget ceilings")
-            return 0
+            return {"ok": False, "released": 0, "error": str(exc)}
         #
         released = 0
+        failed = []
         #
         for tag in tags:
             tag_name = (tag or {}).get("name") or ""
@@ -84,10 +65,10 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     max_budget=UNLIMITED_BUDGET,
                 )
                 released += 1
-            except:  # pylint: disable=W0702
+            except Exception:  # pylint: disable=W0703
                 log.exception("Failed to release budget ceiling for %s", tag_name)
+                failed.append(tag_name)
         #
-        if released:
-            log.info("Released %s legacy LiteLLM budget ceiling(s)", released)
+        log.info("Released %s legacy LiteLLM budget ceiling(s)", released)
         #
-        return released
+        return {"ok": not failed, "released": released, "failed": failed}

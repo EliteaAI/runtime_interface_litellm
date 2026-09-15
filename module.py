@@ -20,6 +20,8 @@
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import module  # pylint: disable=E0611,E0401,W0611
 
+from tools import this  # pylint: disable=E0401
+
 
 class Module(module.ModuleModel):  # pylint: disable=R0903
     """ Pylon module """
@@ -34,4 +36,12 @@ class Module(module.ModuleModel):  # pylint: disable=R0903
 
     def ready(self):
         """ Ready callback """
-        self.schedule_budget_ceiling_release()
+        self._register_admin_tasks()
+
+    def _register_admin_tasks(self):
+        try:
+            this.for_module("admin").module.register_admin_task(
+                "release_budget_ceilings", self.release_budget_ceilings, group="R-2.0.7",
+            )
+        except Exception as exc:  # pylint: disable=W0703
+            log.exception("Failed to register admin tasks: %s", exc)
