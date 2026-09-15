@@ -39,16 +39,17 @@ def usage_hooks():
 
 
 def prepare_llm_call(proxy_target, proxy_auth, raw_model_name=None, model_project_id=None):
-    """Hand over the two facts only this plugin knows: the raw name and where it resolved."""
+    """None to proceed, or the response to serve instead — a refused call never reaches LiteLLM."""
     hooks = usage_hooks()
     #
     if hooks is None:
-        return
+        return None
     #
     try:
-        hooks.prepare_llm_call(proxy_target, proxy_auth, raw_model_name, model_project_id)
+        return hooks.prepare_llm_call(proxy_target, proxy_auth, raw_model_name, model_project_id)
     except:  # pylint: disable=W0702
         log.exception("Failed to prepare LLM call metering")
+        return None
 
 
 def meter_llm_call(proxy_target, proxy_auth, response, iterator):

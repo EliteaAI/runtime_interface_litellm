@@ -432,13 +432,6 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     log.debug("Mapped model name (JSON): %s -> %s", raw_model_name, model_name)
                     proxy_target["json"]["model"] = model_name
                 #
-                if is_shared:
-                    self.apply_budget_tag(
-                        proxy_target, project_id,
-                        form_data=False, endpoint=proxy_target_endpoint,
-                        user_id=user_id,
-                    )
-                #
                 metered_model_name = raw_model_name
                 metered_project_id = public_project_id if is_shared else project_id
             #
@@ -459,17 +452,16 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         proxy_target["data"] = proxy_target["data"].to_dict()
                     proxy_target["data"]["model"] = model_name
                 #
-                if is_shared:
-                    self.apply_budget_tag(
-                        proxy_target, project_id,
-                        form_data=True, endpoint=proxy_target_endpoint,
-                        user_id=user_id,
-                    )
-                #
                 metered_model_name = raw_model_name
                 metered_project_id = public_project_id if is_shared else project_id
             #
-            prepare_llm_call(proxy_target, proxy_auth, metered_model_name, metered_project_id)
+            denial = prepare_llm_call(
+                proxy_target, proxy_auth, metered_model_name, metered_project_id,
+            )
+            #
+            # Returned before any stream is opened, so a refusal leaks nothing
+            if denial is not None:
+                return denial
         #
         return None
 

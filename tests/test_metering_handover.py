@@ -102,9 +102,10 @@ class FormData(dict):
 class RecordingHooks:
     """Stands in for the usage plugin's registered tool."""
 
-    def __init__(self, explode=False, served="metered"):
+    def __init__(self, explode=False, served="metered", denial=None):
         self.explode = explode
         self.served = served
+        self.denial = denial
         self.prepared = []
         self.metered = []
 
@@ -112,6 +113,8 @@ class RecordingHooks:
         if self.explode:
             raise RuntimeError("usage is broken")
         self.prepared.append((proxy_target, proxy_auth, raw_model_name, model_project_id))
+        #
+        return self.denial
 
     def meter_llm_call(self, proxy_target, proxy_auth, response, iterator):
         if self.explode:
@@ -205,6 +208,31 @@ class TestAnOlderOrBrokenUsagePlugin(unittest.TestCase):
             self.assertIs(metering.meter_llm_call({}, {}, None, marker), marker)
 
 
+class TestTheDenialShortCircuit(unittest.TestCase):
+    """A refused call must be answered here, before LiteLLM is ever dialled."""
+
+    DENIAL = ({"error": {"code": "budget_exceeded"}}, 429)
+
+    def test_a_denial_is_returned_verbatim(self):
+        with HooksInstalled(RecordingHooks(denial=self.DENIAL)):
+            served = metering.prepare_llm_call({"endpoint": "/v1/chat/completions"}, {}, "gpt-4o", 1)
+        #
+        self.assertIs(served, self.DENIAL)
+
+    def test_an_admitted_call_proceeds(self):
+        with HooksInstalled(RecordingHooks()):
+            self.assertIsNone(metering.prepare_llm_call({}, {}, "gpt-4o", 1))
+
+    def test_a_broken_hook_proceeds_rather_than_denying(self):
+        # Fail-closed lives inside the usage plugin, which owns the mode; a failure out here is
+        # a bug in the plumbing, and refusing every call over it would be worse
+        with HooksInstalled(RecordingHooks(explode=True)):
+            self.assertIsNone(metering.prepare_llm_call({}, {}, "gpt-4o", 1))
+
+    def test_no_usage_plugin_never_denies(self):
+        self.assertIsNone(metering.prepare_llm_call({}, {}, "gpt-4o", 1))
+
+
 class TestWhatPrepareRequestHandsOver(unittest.TestCase):
     """The raw model name and the project the model actually resolved in.
 
@@ -252,7 +280,6 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         method._map_model_name = lambda raw, project_id, public_id: (
             f"{1 if is_shared else project_id}_{raw}", is_shared,
         )
-        method.apply_budget_tag = lambda *a, **kw: None
         #
         proxy_target = {
             "endpoint": "/v1/chat/completions",
@@ -284,6 +311,29 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         self._prepare(is_shared=True)
         #
         self.assertEqual(self.handed[0][3], 1)
+
+    def test_a_denial_is_handed_back_out_of_prepare_request(self):
+        # routes/proxy.py short-circuits on a non-None return before add_stream(), so the
+        # refusal is what the caller sees and no stream is ever opened
+        denial = ({"error": {"code": "budget_exceeded"}}, 429)
+        proxy.prepare_llm_call = lambda *args: denial
+        method = proxy.Method()
+        method.preprocess_headers = lambda headers: headers
+        method.descriptor = types.SimpleNamespace(
+            config=types.SimpleNamespace(get=lambda *a, **kw: None),
+        )
+        method.get_public_project_id = lambda: 1
+        method._map_model_name = lambda raw, project_id, public_id: (raw, False)
+        #
+        served = method.prepare_request(
+            {
+                "endpoint": "/v1/chat/completions", "headers": proxy.Headers({}),
+                "json": {"model": "gpt-4o"}, "data": None,
+            },
+            {"type": "token", "user": {"id": 42, "name": "someone"}},
+        )
+        #
+        self.assertIs(served, denial)
 
     def test_a_form_data_model_is_handed_over_too(self):
         self._prepare(
@@ -340,7 +390,6 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         )
         method.get_public_project_id = lambda: 1
         method._map_model_name = lambda raw, project_id, public_id: (raw, False)
-        method.apply_budget_tag = lambda *a, **kw: None
         #
         proxy_target = {
             "endpoint": "/v1/chat/completions",
