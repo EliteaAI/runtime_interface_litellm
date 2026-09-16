@@ -292,6 +292,8 @@ def test_compiled_router_reused_without_reusing_request_authority():
     router = compiled_router()
     first = resolve(request(), complete=classifier_design, **fixture())
     args = fixture();args['project_id'] = 9
+    for model in args['models']:
+        model['project_id'] = 9
     second = resolve(request(), complete=classifier_design, **args)
     assert compiled_router() is router
     with pytest.raises(RoutingUnavailable):

@@ -398,6 +398,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             proxy_target['headers'].remove('X-Elitea-Routing-Pin')
             routing_invocation = proxy_target['headers'].get('X-Elitea-Routing-Invocation')
             proxy_target['headers'].remove('X-Elitea-Routing-Invocation')
+            auto_binding = proxy_auth.get('_auto_model_binding')
             if routing_pin:
                 from ..routing.service import decode_pin, RoutingUnavailable
                 try:
@@ -405,9 +406,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
                     if routing_invocation != pin.get('invocation_id'):
                         raise RoutingUnavailable('Routing invocation mismatch')
-                    visible = context.rpc_manager.timeout(10).configurations_get_models(project_id, 'llm', True).get('items', [])
-                    if not any(m.get('name') == pin['config']['model_name'] and m.get('project_id') == pin['config']['model_project_id'] for m in visible):
-                        raise RoutingUnavailable('Pinned model is no longer available')
+                    from ..routing.service import compiled_router
+                    if pin.get('policy_revision') != compiled_router().revision:
+                        raise RoutingUnavailable('Pinned routing policy changed')
+                    auto_binding = pin.get('model_binding')
+                    if not auto_binding:
+                        raise RoutingUnavailable('Routing binding requires renewal')
                     body = proxy_target.get('json') or {}
                     effort = body.get('reasoning_effort') or (body.get('reasoning') or {}).get('effort') or (body.get('output_config') or {}).get('effort')
                     if effort is None and 'anthropic' in pin['config']['model_name'] and (body.get('thinking') or {}).get('type') == 'enabled':
@@ -421,6 +425,15 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         raise RoutingUnavailable('Pinned output allowance exceeded')
                 except (ValueError, KeyError, TypeError):
                     return {'error': 'Auto binding expired, revoked or incompatible'}, 409
+            if auto_binding:
+                from ..routing.inventory import validate_binding
+                try:
+                    inventory = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, user_id)
+                    validate_binding(auto_binding, inventory['items'], project_id)
+                    if raw_model != auto_binding['name']:
+                        raise ValueError('Auto model binding mismatch')
+                except (ValueError, KeyError, TypeError):
+                    return {'error': 'Auto model configuration changed or is unavailable'}, 409
 
             #
             proxy_target["headers"]["Authorization"] = f"Bearer {llm_key}"
@@ -459,9 +472,19 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
-                model_name, is_shared = self._map_model_name(
-                    raw_model_name, project_id, public_project_id,
-                )
+                if auto_binding:
+                    from ..routing.inventory import map_bound_model
+                    try:
+                        model_name, is_shared = map_bound_model(
+                            auto_binding, project_id=project_id, public_project_id=public_project_id,
+                            lookup=self.service_node.call.litellm_api_call,
+                        )
+                    except ValueError:
+                        return {'error': 'Auto model deployment is unavailable'}, 503
+                else:
+                    model_name, is_shared = self._map_model_name(
+                        raw_model_name, project_id, public_project_id,
+                    )
                 #
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (JSON): %s -> %s", raw_model_name, model_name)

@@ -4,6 +4,7 @@ import json
 from pylon.core.tools import web
 from tools import context, VaultClient
 from ..routing.service import resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router
+from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
 
 
@@ -19,8 +20,14 @@ class Method:
             return {'error': 'Method not allowed'}, 405
         if not settings['enabled']:
             return {'error': 'Auto model selection is disabled'}, 403
-        names = sorted({v['model'] for v in compiled_router().catalog['variants'].values()})
-        models = context.rpc_manager.timeout(10).configurations_get_models(project_id, 'llm', True)['items']
+        snapshot = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, proxy_auth['user']['id'])
+        models = snapshot['items']
+        inventory = effective_models(models, project_id)
+        router = compiled_router()
+        variants, _ = qualified_inventory(inventory, router.catalog)
+        # Quote discovered qualified bindings only; unqualified inventory can
+        # exceed the bounded Costs RPC and cannot become a candidate anyway.
+        names = sorted({model['name'] for model in variants.values()})
         prices = context.rpc_manager.timeout(10).costs_get_routing_prices(names)
         key = VaultClient(project_id).get_secrets().get('project_llm_key')
         if not key:
@@ -36,6 +43,8 @@ class Method:
             if proxy_auth.get('platform_run_id'):
                 target['headers']['X-Elitea-Run-Id'] = proxy_auth['platform_run_id']
             identity = {**proxy_auth}
+            # Internal authenticated state, never accepted from a request header.
+            identity['_auto_model_binding'] = model_binding(inventory[model])
             denied = self.prepare_request(target, identity)
             if denied is not None:
                 raise RoutingAdmissionDenied(denied)

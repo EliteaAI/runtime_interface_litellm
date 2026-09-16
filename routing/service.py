@@ -1,7 +1,7 @@
 """Authenticated routing preflight; no provider replacement or response conversion.
 
 The SDK gets a native-client binding. The gateway checks its signed binding on
-all later provider calls. Request text cannot expand the published V7 pool.
+all later provider calls. Request text cannot expand measured qualification.
 """
 import base64
 import copy
@@ -17,6 +17,7 @@ from .v7.catalog import compile_catalog
 from .v7.candidate import CalibratedRouter
 from .v7.routing import GatewayError
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
+from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
@@ -160,7 +161,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
     router = compiled_router()
     catalog = router.catalog
-    visible = {m['name']: m for m in reversed(models) if isinstance(m, dict) and m.get('name')}
+    visible = effective_models(models, project_id)
+    runtime_variants, exclusions = qualified_inventory(visible, catalog)
+    inventory_revision = fingerprint([model_binding(m) for m in visible.values()])
     output_schema = request.get('output_schema')
     if output_schema is not None and not isinstance(output_schema, dict):
         raise RoutingUnavailable('Unsupported structured-output schema')
@@ -173,10 +176,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
-    for vid, variant in catalog['variants'].items():
-        model = visible.get(variant['model'])
-        if not model:
-            continue
+    for vid, model in runtime_variants.items():
+        variant = catalog['variants'][vid]
         if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
             continue
         # The current native Anthropic SDK uses bounded enabled-thinking for
@@ -194,9 +195,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(variant['model'], Tokens(0, cap, write=size))['usd'] is None:
             continue
         allowed.append(vid)
-    # Fixed classifier identity is part of this frozen profile, not least-price selection.
-    classifier = catalog['variants']['luna-default']['model']
-    if classifier not in visible:
+    # Classifier identity is supplied by the calibrated policy, never request text.
+    classifier = catalog['variants'][router.classifier.variant]['model']
+    if router.classifier.variant not in runtime_variants:
         raise RoutingUnavailable('The configured Auto classifier is unavailable')
     if prices.quote(classifier, Tokens(34000, 900))['usd'] is None:
         raise RoutingUnavailable('Classifier pricing is unavailable')
@@ -206,6 +207,12 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if prior:
         restored = decode_pin(prior, signing_key, project_id=project_id, user_id=user_id,
                               settings=settings, now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
+        try:
+            validate_binding(restored.get('model_binding'), models, project_id)
+        except ValueError as exc:
+            raise RoutingUnavailable(str(exc)) from exc
+        if restored.get('policy_revision') != router.revision:
+            raise RoutingUnavailable('The checkpoint routing policy changed')
         allowed = [v for v in allowed if catalog['variants'][v]['model'] == restored['config']['model_name']
                    and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
         if not allowed:
@@ -233,7 +240,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                               router.gateway, catalog, tools, router.revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
             decision = router.resolve(messages, output_cap=cap, tools=tools, allowed=allowed,
-                session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'context':context_revision(runtime_context)}),
+                session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
             state_token = None
             if decision.get('action') != 'clarify':
@@ -251,6 +258,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
     trace['classifier']['called'] = bool(classifier_info)
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
+    trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
+                          'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
+                          'excluded': exclusions}
     if decision.get('action') == 'clarify':
         return {'action': 'clarify', 'text': decision['clarification'], 'trace': trace}
     selected = decision['selection']
@@ -261,6 +271,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
               'routing_total_output_cap': True}
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
+           'model_binding': model_binding(model), 'policy_revision': router.revision,
            'expires_at': int(time.time() if now is None else now)+3600}
     return {'action': 'generate', 'config': config, 'pin': encode_pin(pin, signing_key), 'trace': trace,
             'invocation_id': invocation_id, 'scope_id': scope_id, 'state_token': state_token, 'expires_at': pin['expires_at']}
