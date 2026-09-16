@@ -41,6 +41,10 @@ class Method:  # pylint: disable=E1101,R0903,W0201
     def init(self):
         """ Init """
         self.runtime_cache = {}
+        # Restricted Worker/Main bus; never expose source attestation over HTTP.
+        worker_client.rpc_node.register(
+            self.sign_routing_context, name="restricted_sign_routing_context",
+        )
         #
         # 'Public' route
         #
@@ -172,6 +176,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
     @web.deinit()
     def deinit(self):
         """ De-init """
+        worker_client.rpc_node.unregister(
+            self.sign_routing_context, name="restricted_sign_routing_context",
+        )
         try:
             if self.litellm_mode == "built-in":
                 this.for_module("admin").module.unregister_admin_task(

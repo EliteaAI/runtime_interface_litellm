@@ -1,0 +1,79 @@
+{
+  "revision": "v7-calibration-only-f18611c176865e8e",
+  "eligible_by_family": {
+    "data_gathering": [
+      "gpt54-medium",
+      "luna-default",
+      "mini-low",
+      "sonnet-default"
+    ],
+    "evidence_synthesis": [
+      "luna-default",
+      "mini-low",
+      "sonnet-default"
+    ],
+    "transformation": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "mini-low",
+      "sonnet-default"
+    ],
+    "extraction": [
+      "gpt54-medium",
+      "luna-default",
+      "mini-low"
+    ],
+    "classification": [
+      "gpt54-medium",
+      "luna-default",
+      "mini-low",
+      "sonnet-default"
+    ],
+    "content_creation": [
+      "gpt54-medium",
+      "luna-default"
+    ],
+    "editing_localization": [
+      "luna-default",
+      "sonnet-default"
+    ],
+    "quantitative": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "mini-low"
+    ],
+    "business_planning": [
+      "haiku-default",
+      "luna-default",
+      "mini-low"
+    ],
+    "requirements": [],
+    "test_design": [],
+    "code": [
+      "luna-default"
+    ],
+    "rca": [],
+    "tool_workflow": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "mini-low",
+      "sonnet-default"
+    ],
+    "conversation_control": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "sonnet-default"
+    ]
+  },
+  "production_promotion_allowed": false,
+  "eligibility_rule": "4/4 complete calibration task successes; no unknown; retain existing operation/demand/effort ceilings.",
+  "fallback": "Configured baseline family, explicitly insufficient evidence; no universal Luna or other model qualification.",
+  "corpus_sha256": "8bd9d55ce7ff52aa72de1ba76e1cb43e7fedd17d365e35f200b89e4ddf753784",
+  "rubric_revision": "family-rubrics-v7-1",
+  "records_sha256": "f18611c176865e8e76a9c975779f6cf2d62b282a165af67a12a199721e300196",
+  "limitation": "4/4 has a Wilson 95% lower bound near 0.51. It is insufficient for production quality claims."
+}

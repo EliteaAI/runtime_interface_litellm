@@ -32,6 +32,7 @@ from ..utils.metering import prepare_llm_call
 
 
 LLM_ENDPOINT_WHITELIST = [
+    "/v1/auto-routing/resolve",
     "/v1/models",
     "/v1/completions",
     "/v1/chat/completions",
@@ -292,6 +293,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     #
                     if user_in_project:
                         project_id = candidate_project_id
+                    elif proxy_target_endpoint == '/v1/auto-routing/resolve':
+                        return {'error': 'Project access denied'}, 403
             #
             if project_id is None:
                 try:
@@ -309,6 +312,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 return "Error", 400
             #
             proxy_auth["project_id"] = project_id
+            #
+            if proxy_target_endpoint == '/v1/auto-routing/resolve':
+                return self.resolve_auto_routing(proxy_target, proxy_auth)
             #
             public_project_id = self.get_public_project_id()
             #
@@ -387,6 +393,35 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 return "Error", 400
             #
             llm_key = project_secrets["project_llm_key"]
+            # Signed Auto bindings are checked before mapping and removed before relay.
+            routing_pin = proxy_target['headers'].get('X-Elitea-Routing-Pin')
+            proxy_target['headers'].remove('X-Elitea-Routing-Pin')
+            routing_invocation = proxy_target['headers'].get('X-Elitea-Routing-Invocation')
+            proxy_target['headers'].remove('X-Elitea-Routing-Invocation')
+            if routing_pin:
+                from ..routing.service import decode_pin, RoutingUnavailable
+                try:
+                    settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+                    pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
+                    if routing_invocation != pin.get('invocation_id'):
+                        raise RoutingUnavailable('Routing invocation mismatch')
+                    visible = context.rpc_manager.timeout(10).configurations_get_models(project_id, 'llm', True).get('items', [])
+                    if not any(m.get('name') == pin['config']['model_name'] and m.get('project_id') == pin['config']['model_project_id'] for m in visible):
+                        raise RoutingUnavailable('Pinned model is no longer available')
+                    body = proxy_target.get('json') or {}
+                    effort = body.get('reasoning_effort') or (body.get('reasoning') or {}).get('effort') or (body.get('output_config') or {}).get('effort')
+                    if effort is None and 'anthropic' in pin['config']['model_name'] and (body.get('thinking') or {}).get('type') == 'enabled':
+                        effort = {2048: 'low', 4096: 'medium', 9092: 'high'}.get(body['thinking'].get('budget_tokens'))
+                    if effort != pin['config']['reasoning_effort']:
+                        raise RoutingUnavailable('Pinned reasoning effort mismatch')
+                    if body.get('model') != pin['config']['model_name']:
+                        raise RoutingUnavailable('Pinned model mismatch')
+                    output_limit = body.get('max_completion_tokens', body.get('max_tokens', body.get('max_output_tokens')))
+                    if type(output_limit) is not int or output_limit > pin['config']['max_tokens']:
+                        raise RoutingUnavailable('Pinned output allowance exceeded')
+                except (ValueError, KeyError, TypeError):
+                    return {'error': 'Auto binding expired, revoked or incompatible'}, 409
+
             #
             proxy_target["headers"]["Authorization"] = f"Bearer {llm_key}"
             #
