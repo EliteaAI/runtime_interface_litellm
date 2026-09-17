@@ -35,6 +35,17 @@ class RoutingManifestTests(unittest.TestCase):
                 self.assertIsNotNone(re.fullmatch('[0-9a-f]{64}', value['sha256']))
                 self.assertIsNotNone(re.fullmatch('[0-9a-f]{64}', value['product_sha256']))
 
+    def test_calibration_compiler_and_policy_share_the_original_source(self):
+        compiler = self.manifest['calibration_compiler']
+        path = ROOT.parents[1] / compiler['path']
+        self.assertEqual(hashlib.sha256(path.read_bytes()).hexdigest(), compiler['sha256'])
+        evidence = json.loads((ROOT/'calibration-v9.json').read_text())
+        policy = json.loads((ROOT/'qualification-policy.json').read_text())
+        self.assertEqual(evidence['source_sha256'], compiler['source_sha256'])
+        self.assertEqual(policy['calibration_source_sha256'], evidence['source_sha256'])
+        self.assertIn('rubric_revision', policy['baseline_provenance'])
+        self.assertNotIn('rubric_revision', policy)
+
 
 if __name__ == '__main__':
     unittest.main()

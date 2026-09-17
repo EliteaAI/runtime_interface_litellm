@@ -1,5 +1,5 @@
 {
-  "policy": "V7 calibrated",
+  "policy": "Retained V7 plus generated V9 local-beta calibration candidate",
   "sources": {
     "context_resolution.py": {
       "source": "autorouting_impl/poc/context_resolution.py",
@@ -19,7 +19,7 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "d865d67ead06c635be850a15e371bb6e2162e65ef214ffcfd998b1b521b581ea"
+      "product_sha256": "fedbaf4fc2fb3049b79c551bde3020dbfc9c7db0352141077c1cc65a7633cdeb"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
@@ -59,12 +59,12 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "3e4c5e9904f4af0b8827e12320b1bde7a5eefa863cb9c2052afac5f81409306b"
+      "product_sha256": "21f81a6986c51d6337b1047241387615014b04e84e63e2b9ab51f2cbdefcf06d"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
       "sha256": "41465ccd56c9336cce1da7bb8f9a6d2d38b3de5b79280f5d7437a07f01319173",
-      "product_sha256": "41465ccd56c9336cce1da7bb8f9a6d2d38b3de5b79280f5d7437a07f01319173"
+      "product_sha256": "a28ff2e03c2d5333964b8052b8c11b316476616cff1e4f719cbb0a989e680683"
     },
     "social.py": {
       "source": "autorouting_impl/experiments/phase1-social-v9/social.py",
@@ -84,11 +84,20 @@
     "R9 shared bounded social matcher and validator; matcher revision participates in policy digest",
     "R9 trusted standalone creative rule emits content_creation family; arbitrary classifier descriptors still require qualification",
     "R9 aligned historical projection and advisory response receipt preserve pending task; cache evidence retains original completion time",
-    "Release 2.0.7 publication manifest refresh only; runtime policy source is unchanged by publication preparation"
+    "Release 2.0.7 publication manifest refresh only; runtime policy source is unchanged by publication preparation",
+    "V9 generated original calibration-only contracts retain all100cells;54full-family successes admitted for exact observed demand at provider default",
+    "Per-variant measured output allowance and exact transport participate in live inventory admission, pricing and signed run binding",
+    "Internal policy revision changes; old active pins reject and require a drained rollout while the public saved profile handle stays stable"
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
-    "economics.py": "33ee20f23f80016207f80f853a68c8c81639c5f46d335cf42a22b56e0016f9b6"
+    "economics.py": "3f7b42597162efebf4d7f5a53e69374ac1bc627dd52e4b5244af647a4791a75c",
+    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a"
   },
-  "product_revision": "V7 R2 plus installed R8/R9 integration corrections; frozen V7 catalog/qualification unchanged"
+  "product_revision": "V7 R2/R8/R9 integration plus V9 default-only calibration candidate; no production promotion",
+  "calibration_compiler": {
+    "path": "scripts/compile_v9_candidate.py",
+    "sha256": "ff37a90f6872f248c7dcfff85c8cf79366f25e2b0d160b2eb77fa607aba5a346",
+    "source_sha256": "869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd"
+  }
 }

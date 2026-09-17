@@ -14,8 +14,15 @@ inventory. A discovered model without evidence appears as
 `NO_CALIBRATED_MODEL_CONTRACT`; price alone never supplies a quality label.
 Users and administrators do not maintain model-to-rubric mappings. Broader
 calibration produces central profiles, which require validation before promotion.
-The currently shipped profile remains the V7-derived five-model/eight-variant
-profile; expanded V8/V9 results are not silently imported.
+The local-beta candidate retains the V7-derived five-model/eight-variant cohort
+and adds five provider-default contracts from the original sealed V9 calibration:
+10 model identities and 13 presets in total. Only 54 of the 100 new family cells
+were fully successful. Exact observed demand, provider-default reasoning, measured
+transport and a 32000-token total output allowance remain required; smaller
+explicit limits exclude the new contracts. Failed/unknown cells, unmeasured
+explicit efforts and native structured-output schemas receive no new eligibility.
+This is provisional, not production promotion. See the [candidate contract and
+provenance](../README.md#auto-local-beta-calibration-candidate).
 
 Classifier and generation dispatch use the selected configuration owner and the
 caller's billing-project key. Signed pins contain the configuration fingerprint
@@ -24,11 +31,12 @@ dispatch requires the exact owner-prefixed LiteLLM deployment; it never falls
 back to a same-name shared deployment or raw model name when that deployment
 disappears. Existing manual dispatch retains its previous mapping behavior.
 
-Installing this inventory contract invalidates older pins without a configuration
-fingerprint. A new invocation obtains a current binding; an old active invocation
-receives a 409 instead of silently changing configuration. No routing table or
-SDK wire-field change is required: the added identity remains inside the opaque
-Gateway pin.
+The calibration candidate changes the internal signed policy revision while
+retaining the public saved profile handle. Drain active Auto invocations before
+installing it: old active pins receive a 409 rather than silently changing models.
+A new external invocation may obtain a current binding. Install the matching SDK
+update, which preserves absent-cap provenance and enforces the signed measured
+transport. No routing table or database migration is required.
 
 Run standalone routing/relay tests without importing the Pylon plugin lifecycle:
 

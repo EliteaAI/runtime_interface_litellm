@@ -420,9 +420,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         raise RoutingUnavailable('Pinned reasoning effort mismatch')
                     if body.get('model') != pin['config']['model_name']:
                         raise RoutingUnavailable('Pinned model mismatch')
+                    transport = pin['config'].get('routing_transport')
+                    if transport:
+                        endpoint = {'chat_completions': '/v1/chat/completions',
+                                    'anthropic_messages': '/v1/messages'}.get(transport)
+                        if proxy_target_endpoint != endpoint:
+                            raise RoutingUnavailable('Pinned measured transport mismatch')
+                        # These new contracts measured the provider default,
+                        # not an adaptive/enabled/disabled thinking override.
+                        if body.get('thinking') is not None or body.get('reasoning'):
+                            raise RoutingUnavailable('Pinned provider-default reasoning changed')
                     output_limit = body.get('max_completion_tokens', body.get('max_tokens', body.get('max_output_tokens')))
                     if type(output_limit) is not int or output_limit > pin['config']['max_tokens']:
                         raise RoutingUnavailable('Pinned output allowance exceeded')
+                    if output_limit < pin['config'].get('routing_min_output_cap', 0):
+                        raise RoutingUnavailable('Pinned measured output allowance reduced')
                 except (ValueError, KeyError, TypeError):
                     return {'error': 'Auto binding expired, revoked or incompatible'}, 409
             if auto_binding:

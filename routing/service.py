@@ -84,6 +84,10 @@ class ClassifierTransport:
         return _REQUEST.get().get('generation_input_bytes', 0)
 
     @property
+    def output_caps(self):
+        return _REQUEST.get().get('output_caps', {})
+
+    @property
     def cache_policy_revision(self):
         return digest({"output_schema": self.output_schema, "runtime_context": context_revision(self.runtime_context)})
 
@@ -146,8 +150,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Unknown or stale Auto profile')
     if request.get('surface') not in {'chat', 'agent'}:
         raise RoutingUnavailable('Auto is unavailable for this execution surface')
-    cap = request.get('output_cap', 8000)
-    if type(cap) is not int or not 256 <= cap <= 32000:
+    cap = request.get('output_cap')
+    if 'output_cap' in request and (type(cap) is not int or not 256 <= cap <= 32000):
         raise RoutingUnavailable('Auto output allowance must be between 256 and 32000 tokens')
     messages = request.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 4096:
@@ -172,29 +176,50 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if type(generation_size) is not int or not 0 <= generation_size <= 16_000_000:
         raise RoutingUnavailable('Invalid generation input size bound')
     size = max(size, generation_size)
+    prior = request.get('prior_pin')
+    restored = None
+    if prior:
+        restored = decode_pin(prior, signing_key, project_id=project_id, user_id=user_id,
+            settings=settings, now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
+        if restored.get('policy_revision') != router.revision:
+            raise RoutingUnavailable('The checkpoint routing policy changed')
+        # An omitted cap renews the original run contract, never the new-turn
+        # default. A user-specified cap can narrow it but cannot enlarge it.
+        if cap is None:
+            cap = restored['config']['max_tokens']
     allowed = []
+    output_caps = {}
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
     for vid, model in runtime_variants.items():
         variant = catalog['variants'][vid]
+        contract = variant.get('calibration_contract')
+        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
+        if contract:
+            native = not model.get('openai_compatible', False) and any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
+            transport = 'anthropic_messages' if native else 'chat_completions'
+            if (variant_cap != contract['output_allowance'] or transport != contract['transport']
+                    or output_schema is not None or explicit['mode'] == 'explicit'):
+                continue
         if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
             continue
         # The current native Anthropic SDK uses bounded enabled-thinking for
         # this frozen pool. Its budget must fit inside Auto's total allowance.
         if 'anthropic' in variant['model'] and variant['effort'] and not model.get('openai_compatible'):
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
-            if cap <= thinking_budget:
+            if variant_cap <= thinking_budget:
                 continue
-        if type(model.get('context_window')) is not int or size+cap > model['context_window']:
+        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
             continue
-        if type(model.get('max_output_tokens')) is not int or cap > model['max_output_tokens']:
+        if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
             continue
-        if prices.quote(variant['model'], Tokens(size, cap))['usd'] is None:
+        if prices.quote(variant['model'], Tokens(size, variant_cap))['usd'] is None:
             continue
-        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(variant['model'], Tokens(0, cap, write=size))['usd'] is None:
+        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(variant['model'], Tokens(0, variant_cap, write=size))['usd'] is None:
             continue
         allowed.append(vid)
+        output_caps[vid] = variant_cap
     # Classifier identity is supplied by the calibrated policy, never request text.
     classifier = catalog['variants'][router.classifier.variant]['model']
     if router.classifier.variant not in runtime_variants:
@@ -203,10 +228,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Classifier pricing is unavailable')
     if not allowed:
         raise RoutingUnavailable('No qualified model fits the request and pricing contract')
-    prior = request.get('prior_pin')
     if prior:
-        restored = decode_pin(prior, signing_key, project_id=project_id, user_id=user_id,
-                              settings=settings, now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
         try:
             validate_binding(restored.get('model_binding'), models, project_id)
         except ValueError as exc:
@@ -230,7 +252,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     runtime_context = read_context(request, key=signing_key, project_id=project_id, user_id=user_id, now=now)
     restored_state = restore_state(request.get('state_token'), signing_key, project_id=project_id,
         user_id=user_id, scope_id=scope_id, gate_revision=settings['revision'], policy_revision=router.revision)
-    context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size})
+    context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size, 'output_caps': output_caps})
     try:
         key = f'{project_id}:{user_id}:{scope_id}'
         with session_for(key, request.get('state_token') if restored_state else None,
@@ -239,11 +261,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             apply_observation(session, restored_state, request.get('observation'), messages,
                               router.gateway, catalog, tools, router.revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
-            decision = router.resolve(messages, output_cap=cap, tools=tools, allowed=allowed,
+            decision = router.resolve(messages, output_cap=cap if cap is not None else 8000, tools=tools, allowed=allowed,
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
             state_token = None
             if decision.get('action') != 'clarify':
+                cap = output_caps[decision['selection']['variant']]
+                decision['budget']['completion_cap'] = cap
                 state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
                     project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
                     policy_revision=router.revision), signing_key)
@@ -269,6 +293,15 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
               'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
               'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'], 'max_tokens': cap,
               'routing_total_output_cap': True}
+    contract = catalog['variants'][selected['variant']].get('calibration_contract')
+    if contract:
+        config['routing_transport'] = contract['transport']
+        config['routing_min_output_cap'] = contract['output_allowance']
+        trace['calibration_contract'] = {
+            'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
+            'status': 'provisional_local_beta', 'production_promotion_allowed': False,
+            'family': decision['descriptor']['task_family'],
+            'cell': contract['families'][decision['descriptor']['task_family']]}
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
            'model_binding': model_binding(model), 'policy_revision': router.revision,

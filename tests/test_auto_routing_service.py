@@ -13,7 +13,9 @@ from routing.v7.catalog import compile_catalog
 
 def fixture():
     catalog = compile_catalog()
-    names = sorted({v['model'] for v in catalog['variants'].values()})
+    # Retained V7 deployment fixture. V9 candidate admission has its own32k
+    # inventory fixtures; discovering new contracts does not deploy them here.
+    names = sorted({v['model'] for v in catalog['variants'].values() if not v.get('calibration_contract')})
     return dict(project_id=7, user_id=2, settings={'enabled': True, 'revision': 'g1'},
         signing_key='unit-test-only', now=100,
         models=[{'name': n, 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000} for n in names],
@@ -183,7 +185,12 @@ def test_frozen_v7_policy_grid_parity():
                       'eligible': [r['variant'] for r in result['candidates'] if r['eligible']]}
         except ValueError:
             actual = {'error': 'no_eligible'}
-        assert actual == row['expected'], row['descriptor']
+        expected = copy.deepcopy(row['expected'])
+        # The candidate intentionally changes the signed policy revision while
+        # every retained-cohort selection/eligibility/reason stays identical.
+        if expected.get('family_qualification', {}).get('policy_revision'):
+            expected['family_qualification']['policy_revision'] = router.policy['revision']
+        assert actual == expected, row['descriptor']
 
 
 def test_same_tool_invocation_renews_expired_pin_without_classification():

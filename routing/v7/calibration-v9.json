@@ -1,0 +1,4972 @@
+{
+  "effort_coverage": "Provider default only; qualitative demand does not qualify explicit reasoning presets.",
+  "eligibility_rule": "Original full family all-pass (3/3 or 4/4), no fail/unknown; exact observed demand only.",
+  "generation_freeze_sha256": "e417a9953411383a9a425eb5c3cc35219fe5d0a1ccfe4752985d89a7ac94c9d6",
+  "limitation": "Three/four authored tasks per family; provisional dual graders; default-only presets. No held-out outcome, population quality floor or manual model-family assignment.",
+  "operation_coverage": "Not independently measured; known operation vocabulary is not model qualification.",
+  "pricing_limitation": "Catalog estimates, not invoices. Sol above272k catalog8/30 conflicts with earlier user5/30; unresolved catalog scenario, never silently overridden.",
+  "production_promotion_allowed": false,
+  "records": [
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "api_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0746955",
+        "known_usd": "0.1493910",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "cb0d0a9a007b6a66d84b39f4d8467f601c31c769472ae449bd91c27d87df215a",
+          "status": "fail",
+          "task_id": "v8-calibration-api_design-pagination"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f7e56e551b9f97f111e0adb6991631de4926695cc8a2517c99c1a3b7501b6d3c",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-optimistic_edit"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "dd899c98f2cedaa783bb8ef5be69332db4a5c0f4f76f958889cbe2a7c2dd2d6d",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-webhook_ack"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "architecture",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.2696210",
+        "known_usd": "0.2696210",
+        "unknown_charges": 0
+      },
+      "pass": 1,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "deep",
+          "source_sha256": "c8a8e13cac9d0d2b2c5bb85e1cbeb9e95a598416a473cd7363df1fb4b7c0f449",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-worker_commit"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5f9eefe5c1478a7c4cb1a43a25936ee813b3b8b2701de9e53abefb1e7c891796",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-tenant_retrieval"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f68f439648999adcc239113a67dfaa0820afe81be82a5a0de30328c4df752847",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-upload_resume"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.061491944720398706,
+        0.7923403991979452
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "business_planning",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0190740",
+        "known_usd": "0.0572220",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "c15f6b8d3b41409896f54e810f781cae921a1ba9c93fc7249fb9ac99cd7f10a7",
+          "status": "pass",
+          "task_id": "calibration-business_planning-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8c9d136e348295db1caf95816709aa9c9b8f6c5fab9ce221d98a2656e0c0c1bc",
+          "status": "pass",
+          "task_id": "calibration-business_planning-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "dfcf3cfc86672182028bf73bddfe004d2c0c263401b3e8762ac8d94e2c45747f",
+          "status": "pass",
+          "task_id": "calibration-business_planning-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "83939ad29e178fd231f6a2ea6ed2f85ab99f96092f7783c9ca688d1625382113",
+          "status": "fail",
+          "task_id": "calibration-business_planning-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "classification",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0022605",
+        "known_usd": "0.0090420",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "7710b37a3ce4baa05445a6415005c3b03be887364797ebd4c6dbfe7a1cd14bf4",
+          "status": "pass",
+          "task_id": "calibration-classification-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f2abdfc9024a06da6ee2572d27d08b45ef66738297c1e9a8276b39e289d44f93",
+          "status": "pass",
+          "task_id": "calibration-classification-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "c1c20fabd5ca055c49230622cf247168e9e2c894e79b7e7c23348fe9bd330721",
+          "status": "pass",
+          "task_id": "calibration-classification-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "511e2753411239c517772cb76efca3f148b41d273263d21a962e4e8aeedfe02b",
+          "status": "pass",
+          "task_id": "calibration-classification-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "code",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01886866666666666666666666667",
+        "known_usd": "0.0566060",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "83588b4e37ad830da817e13e562ac7ddb872e623267203e0de03180a10a0142a",
+          "status": "pass",
+          "task_id": "calibration-code-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a9c4714169533bf119f7e4d868b9f3419330c2960068fee0a42309055ce26f44",
+          "status": "fail",
+          "task_id": "calibration-code-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "6dbc8603d397ff7ac7e7b2d6d5dd33f9332fcb50027a881baee5cb6b6951ba8b",
+          "status": "pass",
+          "task_id": "calibration-code-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "778e90ea21513435aafa585ba9c82f6bdb7fcd2b94774f0e25730ac73223f72d",
+          "status": "pass",
+          "task_id": "calibration-code-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "content_creation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01350616666666666666666666667",
+        "known_usd": "0.0405185",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "85e463d4e65bcf35158238b3a7daea3d734d97b87291e5c5a8784f12091434fd",
+          "status": "pass",
+          "task_id": "calibration-content_creation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "974aa0ac57ef241531c98fdcc0e6a09db44d30d68a45a18f3862ca470d52e551",
+          "status": "pass",
+          "task_id": "calibration-content_creation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "6f80d06887e64bdd5b2733376c8844aeb5423f931723124fdb3e69464ef3b23d",
+          "status": "pass",
+          "task_id": "calibration-content_creation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "ed6806a2885dab4d3e1679a5a8d33bdc10ac713a57ab1054375f8eb2e1a2bef8",
+          "status": "fail",
+          "task_id": "calibration-content_creation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "conversation_control",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.03176525",
+        "known_usd": "0.1270610",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "643371fa7a9c709db910827d186d6f35cd23687394d07275f501b667a66f2818",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ca3cb3c24bcdc7556a0a4db13f92c9e1f5c3e0d87952350a2516700b80b07071",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "320ccb6ce0317638ae16be038aed2c298e8e3375de161d60a1412f643eacc67d",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "be1d1918229db23dba9994eb455d9cc6f96907ad52608bb2b41cba3ebdacf363",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "data_gathering",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02878516666666666666666666667",
+        "known_usd": "0.0863555",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "d48b085f7897d5d248e324ecd76e0cd93a545c739ed9cba30949b7930e639802",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "9aeb5c3814484b6b055602947e3d403a61390ecc4bf19a0bb5812d0b2f252b1b",
+          "status": "fail",
+          "task_id": "calibration-data_gathering-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e3ef6a783b74babe98551d6f7df5add5e606c0217e81a7d47950eadcad849a9d",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "7ddfc3590f65c3c856b02597a6c22bd5bce4b6a442feb954eea6e3866ab4174c",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "development",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02204125",
+        "known_usd": "0.0440825",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "42d53f883c035c9ab1ebb7b0b447ca88bf00f301c78f2f595978499a40ce46e6",
+          "status": "pass",
+          "task_id": "v8-calibration-development-normalize_ids"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "f913bd92508e100b1dec9aedfb9f2207f030908e8b41ff4d32f5c37b2b7bbadb",
+          "status": "fail",
+          "task_id": "v8-calibration-development-topological_order"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f72ca2f1d9fdace4cdf26cf2c8b602307c290f1028525c97a44b16e8354f8b4f",
+          "status": "pass",
+          "task_id": "v8-calibration-development-retry_schedule"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "editing_localization",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0048895",
+        "known_usd": "0.0195580",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "78bf8dbdefe0f8b04d74d4a18959c8221b20ea572f432159945bd0f2386eb192",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1980ad9446831a4a3052acf4a221c4e8f281f6cc81e70d23957dd9c014b1d015",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ff38d247dbcc45c353b0a29e839fc22b25c47368049b81f167bd7a8c4599fd8c",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "dac3c19aab77b8580eac3be133aae70fc9da03f0d8ecc04145a189e3ebaa2619",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "evidence_synthesis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01293875",
+        "known_usd": "0.0517550",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "a31d06d729dba4f8002138d436f727e55657f8801bee4f1eb8021b363f427a2b",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "15594f08f4973aed0bdf7914cb01303b9459e0164c0e2f8587bd7e85373d3c8d",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d9c40dd5cfb076a4c5b188e03558f82ee509c4b387c108c2c157e5baa55fb55f",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "c9c81382225cc6039d6378cff20ccd97611598a5cf1b454e752e304c91fcbcfc",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "extraction",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.003020875",
+        "known_usd": "0.0120835",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "27d27e7375178bd0982737c549d39fba842bb1735a7154535e450557aba2bddc",
+          "status": "pass",
+          "task_id": "calibration-extraction-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a635ab118ac0c1cd5be20a7ed05d83431e2233a4f6ad47707dd983a133d7d2d3",
+          "status": "pass",
+          "task_id": "calibration-extraction-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b3dfcd8d5350cd9e1145f060eae596f8fd60c3f5047d4988de196d60ccc7f68c",
+          "status": "pass",
+          "task_id": "calibration-extraction-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "bf708708b3bf83e26bf9fc19a969854b35db0429deb15c423f5d9f2449d73a04",
+          "status": "pass",
+          "task_id": "calibration-extraction-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "performance_analysis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.06021125",
+        "known_usd": "0.1204225",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "a55deaa337a8b869a23ca208cab4e6cc56e28b8e36bdaf9fc4dc1659ff462524",
+          "status": "fail",
+          "task_id": "v8-calibration-performance_analysis-n_plus_one"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "0038de073fd25a941edaf2965aef70b7c2dd80b761e7e54e88f408baabf35ad4",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-queue_capacity"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "602cd68716bb4b2cc051313ed1d67d15cc06870cd83fde274b9e18c5b144e4c3",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-memory_profile"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "quantitative",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.00223025",
+        "known_usd": "0.0089210",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "89a094acda8a580b92353ee9bf2f46050ee48aacfb5e431d1e1838bab5a004b8",
+          "status": "pass",
+          "task_id": "calibration-quantitative-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b77b00214a3bdc1af4303d63327c904e3dbf500ab9538283bb7709f3124ebc73",
+          "status": "pass",
+          "task_id": "calibration-quantitative-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4378d49b26ffd72ccfcb3bc37ebc7e2e30dca51bd0a054576fed2fbe2691f8a3",
+          "status": "pass",
+          "task_id": "calibration-quantitative-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "19954614c506b51455060c5f619d1174705b63ec2a0188ac371da13168f072fb",
+          "status": "pass",
+          "task_id": "calibration-quantitative-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "rca",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.03572525",
+        "known_usd": "0.0714505",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "01dec016617b7a9749aa27c079b33f03c0cc687daeb866cc3e3bd8f62fd721b9",
+          "status": "fail",
+          "task_id": "calibration-rca-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "3d4021faa80d21fd9b04dc3e76f27e7a6f9d8060ca5fe6a0a74fbe080fb60155",
+          "status": "fail",
+          "task_id": "calibration-rca-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "88777a21ed0f18cbd445682d9498487bb12d04a3f868f4c9326c66b212254e2f",
+          "status": "pass",
+          "task_id": "calibration-rca-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "ba64fba7f8d3528b796097209f5783333f8f00885d52ec7c4da5034307797377",
+          "status": "pass",
+          "task_id": "calibration-rca-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "requirements",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0313995",
+        "known_usd": "0.0941985",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "a41f8d15a8f426c5fe152b957fe89eb7bac2b7b9d2fca39dc67d43b2faddfcac",
+          "status": "pass",
+          "task_id": "calibration-requirements-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "abee2e8aee6c84f32244ddee06cf455b55fc4f118d6293884d01258e51d17896",
+          "status": "pass",
+          "task_id": "calibration-requirements-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ae169602e48aca4153c17d58739a602ea04705fc26a9e504a6a6ee6cbf987851",
+          "status": "pass",
+          "task_id": "calibration-requirements-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "189f36c039999bc110a12d60a99a57d60d2310601208000f5a3922361f93f2ed",
+          "status": "fail",
+          "task_id": "calibration-requirements-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "security_review",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0858275",
+        "known_usd": "0.1716550",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "bdd616bc62ab777df31880d78e4ccdea864dd7344e5578e2786f9deda162dfb2",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tenant_object"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "fc9276141d876978432e46f79403e850860e800b38f564a69773a30c5e1a95d2",
+          "status": "fail",
+          "task_id": "v8-calibration-security_review-path_access"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f18901bbdae873ece6f24f5965b7cb285ca8447d0e4e1653e1ddb4658313c85e",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tool_instruction"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "test_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0564520",
+        "known_usd": "0.1129040",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "fefe5d0624e1fec47f5b47d6fa968c8e933171a0cda532b47a525427fd607aa7",
+          "status": "fail",
+          "task_id": "calibration-test_design-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "2f01ccb33a8232fa29de5433f4f8b59b67e8b77af55788722f782bf93098d1ff",
+          "status": "pass",
+          "task_id": "calibration-test_design-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "63bf75094c0f1acf4236980923069293d24b5dd56b45bbf78cf56e52e432e5fd",
+          "status": "pass",
+          "task_id": "calibration-test_design-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "99700739aa6a67c517b92de7a8b88a912b92ade447f524b842475cd301857658",
+          "status": "fail",
+          "task_id": "calibration-test_design-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "tool_workflow",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.03839275",
+        "known_usd": "0.1535710",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "570831ebf90ea4e1b9a462fc63ab43761d152d618f5420d4b814649ec96ea137",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1b184146612f7db01fd7bfb1c4bc4eb909f102b288d5ac24fb30aa374eff7d72",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e5a44bb2aaaccff10d3c89998172ec49db92b5e7b21a2c2876d712a894639381",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "6c6e703d1bcb9c4e23a557c6dec5e856c75aef8cb1de5f47b1997dff639a19da",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "transformation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0022825",
+        "known_usd": "0.0091300",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "fceaac0b0a28619afe64d50e84dc493a150e4d2713141b109b3c5fbebb863d8b",
+          "status": "pass",
+          "task_id": "calibration-transformation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "23a78040c3440af12ef244629b81e9bc5deb6382ff8050d9bd6daf97e5efe5be",
+          "status": "pass",
+          "task_id": "calibration-transformation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5467f68a675ef3f929f0cec477e36dd8a5f5d808d9666e52bf52a0e65de77d49",
+          "status": "pass",
+          "task_id": "calibration-transformation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "9793215d68ea8a7f58109b8919141b6dd005faf8f8261964c10ca00f93a83281",
+          "status": "pass",
+          "task_id": "calibration-transformation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus47-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "api_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.07151925",
+        "known_usd": "0.1430385",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "2355b616a8d7914c9b2224923ebf0ed6b1287a6aac7675a70271aaabc102fc4c",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-pagination"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "2c6258da1b181236aeb1efeaadee50a02bf6688e4563fe843ca16fc4fe781ea8",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-optimistic_edit"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "71b931491eb3663770772c3edf44031b233005f170a6cf43be1f48d769a45f93",
+          "status": "fail",
+          "task_id": "v8-calibration-api_design-webhook_ack"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "architecture",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.1157255",
+        "known_usd": "0.2314510",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "deep",
+          "source_sha256": "3e5ece26bc25acfdfbdce6adc601c2bd6c28253c9caf3fbf8787ec68d94793d3",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-worker_commit"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "04705eb230d1d462c60a33bbdf3dca9a508832b84f6d7dbebf47508556b12e9c",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-tenant_retrieval"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "9e87d302f11dbf614fb3f649759de5641a8e887903ac0a8704a5642f2eae6bc6",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-upload_resume"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "business_planning",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01387925",
+        "known_usd": "0.0555170",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "09e250edc0b5d29a616e559f2d6bf3a63d9b0f99372bc188b673d13df230155a",
+          "status": "pass",
+          "task_id": "calibration-business_planning-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "07a6ed69e812035f485fd64d70fc603df0a6b81e9882fce4d9068a1f811fa9e6",
+          "status": "pass",
+          "task_id": "calibration-business_planning-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "161e2a724739bc1920e67b6bcc77fcb14bb6880f474cd2bb314b9d54b861aeae",
+          "status": "pass",
+          "task_id": "calibration-business_planning-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "ea08d2e4e886f26eb623ef487c2dec3523d0a2d1f046eff469f810f16f7265ed",
+          "status": "pass",
+          "task_id": "calibration-business_planning-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "classification",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.002872375",
+        "known_usd": "0.0114895",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "4a9db8b75fe2e98baa760eac77da3277d6eec6099f1f075aa547538d1b0e6f6e",
+          "status": "pass",
+          "task_id": "calibration-classification-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "de16c8c18fac913a317459c0a2ec557964895690456848f26a533ce52efaff96",
+          "status": "pass",
+          "task_id": "calibration-classification-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "49adacc9d988b91821d25a468c19ee8408033493eb78a0ac0a144075594d5acc",
+          "status": "pass",
+          "task_id": "calibration-classification-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "1d607d127f3aadcc6513942f368697efcabda201b7c47879669eef6c25e8d496",
+          "status": "pass",
+          "task_id": "calibration-classification-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "code",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02859175",
+        "known_usd": "0.0571835",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "6bbfba44cfbac7841d369f3c7125116912d509228d0fa1a686877593c566bb19",
+          "status": "pass",
+          "task_id": "calibration-code-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "fa39256f8600a84fa1a6375fbe28147262d3bf2eef13d1cbee6fe5c490e490c5",
+          "status": "fail",
+          "task_id": "calibration-code-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f69bcb8b3f121f1ecb5ae78423806d317535be3a2d3815687910b55678dfb9a2",
+          "status": "pass",
+          "task_id": "calibration-code-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "4c450bf29c70ed147c8374060f06f178207b59e1b94b23de9f386c5f7f5b6ef3",
+          "status": "fail",
+          "task_id": "calibration-code-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 0,
+      "family": "content_creation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01263533333333333333333333333",
+        "known_usd": "0.0379060",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "d7c97dbf3f85ba2656b50ecdc0c92897b68b472644ddff9d722719753214842f",
+          "status": "pass",
+          "task_id": "calibration-content_creation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d7385bfb011a7a1297a3a48d07fe033ad75c096fe1876acc70c5e04c9e761cee",
+          "status": "pass",
+          "task_id": "calibration-content_creation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d23e794fa0d934dae7038707bb3bb63e07d4c3cb1a5189cf16c87c06a7ee746c",
+          "status": "pass",
+          "task_id": "calibration-content_creation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "740a1269f95608f4fc96babffe3e52e2a11f0fc5efdea846905d7a7d561dcb4d",
+          "status": "unknown",
+          "task_id": "calibration-content_creation-03"
+        }
+      ],
+      "unknown": 1,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "conversation_control",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0546319125",
+        "known_usd": "0.218527650",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "71e5be0773f801ae1d666581620fb1d0427bf8fbd200b7d424102d90b10c8a7a",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1e0cc8ccdc00c7b829428cbfb0f325dc8970269f4c01870b8e0e85a38d21d3e6",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "c4c2d9e815694de2ea7223b616c4c1ac07391c3ca6297cde083b3468426c17cd",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "9254a00d1562948747f12b09c6e99c1e031b8433ec7079ad28b90a97842e508f",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "data_gathering",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02048933333333333333333333333",
+        "known_usd": "0.0614680",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "423a93834213c103eb7aa4c568b4aaee97a046ddbede403ea656680cca6fd9d6",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ec89d13910e4cd449a01e507febd9ae6a69a8992033becfb7ed9137a07a7c779",
+          "status": "fail",
+          "task_id": "calibration-data_gathering-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "490ef28708a5a05bfeb0798af31d17ef2c1cee8e49f94b934db1035eb3ee943d",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "130f82d8eaff3c7975f0928eb31afe664aac6d30d2ecbbd44d273c01b8dceefd",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 0,
+      "family": "development",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0926475",
+        "known_usd": "0.0926475",
+        "unknown_charges": 0
+      },
+      "pass": 1,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "bed1e63d45db04a27104b17cd4763159c488074d037a53758d917f4c22194f1c",
+          "status": "pass",
+          "task_id": "v8-calibration-development-normalize_ids"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "918de434ef0d619946d99e49915fe9152fdbe42c9ef175b9b93a95db3176b93d",
+          "status": "unknown",
+          "task_id": "v8-calibration-development-topological_order"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ef6254e9ef8d49a6be17b138a0f4ce95838a5217c039d4c5a49949bac7e76dc5",
+          "status": "unknown",
+          "task_id": "v8-calibration-development-retry_schedule"
+        }
+      ],
+      "unknown": 2,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.061491944720398706,
+        0.7923403991979452
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "editing_localization",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0046695",
+        "known_usd": "0.0186780",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "be96b3cf974c6918701cf41a73bbe63a92dc49ec562dd83aed3f56c39123aa0a",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a2a896d9716ae832279edf3471c4c1d125b55a8228a62d4de44ab50f40d7cbcd",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ed91e6bec1105af1cccdad11e063920feed704f1ed02830f22ff78beca7d6b72",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "bd8022aa16acea69e2fb2e151749d3a9df9bc8e8e16452819110764e8be12c10",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "evidence_synthesis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.012643125",
+        "known_usd": "0.0505725",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "f92270eb41e5dcd4a9384b3d83e30adf65c4595d500361fd2f4416fb16536717",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "dd306e6dd5a868186fcbc02c7090057514a82d8462e111e548d882a9550ab167",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5ce7f3540ef8526387f59a45a4e321dac27290691a10b9a08737339603876aa7",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "f7a5078201776c70a70a0424eeffb4c61ae52073ee5d56e41ff87225e77074b3",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "extraction",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0031790",
+        "known_usd": "0.0127160",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "4e8c4e26d14ccaf0bbe9c513c43002a8c6e06b40dbf0e19dcd3b87ab548a788f",
+          "status": "pass",
+          "task_id": "calibration-extraction-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "40f6775b34f2df84685d02daaf398c99bc588c40098b9fa76b3ecf23075a5908",
+          "status": "pass",
+          "task_id": "calibration-extraction-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "0b77542131313a03a8d7e0a4445a32ebe783768cb6a462f1d4ee1efe4fb207fe",
+          "status": "pass",
+          "task_id": "calibration-extraction-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "43f0b5aa808a1ab3fea8c4ee9af57f9dfb8c14b444f3da5fa94d1619397e035b",
+          "status": "pass",
+          "task_id": "calibration-extraction-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "performance_analysis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.05872625",
+        "known_usd": "0.1174525",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "d436e062c9ffbcfc9c3fd1063603bd370ba227732243984f8c359143065b8f43",
+          "status": "fail",
+          "task_id": "v8-calibration-performance_analysis-n_plus_one"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5e8488ed42218c516acfd3dc7f4055c10d310f5703edb2d5cd272f7a45c0a2f6",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-queue_capacity"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a41a5c6ef02e97415cb8a638c87d6f0d2c1cbe7c561a97bf056194f0dda777df",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-memory_profile"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "quantitative",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0022990",
+        "known_usd": "0.0091960",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "4966db974f2eea8131248bd7daa1596306f9667a716ee4cf858b7be76fb57097",
+          "status": "pass",
+          "task_id": "calibration-quantitative-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b24e045ef8017bee26abcb4ca41cc6ce4cba62e1fddbf87c3032e987543f5b18",
+          "status": "pass",
+          "task_id": "calibration-quantitative-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "27bddc24a01e759d21016148f1bae14b23f4ed67b9296a7cb8c72525af0c8256",
+          "status": "pass",
+          "task_id": "calibration-quantitative-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "dcb2dcc7b025d52824a070361f32e34d40a66dba5c4579da5954f762a40d6e32",
+          "status": "pass",
+          "task_id": "calibration-quantitative-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "rca",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0364540",
+        "known_usd": "0.0729080",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "b073a4d098296e9af958af3516b1bf4b5d3a4035a9a2e351827bea74f9c64e2f",
+          "status": "fail",
+          "task_id": "calibration-rca-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4d2bbb6b76134c00a61491fe3439c2c785cca3ad2b2a2e265c0a9280b0145386",
+          "status": "pass",
+          "task_id": "calibration-rca-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "96ff5c11442224792eaaaf30282536ea911a091762cfd128afccfca8494337d5",
+          "status": "pass",
+          "task_id": "calibration-rca-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "c6fd1958b4c30f92a40a0e7f974aa5ef6aa1f01d6c92aaabb2445c2ebe9fd174",
+          "status": "fail",
+          "task_id": "calibration-rca-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "requirements",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0302445",
+        "known_usd": "0.0907335",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "b6ad33fe0aedc1b2d8e79b181e5ed9c8b8663ed54178dfd37b9b9bd2c9346101",
+          "status": "pass",
+          "task_id": "calibration-requirements-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1ba3feaa7177b0861ad9d1983665b39630d2fd7fe3b55715ea5f0e5aa3a9c16e",
+          "status": "pass",
+          "task_id": "calibration-requirements-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1b3f31ccf44413f4a1b09ab61b9d3c62107582ef6ea73b022ac15cb6804ad613",
+          "status": "fail",
+          "task_id": "calibration-requirements-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "93bf9bf8f53ca9f496e27b7af6c15a50041d25b2b8cc28d20bd07a7d6149abea",
+          "status": "pass",
+          "task_id": "calibration-requirements-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "security_review",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.1299375",
+        "known_usd": "0.1299375",
+        "unknown_charges": 0
+      },
+      "pass": 1,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "d34f5cf0de3d806921b48fef44b6342a9c7b0b91c1593f69f788fde108e2d746",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tenant_object"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "54593e139f6d2f6a3453235826baf7441bd6f2dc3dc5f2d210ba2ff0f99b83eb",
+          "status": "fail",
+          "task_id": "v8-calibration-security_review-path_access"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "de9f72d894edb10f6aa65df6677e59694a2743cd25ec19ee49fc07048b0d3688",
+          "status": "fail",
+          "task_id": "v8-calibration-security_review-tool_instruction"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.061491944720398706,
+        0.7923403991979452
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "test_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.05665825",
+        "known_usd": "0.1133165",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "68fdbc3cd946e61403b87b0d8dbb36a547bb06d89e9baea7b4c3272bd09f4047",
+          "status": "fail",
+          "task_id": "calibration-test_design-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f0092499e4893024706632ea97758451cc7473e9a8d0472b66ddd963f891f83e",
+          "status": "pass",
+          "task_id": "calibration-test_design-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8efa271d332bd55b34fa95fe2c08e77ac75336e946e0f38840e605a5af542016",
+          "status": "pass",
+          "task_id": "calibration-test_design-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "f22f18a55b094dc3149d01bbd8637fda1c964cbecb2bcc36e979282068bafed1",
+          "status": "fail",
+          "task_id": "calibration-test_design-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "tool_workflow",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02760071875",
+        "known_usd": "0.110402875",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "2ba4f052e64690134bc69d81aada8c7a495794fe891b3a80512beac41a026270",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "dae4507bcefa8c6c37b6fc97b16fb6be2ab6a975f3ea09d99be6fbb39974ad9e",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f85d0a1bec0915cd72a8b2d3dc8e1023df67814db4893a001c9387650a9b2085",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "1fc443e9c508c1be9d364299df81598370911a6693e2766b67acf8bad1df1232",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "transformation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0034100",
+        "known_usd": "0.0136400",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "90a93c99291d7b30c82c6f161726fa31bf4de1dd224e29db06b2b90272351b1f",
+          "status": "pass",
+          "task_id": "calibration-transformation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "6c45f9c90fef5770197c1c3489ee28df7476ddc4e65a17d7ac23cc731c6e4fb8",
+          "status": "pass",
+          "task_id": "calibration-transformation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "25c3401baf5542abc18c52be31750e282271ec44bb4b1122728717aa0de5623c",
+          "status": "pass",
+          "task_id": "calibration-transformation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "46b1b21423755638fe3f53244eaafea8ec709df58694f245580fead139ad9fe1",
+          "status": "pass",
+          "task_id": "calibration-transformation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus48-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "api_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.19771675",
+        "known_usd": "0.3954335",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "d9d7027a98d8598ef2a12aed1ebb487a64bcabc3b8bc660bbad6761981d28d37",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-pagination"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d117504e2d38cee3253e942b7923a87818ad944de9eb118f412edd25a725266e",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-optimistic_edit"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "5edefcb30883ccf658ca82ae8f488c56f4a079cb3bf06fd0f47f5c7fb3fec29b",
+          "status": "fail",
+          "task_id": "v8-calibration-api_design-webhook_ack"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "architecture",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.7527410",
+        "known_usd": "0.7527410",
+        "unknown_charges": 0
+      },
+      "pass": 1,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "deep",
+          "source_sha256": "2d358e8cdaf805d159384f92b0445089352547a66dd66cb3aebf0b43b475ac98",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-worker_commit"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "82d0f17d6c4cc19d94710bea2b4d6b929b663630aa4f8098a5bb24a6dcc192e7",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-tenant_retrieval"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e3024a755882476ea6816e11a8ffec7527d4f63f07a23c035d7b9f733466d395",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-upload_resume"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.061491944720398706,
+        0.7923403991979452
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "business_planning",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0258390",
+        "known_usd": "0.0775170",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "0f653db65bf2c142f47b2d8d4f66fe3e9b5856bfa3440e54c5b541b3ca962fce",
+          "status": "pass",
+          "task_id": "calibration-business_planning-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8fa16376b98446d791f941cd523b3492536330eedc951b794548de69623e011c",
+          "status": "pass",
+          "task_id": "calibration-business_planning-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8d24c1cfe37cfb6079960921ffc5300668e484e5e813a1f8fa6b8cf718ad6720",
+          "status": "pass",
+          "task_id": "calibration-business_planning-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "993c59afb0365b4a82676dfa11293ecf9f233aa8f9b704953ca64c79d8e0941b",
+          "status": "fail",
+          "task_id": "calibration-business_planning-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "classification",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.00329175",
+        "known_usd": "0.0131670",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "07f488cf98128c359b1843c4b1749f1f493f49adb3b60d9579c8b6e9f698721d",
+          "status": "pass",
+          "task_id": "calibration-classification-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e4c2d624a0665e93a50d5a77b82cf6f4dca86be288132fc7a5a80a013bf10840",
+          "status": "pass",
+          "task_id": "calibration-classification-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "c72051d336a1d3eaf74525532f94cfad5c419af246ceae0614ab436ddeb8e2f6",
+          "status": "pass",
+          "task_id": "calibration-classification-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "2d1ba74205faadcd81b99eef04cabec382744a6fb113d38b3021d7aa74761367",
+          "status": "pass",
+          "task_id": "calibration-classification-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "code",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0380655",
+        "known_usd": "0.0761310",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "6612f94cfc77d18c7fd11f7a8efd349517328e630f082b5299b6f790dd031979",
+          "status": "fail",
+          "task_id": "calibration-code-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1d447ca17ac3917bd79e26775de225d7f3d1e26ff4dd625ce91243cd94a3bc72",
+          "status": "pass",
+          "task_id": "calibration-code-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "048681900c4f95a3a352384e89ec90ffe830759bbb1bfb542d210a5e10bccaf1",
+          "status": "pass",
+          "task_id": "calibration-code-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "78a749533c5d0ef0aa2572f79331f1309e1a58169b476eda309830dc29456049",
+          "status": "fail",
+          "task_id": "calibration-code-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "content_creation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02683175",
+        "known_usd": "0.0536635",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "e225f15b1d40a8bd8e461a72f562c350a09e2ce9a31c75af624436e90b255d5b",
+          "status": "pass",
+          "task_id": "calibration-content_creation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8b2eb2193f76f5ed91142995968bd70997dc35067426b10a5415e55ca3573be1",
+          "status": "pass",
+          "task_id": "calibration-content_creation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "65e8b5b319406f1a8716766288f8593c0ce30d1794537481ebf70c309fc03710",
+          "status": "fail",
+          "task_id": "calibration-content_creation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "c917bb808b98c1c04f2a06da2cd79a1effe1d53e27d79d6b4fab9386dad98d3a",
+          "status": "fail",
+          "task_id": "calibration-content_creation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "conversation_control",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.024138950",
+        "known_usd": "0.096555800",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "0830db0cb7b9a5d86b788bd94ec232f259aeb75b3427cf2fe9f2f4e653321bd1",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e5dd8e36076a08b6638b5952a893047c65f70f5a8331b3a06957143a2b722708",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "c4ebcc3ae6181213e2a65e0e12a5768923be1f6fb46d0a0019aa620e831a790d",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "b74512e01bc3ed0180fb5e2169df2bb03bbfe468d84d088a05b3162099f987ae",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "data_gathering",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01773053333333333333333333333",
+        "known_usd": "0.053191600",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "794c6397e6b46e1759a99aeb0c9c097540d45027678f86b55f168b859231e267",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "351302ca2a4eb95d75af03e6e24287155932a4ed7dc20ec5e1e38cd4dd6ce7a6",
+          "status": "fail",
+          "task_id": "calibration-data_gathering-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8435580723a6ba83d27638c25f8685b61d6ac12f39aa2159f504683bb0eed532",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "db9c1c98c814f0021c8844652be425a4903ed0f836fcd861e770252115431e53",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "development",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0634150",
+        "known_usd": "0.1268300",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "a47d7eab7e9cc3b2afa69fd97e06f9e55a02dea0bdc712e0c279a2981cbcfccf",
+          "status": "pass",
+          "task_id": "v8-calibration-development-normalize_ids"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "551ac7652fd1e688ac0c9cef97ecffca9d13f817bb1984dd836674252b6a5b3f",
+          "status": "pass",
+          "task_id": "v8-calibration-development-topological_order"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "68f995391d94c0ea218c3913c16b33db648b292bf61d87a372cdc05604b55e34",
+          "status": "fail",
+          "task_id": "v8-calibration-development-retry_schedule"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "editing_localization",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0079420",
+        "known_usd": "0.0317680",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "0c0c14313625b67d8017ec9f13dcf9cc53abf260d459493b2c2d43021a258df3",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "caa0ad668938ab902a0fff165c55c1adcffcec5cdfd66048d3a21af37d18debc",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f90c44913dd9b615b35b30fc64b96bf0b198a7a1fd47143c9a8f810159f60f03",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "c162ceda55540b7bb1c11ffb653316f45bbc366f6cd2185f6a9ff13cc61240ed",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "evidence_synthesis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.015118125",
+        "known_usd": "0.0604725",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "d7080fb902ece9c44ac0c59b24ee31452eabaf186433f27dba966136cfb1f1a9",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e72c04e7c515c873e2346a39d6fc5031a49e58170811bec16052722b9ecf0c3a",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "57bbce9cdbe8405710d53a1c5c289888a77acfcd836aa29dabf7d6bc64e97d80",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "7c80b09e474b50d59edb1909d667b2af1c0ca500cccb050cb49770bf937a230e",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "extraction",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0047190",
+        "known_usd": "0.0188760",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "da65934a2302e3f15c409688551cc768f64496bef09ca6f9bc8ab187bf77d2dc",
+          "status": "pass",
+          "task_id": "calibration-extraction-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "6187cdaa759812aa8bc0547755838b1c0704de13e97c4102005c5162d5226274",
+          "status": "pass",
+          "task_id": "calibration-extraction-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e097ca8c2b44a84c31d7a8ca63c951956a37701a710ca275c0a1efc177fd2f72",
+          "status": "pass",
+          "task_id": "calibration-extraction-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "c63eb88797cb0d2657e894ec3add863784bf3ec3a2b7f24099099a8e8234175b",
+          "status": "pass",
+          "task_id": "calibration-extraction-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "performance_analysis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.14950375",
+        "known_usd": "0.2990075",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "8a67f3c0dae4aab60bfec6d1a26947e49079b80c343da7ac41cfec812b6648ae",
+          "status": "fail",
+          "task_id": "v8-calibration-performance_analysis-n_plus_one"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4d0fef8e5cd4f75818a7d19ce88b00fed0bf8eb6528619b057eefe1d0a1d28bc",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-queue_capacity"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8c84b69f4f288f636492b995ffe870c62201afc56f6b6b0afb5a32a764285af4",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-memory_profile"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "quantitative",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.00393525",
+        "known_usd": "0.0157410",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "3d6a62e0df6f62e2c7dc2e1709b1eeea2ec2e435f48e11923b8cee14703bf9b0",
+          "status": "pass",
+          "task_id": "calibration-quantitative-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d0c8e5989cea7824c89ef004fb9be6b86502d6d68630aaea404bfb34a6b2ef3e",
+          "status": "pass",
+          "task_id": "calibration-quantitative-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f6bec86be44bdc8dbc7ba43948269e93cd0ba23a7f0cea986c794b0c684fbee4",
+          "status": "pass",
+          "task_id": "calibration-quantitative-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "c26dc0c9e1e5186b5efd0471c801b367010f88ad18ed82096ad5adcd3b4849c2",
+          "status": "pass",
+          "task_id": "calibration-quantitative-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "rca",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.04768775",
+        "known_usd": "0.0953755",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "cc5f7def703c1fa29272f090a8814a68577147831afcd4f2c00a030af46b4126",
+          "status": "fail",
+          "task_id": "calibration-rca-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "33dde1d4ce2c9ce7c95fe96a1ddb59a07fb1769ca123b2292d19b8c04d191ed9",
+          "status": "pass",
+          "task_id": "calibration-rca-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "db2a043d64373e112e9a53199f44c3e26033d80e04d4287e43f2cbb94c36b665",
+          "status": "fail",
+          "task_id": "calibration-rca-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "7ce452a69034f0a99e25c22ae61c481e2d48131e17228e86d830e7c6418a475a",
+          "status": "pass",
+          "task_id": "calibration-rca-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "requirements",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.1033835",
+        "known_usd": "0.1033835",
+        "unknown_charges": 0
+      },
+      "pass": 1,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "0cdc51252b5dbbf146c26217c798a2a31f8b49a292fae4c77f4d16edad058c53",
+          "status": "pass",
+          "task_id": "calibration-requirements-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ba8cbb2bb1b4ee1d3a2530246c7b943863c88f2935ec93d4b62e325fdee09110",
+          "status": "unknown",
+          "task_id": "calibration-requirements-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "3e6b66197b1e002487b3760f21cc93fb06ce0688f3759983efca2e17ca243cfe",
+          "status": "unknown",
+          "task_id": "calibration-requirements-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "f2a41ed0eb76e22c1e0453afa0be754fcfc87dacba7bcb1819c46998e3ce1fc1",
+          "status": "fail",
+          "task_id": "calibration-requirements-03"
+        }
+      ],
+      "unknown": 2,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.04558726080970238,
+        0.6993581574175893
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "security_review",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.21476125",
+        "known_usd": "0.4295225",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "5abbf70662c4e07bc4549ba67d3abc06648f5c09b61695b9caa596a81ed70dd3",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tenant_object"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "55f641c9f67256765c6cf6557a39bb84e07f23b857e287686f18acd61951e340",
+          "status": "fail",
+          "task_id": "v8-calibration-security_review-path_access"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "de5883c35e87f4999e2e6d2d3ffc92cb7fc3aa167d6f07171a65bbdbb1fdd90c",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tool_instruction"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "test_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.04648966666666666666666666667",
+        "known_usd": "0.1394690",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "94d8fd653644d43acbea44a741237973791d8fffe4b62612901b96b326c45360",
+          "status": "pass",
+          "task_id": "calibration-test_design-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f5efb97a31545ac5ee3547f2bb87db9980ff921bc6852ec4bcd106e451b6c247",
+          "status": "fail",
+          "task_id": "calibration-test_design-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e19593ba9ccc9ee1a40f1414e60d6c6954634cbe7a3a3defe849789828ec44b5",
+          "status": "pass",
+          "task_id": "calibration-test_design-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "4b0398bdc3b23b7f4954bde9c18498e0f2bed562ddff41b60d4e9f4eb2f2d8a8",
+          "status": "pass",
+          "task_id": "calibration-test_design-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "tool_workflow",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0260283375",
+        "known_usd": "0.052056675",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "a6e9b34a8f484713d9434c812d092b9db23ed5796ccd00ec0a61e1d5e337b089",
+          "status": "fail",
+          "task_id": "calibration-tool_workflow-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e6b94d64e79f683aadb93c3723521c47390e9cec9b0c6c24bc2009f2d12de07d",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "0340535fecbe12ad8549cf2655431f45c6e795f21754b963ae2f8ef96b6d931c",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "4761969fbc541c43b93c7f66fa9c8aec767ad41ab15199649aefc478a215db88",
+          "status": "fail",
+          "task_id": "calibration-tool_workflow-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "transformation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.00375375",
+        "known_usd": "0.0150150",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "744ec3425c544480d9578ff07ef6e121a64751fb2cb258f0d8939596a7986d78",
+          "status": "pass",
+          "task_id": "calibration-transformation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5936e368f9ebe430084f6bb0746ee296772fff2a3992cce49edf0fe6f5c4800e",
+          "status": "pass",
+          "task_id": "calibration-transformation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d5d7aeb0941dd799fd9c0204a04d742547c32fe918b2ee05b43552365d09b504",
+          "status": "pass",
+          "task_id": "calibration-transformation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "6d4496692027884c6d4b295eebe683f94e98e4144f2d9c8715d982214149d061",
+          "status": "pass",
+          "task_id": "calibration-transformation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "opus5-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "api_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.019784",
+        "known_usd": "0.059352",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 3,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "19ed2d6492f28db96216d4f3d56118e409ab792ede3df5e6f67f12c3de2f0c50",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-pagination"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4e2f773310df18c0d1364d5775b3ba2029ee796c5fea0d2f554f51245ea9fdc4",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-optimistic_edit"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "7811ea7b9a3fa725e857a4b8eeaca4463cc96a74635e9027af0c8cfa80cd290a",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-webhook_ack"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.4385029682449681,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "architecture",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.067356",
+        "known_usd": "0.134712",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "deep",
+          "source_sha256": "5246fc47c255569b6fcdf44f3af3d3baab3137a4df81cfe504cecb17f96b5e8f",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-worker_commit"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d24e0a926f838835ecc71e8217ac92ca89dd66724da3be95f74ecdd8e10bed3f",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-tenant_retrieval"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8c49f64ab5370bf81f54b42863ef4824aebbd1af83d07fbac3ad4c6459e05877",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-upload_resume"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "business_planning",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.007173",
+        "known_usd": "0.028692",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "9320cb58df938ecbe12feab5de5057f46fd26279207b7b1db0a73a214f48065d",
+          "status": "pass",
+          "task_id": "calibration-business_planning-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a7fa3402f8c00daf6c1f271aa5399df418ea92c3ab84c5bb03169e7836da83ca",
+          "status": "pass",
+          "task_id": "calibration-business_planning-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "aa0dbb46d17000a794bd3d0520c876e2185865292a4b38bf897f19d41a882762",
+          "status": "pass",
+          "task_id": "calibration-business_planning-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "8da457e840c2c885d79334ed1fc66bf01220b0ff9490e7fa9a2ebe2029879756",
+          "status": "pass",
+          "task_id": "calibration-business_planning-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "classification",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.001049",
+        "known_usd": "0.004196",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "33fbef47b87d61bbb6e65411f04bedb7d30ee9334f51dee8beb11623474f0c08",
+          "status": "pass",
+          "task_id": "calibration-classification-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1c43284fd73104402c5ba75d6589e90e097d17ba860c760c1a2c8ac66f1ed0e3",
+          "status": "pass",
+          "task_id": "calibration-classification-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e2524b1ac1cbce770b2d2a7084c6ce18be0f7b7b44c3a9616fc58db88cecaa50",
+          "status": "pass",
+          "task_id": "calibration-classification-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "3c190b1c8c3ebc79a66689611d3795548669a542c5bb7c205750e098478dc73f",
+          "status": "pass",
+          "task_id": "calibration-classification-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "code",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.009776",
+        "known_usd": "0.029328",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "7616590afde61a7c779bdb5cf363d5e57e60e381cba60c434ae9af5f67354808",
+          "status": "pass",
+          "task_id": "calibration-code-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "78685be85d698737073ec8a7129845aec54cfa7535fbfc5e6c1ea54970e4c9ae",
+          "status": "fail",
+          "task_id": "calibration-code-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "688a0ea09b0d613ceee5bd7235c062cac2e5bfaf22b7cb6039c7522bccaef0d5",
+          "status": "pass",
+          "task_id": "calibration-code-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "887a697eaa3edee35cbe108ccf45428e4333506a35c33d2f810ecf976631172e",
+          "status": "pass",
+          "task_id": "calibration-code-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "content_creation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.005728",
+        "known_usd": "0.022912",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "aeefc340cea1f94f5c9ec11335f6e9bd786afaf9eeee879c44ed6fd622b182f8",
+          "status": "pass",
+          "task_id": "calibration-content_creation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5965f24a8acb0e29e53094ba5fa40d00599facf68bd05d8a51a9a778558e0b54",
+          "status": "pass",
+          "task_id": "calibration-content_creation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "bb04996fd8c8c3a1d7f8354290be1674f60684c233b54b49747929d0b2f1044f",
+          "status": "pass",
+          "task_id": "calibration-content_creation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "cdd13875fab45081072103781f214bb54c5612bf372dc35d325ce41671512e8a",
+          "status": "pass",
+          "task_id": "calibration-content_creation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "conversation_control",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.012483",
+        "known_usd": "0.049932",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "9b1653a40f3e9d7ccf91b6f8a112879c2518a2d6001f412bcf457f95d3d8cb8b",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "86cc269943e8e84206f656515c8a2eb175290ba1fc24979f6da3b43cfba5ddf2",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a28b46179a4cbeb0d9f16c0629a7098a618c89b77488d957aa1fbcc474e36404",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "322a2f89fd486eddfb9926a8ac895a6dece4229a0a6c293b877a0071c96d59c4",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "data_gathering",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.006456",
+        "known_usd": "0.019368",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "6cdfb38753f5b5f85e4728e6f0e6db2180fd65a63d3f9c5305847f1336691569",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4cd783f224a8ccadf488d76caf3980b49c2a4d4c191fa4abf7c57a87b2afb75b",
+          "status": "fail",
+          "task_id": "calibration-data_gathering-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "21923bb0ce96bc9491def67aaff7b6f261627423f270aa761d4aac681f7f4104",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "8e259986c34975d703ed23cf05a151c751c84ae48588f09a7eaaf6e99078b3df",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "development",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.008973333333333333333333333333",
+        "known_usd": "0.026920",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 3,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "c9de08e76f84711517bf765a1c296523b423065dd929819cb852d36b07fd4b34",
+          "status": "pass",
+          "task_id": "v8-calibration-development-normalize_ids"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "eb79815fc73b643d8b5a472c48fcf67457ff73b1ddceb042035f27fd23bc5564",
+          "status": "pass",
+          "task_id": "v8-calibration-development-topological_order"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "07c891f926c8cd475fec74f0acd626edbbe18df76ae069722daec33d80d3d3fe",
+          "status": "pass",
+          "task_id": "v8-calibration-development-retry_schedule"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.4385029682449681,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "editing_localization",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.002588",
+        "known_usd": "0.010352",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "f236ef9fc6a7aca98e48ff56bd223a06f8df37f5d5e73ef5899474589382ec9f",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "d2b503f698d6c5fbbe8030d205b1e998f3ce5cf764a09854b4d6857c232a8190",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "fcb304051f36788bc004cd8cf1b94175428b637df24a912029bf8bfbced42762",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "ef08fd2c5e642161bf31157251f71933ff4d5bbbfdab56cf7273c4c7e9caf00a",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "evidence_synthesis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.005147",
+        "known_usd": "0.020588",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "c42be71ad9cfad8152caaedfb8dbbece1278c22bf71e87a54ca215c85193186e",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "51208b555986dd0dbd88f71fe558fbf1049e6f6f8f424c203c7957f6be39882b",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e9da8f0d44d17256cfd53d4d4dc176831a45cd4bed703c4f1d748f17ff238617",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "a067381c62c1e20b4340fbeaa7c6a8331da83bfd5809b4e4ffcf885339420212",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "extraction",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.001537",
+        "known_usd": "0.006148",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "9db14e07d5e40e2c75d59f9e1572b719b79cc01338e645d73abc93882a06b8ee",
+          "status": "pass",
+          "task_id": "calibration-extraction-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "3cc2db5ef62837c3a768b382d7a9643823b5a2e3a5f70121060664683c025a11",
+          "status": "pass",
+          "task_id": "calibration-extraction-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "158a6d55aae22e35395f1d4364b645ff978d50e94a14f63a6372a0616ed7e434",
+          "status": "pass",
+          "task_id": "calibration-extraction-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "a56138181dcdfe89d01fc494ec7cdc3e95e4f5c346756889edceaf925b7b6f74",
+          "status": "pass",
+          "task_id": "calibration-extraction-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "performance_analysis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01497333333333333333333333333",
+        "known_usd": "0.044920",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 3,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "55ae890c1f6eaf22bb5b003dacbb52393dbfd57145fa724a1375ea1c1c27a70c",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-n_plus_one"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "6083a98c34c6a7e85e6eb005f54c6e050d06c2146e83da4a76a96f9acee5827b",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-queue_capacity"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "919db9ace012a359fa984ba5265b9de6fcf3794d507c07dd6b69729448e4e32b",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-memory_profile"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.4385029682449681,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "quantitative",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.000961",
+        "known_usd": "0.003844",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "91c85eca4ebfddd3e0137a3cbcaf459eb7a1b72339bbb92f0d2c0f0bb46a70da",
+          "status": "pass",
+          "task_id": "calibration-quantitative-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "661828ae3ca8ab00dfda77fef2aa8d8348e3c98b82b34735c9616a03794c215e",
+          "status": "pass",
+          "task_id": "calibration-quantitative-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "0042bb148e6befd1707331cad0e97ddf062e91abb741f9d9e4fbb6c67d9bae30",
+          "status": "pass",
+          "task_id": "calibration-quantitative-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "154dedc217c9c36340d8a7381d6d4db36c70134d3775b911b221d83d06cb20d4",
+          "status": "pass",
+          "task_id": "calibration-quantitative-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "rca",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.009721",
+        "known_usd": "0.038884",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "6c188a0ebe7c7aa8a201e7b2ac0e141f859572f2bc7b82cb802058479522b528",
+          "status": "pass",
+          "task_id": "calibration-rca-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f9e25bb2cd950589e2e8ae15af5a6164753bc9ab430aa91bb75f2d073807ef40",
+          "status": "pass",
+          "task_id": "calibration-rca-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b3759b3e71317a920e7bd89ccd128d4a268716d65f8db3def8697732b1a9e744",
+          "status": "pass",
+          "task_id": "calibration-rca-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "11e69bd7079999194369f4b7350bed5045bf71ed50ba6086811552ae6f29675f",
+          "status": "pass",
+          "task_id": "calibration-rca-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "requirements",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.011919",
+        "known_usd": "0.047676",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "4dc9c7cbd5b6bcdfcbb3169a180d321cc9ed67f081b24a91e452abf23549bf8f",
+          "status": "pass",
+          "task_id": "calibration-requirements-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "9ead49b27be2ad758e36694415582aacefca87958be22ff98bbcfe4720272189",
+          "status": "pass",
+          "task_id": "calibration-requirements-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ab9298d2240604b594493bc503956c3aeb91c83a0300b8fc1eb5534c4eb941ee",
+          "status": "pass",
+          "task_id": "calibration-requirements-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "503c4e5cf3d90d94dd92d16e3c7622dca78bef714ff956e76380c306d710e47b",
+          "status": "pass",
+          "task_id": "calibration-requirements-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "security_review",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01966666666666666666666666667",
+        "known_usd": "0.059000",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 3,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "3b4789568cd02580e3c0f04131e2d6fa3a090977efdd1e07cba0760340a2956f",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tenant_object"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "762da05af00c8005bc479a69d4ea31432f7aa1d1fd35c584cc7f59b663e8898a",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-path_access"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "29b6e0e389f731bff7f0a5f505a1fa5ebdc1a7e617dfd1997adf4eb3ee4359fd",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tool_instruction"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.4385029682449681,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "test_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.015037",
+        "known_usd": "0.060148",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "43c167ad1e83855a71c376c11e77168d30cf31b9f93972fc274a60a6110a8173",
+          "status": "pass",
+          "task_id": "calibration-test_design-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "7eeea174dd9d6c863a29a06bd60ddf903e3bd045bda2586758faf770b2480445",
+          "status": "pass",
+          "task_id": "calibration-test_design-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "9d7c318d778144177c9d2673db1c670ffb41eb0c2bca13684152509c25a0bab8",
+          "status": "pass",
+          "task_id": "calibration-test_design-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "a08ac9b2448078c44b71eef11dc09f0dfa65ee200bf53c93cd008620c76ac5f4",
+          "status": "pass",
+          "task_id": "calibration-test_design-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "tool_workflow",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.008166",
+        "known_usd": "0.032664",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "f4a5a59bbdfcb3bfdf6ae06008863c0caf40cd0bbd2382b446ff622548df5497",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "8d080754f63b156ae5f5f48a355fc3b074ceb74ea97ba8a7edb8554fcce2988b",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "52d6a3c38525c06faa3c6faeaf224da217560454fcaa2fb3d1d6bce726700219",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "dbd6cbcb8909ec2fdd10c91b7e762ab35cbce98fd3539909ab1a4220d5b68a31",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "transformation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.001109",
+        "known_usd": "0.004436",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "14cb19e983c9e5580f36738ca6d727296e17e9eb3a2cc3ef1c9c63d5834e83e3",
+          "status": "pass",
+          "task_id": "calibration-transformation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "928d1c5a642956313b73ee2e088874330a2cf5b5e80506b232990d3e94799091",
+          "status": "pass",
+          "task_id": "calibration-transformation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b339ccc6759faa4b8c01fbdb6352058d544d63e7735326a7f5e975c068014c7f",
+          "status": "pass",
+          "task_id": "calibration-transformation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "72d96481a8320d22f5e1e225eeeee897a044eb12f450b07da857a934e6b6a25b",
+          "status": "pass",
+          "task_id": "calibration-transformation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "sol-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "api_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.02068933333333333333333333333",
+        "known_usd": "0.062068",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 3,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "5b7ecbff30ef741e918a04a3967f37396c1193b963ee7907eb43e93a15b878dc",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-pagination"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ce1f8b0b926a3d8394711d8268d983760bbb53497e9212e6e3e70f530c4cc809",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-optimistic_edit"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "4bcf55808165d0144dec955340274a32be509199e140299e8ce59943ee21ced5",
+          "status": "pass",
+          "task_id": "v8-calibration-api_design-webhook_ack"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.4385029682449681,
+        1
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "architecture",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.053690",
+        "known_usd": "0.107380",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "deep",
+          "source_sha256": "f88146f7920155bce203d50576447ed874b53e2d40ecea1ad4bd7f3a967ab1d4",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-worker_commit"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "934759f8bb10ae6d8eaa50f41255fe23e8fc2fc61d599f1fe801490c6da0652a",
+          "status": "fail",
+          "task_id": "v8-calibration-architecture-tenant_retrieval"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "ff523eaa42f86cefa666890ac21f62ada51c9dd231f78e3dd1cec56c6789c92d",
+          "status": "pass",
+          "task_id": "v8-calibration-architecture-upload_resume"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "business_planning",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0029105",
+        "known_usd": "0.011642",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "1ca43f05d9b4b9b08940bddb97d480295d74e6a6d417c147db27736a2ee20202",
+          "status": "pass",
+          "task_id": "calibration-business_planning-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "fb6f339f39845aeccf220d62f468d96b0fe9733dcb7f936c2d82ccd480219789",
+          "status": "pass",
+          "task_id": "calibration-business_planning-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "78cf588bec7f96632a90a9fe63df68f6c21d01070651883f52e9e7c6a20fbd16",
+          "status": "pass",
+          "task_id": "calibration-business_planning-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "18a343175d092edeb7c6db6a28dc8ea5af5f5e4cde394cb214331028195ded5f",
+          "status": "pass",
+          "task_id": "calibration-business_planning-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "classification",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.000635",
+        "known_usd": "0.002540",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "075f611c8944685d5278c703bfd5ff55b51f7bc0596e790148d6d4bcd3461e9c",
+          "status": "pass",
+          "task_id": "calibration-classification-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "cc346b851aa5dba683f54e2d40d749121c6806097e15b79055a657e3d9a0f2e1",
+          "status": "pass",
+          "task_id": "calibration-classification-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b9422842ac1adf37243024b0a50cb2b8f133ebbf533d75e82df90302d536da5d",
+          "status": "pass",
+          "task_id": "calibration-classification-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "3d75f8fb9f5d85ed089e971d2cb81300933a5856bcdfab1b2ff081051e32d453",
+          "status": "pass",
+          "task_id": "calibration-classification-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "code",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.003562",
+        "known_usd": "0.014248",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "6cf92ff10eea9d0f18e5578d7f0c4e45e5cac8c6bd4caca3bdb594f9efca295a",
+          "status": "pass",
+          "task_id": "calibration-code-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1d06233028bf611942c5115f9be98f697a9f67eb3ca09121db5baa01cf872291",
+          "status": "pass",
+          "task_id": "calibration-code-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e3693e516743a928df1a41a616a656271f62686ff752418b0c9be64d155cbf63",
+          "status": "pass",
+          "task_id": "calibration-code-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "155307ef82eca24f699b670015e00fa83d565e2dd052eb861bcb3c835af6babe",
+          "status": "pass",
+          "task_id": "calibration-code-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "content_creation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.003414666666666666666666666667",
+        "known_usd": "0.010244",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "29b6c83829b44bce1f1bcb3065d03a0c0ab1fdb0f6baf6f3765475082351f2b6",
+          "status": "fail",
+          "task_id": "calibration-content_creation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "21513db2cf6b803fa1667e8a7b8182eabf9783f2f39842afcfbb794d1691ada8",
+          "status": "pass",
+          "task_id": "calibration-content_creation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e4e5b0fc664f78a36f35aef31b56d8539385e007bff5fad61dbb4743eaee25be",
+          "status": "pass",
+          "task_id": "calibration-content_creation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "4244a978534c6e19913e3546a44715d3c1f86c605b4f48c3a6017b0d09dfca5a",
+          "status": "pass",
+          "task_id": "calibration-content_creation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "conversation_control",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0067655",
+        "known_usd": "0.027062",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "8d907c9ec66950aab9593da77eaa2263362f33ca917de0a0efb130d0be32aa8b",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f44abc7fae4c8d6aa04c942ecb79554999f5e7ba50e24c1fb856782472a3b74e",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "086684c47f9909ec3ea2397c5153ab10b3174924ec67428635e15430288eea2d",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "1547ee2e029315d742935fb7f7154faffb5c3a382afa97c7640c5befd0464102",
+          "status": "pass",
+          "task_id": "calibration-conversation_control-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 2,
+      "family": "data_gathering",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.004635",
+        "known_usd": "0.009270",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "4b56eeb622dd5474f7726a98b3dc51baf3e85e546cc48ce53cefa7ec0536fc58",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "3e3ea868b052656cf4dcebd1e59d7e87ff96e077599956b33bcbb64706ca8cc8",
+          "status": "fail",
+          "task_id": "calibration-data_gathering-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b9b40949e6cae1af1f78a499994e9df9144412124d4201729583861ff580fb6f",
+          "status": "pass",
+          "task_id": "calibration-data_gathering-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "7a3597fcba92d3b203297c66abebffc9cca2ca7b23aff7e439e40156ca2eae59",
+          "status": "fail",
+          "task_id": "calibration-data_gathering-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.1500389891521544,
+        0.8499610108478456
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "development",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.007113",
+        "known_usd": "0.014226",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "839c5facdd022efca441e6f3c0040b3181e1f7cc217e3bc65faaf55851817784",
+          "status": "fail",
+          "task_id": "v8-calibration-development-normalize_ids"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "55df72a0c2d36cb739dd600cf7e220e008a9f3ca5796bd821ae4ac62087d961d",
+          "status": "pass",
+          "task_id": "v8-calibration-development-topological_order"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5da0cfad1ac27fb60bfe314fef5a93abef2ef426c25c9d2b78372f3e9fb755b9",
+          "status": "pass",
+          "task_id": "v8-calibration-development-retry_schedule"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "editing_localization",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0011825",
+        "known_usd": "0.004730",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "b1adfe4a647ed00d6ffd21ae40a2ca4b51017c2a1265f6d97a78d6e94a1a370a",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "aa18d43a2d0b4fbb5dc5edf0c1720d6b2b4d796316fb71dda9712174f38f3558",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "35548b030bc99ada456aad17fe16ed44ad6e29385c5c307a9c1e6095b9c86da6",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "f7f79ccf7a54e13d257a9af89cd0d561061c6a74779e856912e037ffd9988e62",
+          "status": "pass",
+          "task_id": "calibration-editing_localization-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "evidence_synthesis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.002592",
+        "known_usd": "0.010368",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "c28c8cf6c346f9cd0588074ed038d15c4de85d07b468ab41f311f7c6a627671d",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "628486ba89a4244d4104fb24fa407fc7ea011211a97e9a802845e0a55781680e",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "2d031f79ec018e11afe2b23576585486dec21d4277dd7504814219af4702688b",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "5ed04a98548d801e5bd4cac6d2f25657ba67b248904ee1e1ecfbf29f0bc425f8",
+          "status": "pass",
+          "task_id": "calibration-evidence_synthesis-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "extraction",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.001123333333333333333333333333",
+        "known_usd": "0.003370",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "ea7c1ef6b7f493a373d8474c6f8291b5056908c5ebb249f9d0f3fec2314d383d",
+          "status": "pass",
+          "task_id": "calibration-extraction-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "1ba8cef464028bdb22c7df20980a9379dc0ce4f16056ab7a52f2275e88206db3",
+          "status": "pass",
+          "task_id": "calibration-extraction-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "503451c3f3386ce19bc3c0e22117c7844004298943c01d35fdf7ce2e4e7a31cf",
+          "status": "pass",
+          "task_id": "calibration-extraction-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "640bb6104ab4ceb8c1d30481226b2f5bf77671ba50a1319aee685f51a871a5f3",
+          "status": "fail",
+          "task_id": "calibration-extraction-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "performance_analysis",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.016720",
+        "known_usd": "0.033440",
+        "unknown_charges": 0
+      },
+      "pass": 2,
+      "sample_count": 3,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "614b8239736848be2662a79f594688d3927c2cd8041e006946f43859543752c0",
+          "status": "fail",
+          "task_id": "v8-calibration-performance_analysis-n_plus_one"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "3b92fa131353b359c6050d88b2da73bafa2cdf42f01fe2a79ed92130f6c43be5",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-queue_capacity"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4b65fa4274c8955dbba44ec3bf4d9de04a32989e3b83864445fc7e89ddc2183a",
+          "status": "pass",
+          "task_id": "v8-calibration-performance_analysis-memory_profile"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.20765960080205476,
+        0.9385080552796012
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "quantitative",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.000928",
+        "known_usd": "0.003712",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "582d31ef489549247ec435ba1ed0d582fdeb6503e1fbbcdf476d6d9ba4151eed",
+          "status": "pass",
+          "task_id": "calibration-quantitative-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "980fd7111e62f7b09e271b120129fd86fc445615e0be2cc42a743bbb7d362bcb",
+          "status": "pass",
+          "task_id": "calibration-quantitative-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "2c8b5fc3f2190212c87c964ad798170348ffcfb9bd49ada166514ac62a906722",
+          "status": "pass",
+          "task_id": "calibration-quantitative-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "10ab444c89bda4db49d27f79e8e175689368a4647b231154d0b2de8ac96a41d8",
+          "status": "pass",
+          "task_id": "calibration-quantitative-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "rca",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0055925",
+        "known_usd": "0.022370",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "8b59a31f727ab472212acc4749d0c2264cdbc9c0c7a739dfa79e5d201b323487",
+          "status": "pass",
+          "task_id": "calibration-rca-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "0b1657dd7671db4773bce760d9f5d866445481421878dc35e37bc05b76b15987",
+          "status": "pass",
+          "task_id": "calibration-rca-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "4051ddcf1c7828e013cd2db749f3a7278d29bea367fe3ac8812d51f6fb3bf992",
+          "status": "pass",
+          "task_id": "calibration-rca-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "e3deb4704defe5d653ff41d9a66dad3b8845cc1c662e9d2737cd81ed23ded83a",
+          "status": "pass",
+          "task_id": "calibration-rca-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": false,
+      "fail": 1,
+      "family": "requirements",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.007976",
+        "known_usd": "0.023928",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 4,
+      "status": "insufficient_or_failed",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "82f8d10619bcc04f67464569baba7b14446fbeef676d4d64e671de6b99943e56",
+          "status": "pass",
+          "task_id": "calibration-requirements-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "bafa65105cbb2f3642b4698f476165979d44d5e5774798921a6afa412fe76f76",
+          "status": "pass",
+          "task_id": "calibration-requirements-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a461892e614cfcea9110c6fa40c9f8581966597df4281d930f77728fcda19b93",
+          "status": "pass",
+          "task_id": "calibration-requirements-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "f8868c74c1cb4177bc22c84331ea99dc6b356abac85df7976c32062b41834f29",
+          "status": "fail",
+          "task_id": "calibration-requirements-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.30064184258241056,
+        0.9544127391902976
+      ]
+    },
+    {
+      "attempted": 3,
+      "demand_coverage": [
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "security_review",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.01818866666666666666666666667",
+        "known_usd": "0.054566",
+        "unknown_charges": 0
+      },
+      "pass": 3,
+      "sample_count": 3,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "standard",
+          "source_sha256": "94278beb662181375a7807f38580e45d45d0a6e319e6167594e60d890fd04c1c",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tenant_object"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "73c2d5ff03995100e166f76419bf102bf23405a65f643945dc32446d2e6608b6",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-path_access"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "5b0615711872a6527d38c27302b01a47893801581a9781fc9e0dd56a0421e881",
+          "status": "pass",
+          "task_id": "v8-calibration-security_review-tool_instruction"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.4385029682449681,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "test_design",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0086125",
+        "known_usd": "0.034450",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "ed3fd6baac76e5cf2cf87c21e6799af10f82f4ecae7dc0d2163c7c4584fb6bba",
+          "status": "pass",
+          "task_id": "calibration-test_design-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "55e64494c0e38ca169e6ef288ce2531de3089b2bb95f0543e37681aaed578195",
+          "status": "pass",
+          "task_id": "calibration-test_design-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "a76d9961043aada8535fd2091fe18d0070e0ccc1854808362719b8e081f7a918",
+          "status": "pass",
+          "task_id": "calibration-test_design-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "b5c13fe35aa2741dfa8cf862b000bb49b21c4adcccc1e89cd930027f0a594294",
+          "status": "pass",
+          "task_id": "calibration-test_design-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "tool_workflow",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0043845",
+        "known_usd": "0.017538",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "63ae0c2e27c6e802825386e627d0abbde02b10255047c0de648206556abfdcfe",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "e66f32d99c69cb371fecd88ff180f2dd143b199f8577653e40d05be8fa1c7b40",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "12f81f9ede5c616e2bcf34dee07a3bcc73f4f72b8bc798bf84c3cda3de0215c8",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "5aab6fc20fc8b88a12793a1d56a555bb6acc22b18fcf98447c396f3bbd09660c",
+          "status": "pass",
+          "task_id": "calibration-tool_workflow-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    },
+    {
+      "attempted": 4,
+      "demand_coverage": [
+        "deep",
+        "simple",
+        "standard"
+      ],
+      "eligible_local_beta": true,
+      "fail": 0,
+      "family": "transformation",
+      "generation_cost": {
+        "known_component_usd_per_success": "0.0006605",
+        "known_usd": "0.002642",
+        "unknown_charges": 0
+      },
+      "pass": 4,
+      "sample_count": 4,
+      "status": "diagnostic_supported",
+      "tasks": [
+        {
+          "difficulty": "simple",
+          "source_sha256": "1935d3bdfe98aca4779252fdaa42551cf22216e6b9dce1eeba76df77e1927b0d",
+          "status": "pass",
+          "task_id": "calibration-transformation-00"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "b0a982a6f8c046e2338bd864c5f3640c5a971e161ae4354924da0756ff8f72c9",
+          "status": "pass",
+          "task_id": "calibration-transformation-01"
+        },
+        {
+          "difficulty": "standard",
+          "source_sha256": "f646bafd5960966674c21f3b8e077233c9e45a8c90b6624cff59d365c3e08297",
+          "status": "pass",
+          "task_id": "calibration-transformation-02"
+        },
+        {
+          "difficulty": "deep",
+          "source_sha256": "220ce31a4be5206ce9a97f050892c608c4d871f6b801dd4903346cb1c5f8076c",
+          "status": "pass",
+          "task_id": "calibration-transformation-03"
+        }
+      ],
+      "unknown": 0,
+      "variant": "terra-default",
+      "wilson95": [
+        0.5101091635454165,
+        1
+      ]
+    }
+  ],
+  "revision": "v9-local-beta-869c7592376cf547",
+  "schema_version": 1,
+  "source_revision": "v9-evidence-b904ea2ef957ca21",
+  "source_sha256": "869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd",
+  "variants": {
+    "opus47-default": {
+      "actual_effort": "provider_default_not_reported",
+      "effort": null,
+      "model": "eu.anthropic.claude-opus-4-7",
+      "total_output_allowance": 32000,
+      "transport": "anthropic_messages"
+    },
+    "opus48-default": {
+      "actual_effort": "provider_default_not_reported",
+      "effort": null,
+      "model": "eu.anthropic.claude-opus-4-8",
+      "total_output_allowance": 32000,
+      "transport": "anthropic_messages"
+    },
+    "opus5-default": {
+      "actual_effort": "provider_default_not_reported",
+      "effort": null,
+      "model": "eu.anthropic.claude-opus-5",
+      "total_output_allowance": 32000,
+      "transport": "anthropic_messages"
+    },
+    "sol-default": {
+      "actual_effort": "provider_default_not_reported",
+      "effort": null,
+      "model": "global.openai.gpt-5.6-sol",
+      "total_output_allowance": 32000,
+      "transport": "chat_completions"
+    },
+    "terra-default": {
+      "actual_effort": "provider_default_not_reported",
+      "effort": null,
+      "model": "global.openai.gpt-5.6-terra",
+      "total_output_allowance": 32000,
+      "transport": "chat_completions"
+    }
+  }
+}

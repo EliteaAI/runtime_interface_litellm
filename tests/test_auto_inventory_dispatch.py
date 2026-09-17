@@ -108,3 +108,41 @@ def test_preflight_reads_actor_inventory_and_keeps_shared_only_candidates(relay,
     assert result['trace']['inventory']['discovered'] == 5
     assert result['trace']['inventory']['qualified_variants'] == 8
     assert relay.seen == [(7, 42)]
+
+
+def measured_request(relay, variant):
+    from test_v9_candidate import inputs, classified
+    data = inputs(variant)
+    relay.models[:] = data['models']
+    relay.args['price_snapshot'] = data['price_snapshot']
+    service = importlib.import_module('plugin_under_test.routing.service')
+    result = service.resolve(request('Transform these records A=1 B=2.'),
+                             complete=lambda *a, **k: classified(), **relay.args)
+    config = result['config']
+    target = {'endpoint': '/v1/messages' if config['routing_transport']=='anthropic_messages' else '/v1/chat/completions',
+        'headers': relay.proxy.Headers({'X-Elitea-Routing-Pin': result['pin'],
+                                       'X-Elitea-Routing-Invocation': 'a'*64}),
+        'json': {'model': config['model_name'], 'max_tokens': config['max_tokens']}, 'data': None}
+    return target, {'type': 'token', 'user': {'id': 42, 'name': 'user'}}
+
+
+@pytest.mark.parametrize('variant', ['terra-default','sol-default','opus5-default','opus48-default','opus47-default'])
+def test_new_measured_contract_exact_native_dispatch(relay,variant):
+    target,auth=measured_request(relay,variant)
+    assert relay.method.prepare_request(target,auth) is None
+    relay.lookup.assert_called_once()
+    relay.metering.assert_called_once()
+
+
+@pytest.mark.parametrize('change', [ {'endpoint':'/v1/responses'}, {'endpoint':'/v1/chat/completions'},
+    {'body':{'max_tokens':8000}}, {'body':{'max_tokens':33000}},
+    {'body':{'thinking':{'type':'adaptive'}}}, {'body':{'thinking':{'type':'disabled'}}},
+    {'body':{'thinking':{'type':'enabled','budget_tokens':4096}}},
+    {'body':{'reasoning':{'summary':'auto'}}}, {'body':{'reasoning_effort':'high'}}])
+def test_measured_default_contract_cannot_change_transport_allowance_or_thinking(relay,change):
+    target,auth=measured_request(relay,'opus5-default')
+    if 'endpoint' in change:target['endpoint']=change['endpoint']
+    target['json'].update(change.get('body',{}))
+    assert relay.method.prepare_request(target,auth)[1]==409
+    relay.lookup.assert_not_called()
+    relay.metering.assert_not_called()

@@ -3,6 +3,12 @@ import copy,json
 from pathlib import Path
 from .routing import CATALOG
 from .retrieval import digest
+from functools import lru_cache
+
+
+@lru_cache(maxsize=1)
+def calibration_candidate():
+    return json.loads((Path(__file__).parent/'calibration-v9.json').read_text())
 
 def compile_catalog():
     value=copy.deepcopy(CATALOG);value['revision']='v6-effort-profiles-1'
@@ -13,6 +19,26 @@ def compile_catalog():
     # These are exact frozen transport contracts, not prefix or price inference.
     for variant in value['variants'].values():
         variant['cache_write_mode'] = ('ordinary_input' if variant['model'] in {'gpt-5.4', 'gpt-5.4-mini'} else 'separate')
+    candidate = calibration_candidate()
+    value['revision'] += '+'+candidate['revision']
+    for vid, identity in candidate['variants'].items():
+        families = {r['family']: {key: copy.deepcopy(r[key]) for key in (
+                    'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage')}
+                    for r in candidate['records']
+                    if r['variant'] == vid and r['eligible_local_beta']}
+        demands = {d for r in families.values() for d in r['demand_coverage']}
+        value['variants'][vid] = {
+            'model': identity['model'], 'effort': None, 'enabled': True,
+            # These are the selector's legal known operations, not independent
+            # model capability claims. CalibratedRouter requires the exact
+            # measured family/demand cell before this generic selector runs.
+            'tasks': ['creative', 'transform', 'analysis', 'design'],
+            'max_demand': max(demands, key={'simple':0, 'standard':1, 'deep':2}.get),
+            'cost_band': 2, 'cache_write_mode': 'separate',
+            'calibration_contract': {'revision': candidate['revision'],
+                'source_sha256': candidate['source_sha256'], 'families': families,
+                'transport': identity['transport'], 'output_allowance': identity['total_output_allowance'],
+                'production_promotion_allowed': False}}
     return value
 
 

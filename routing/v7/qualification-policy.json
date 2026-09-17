@@ -1,79 +1,152 @@
 {
-  "revision": "v7-calibration-only-f18611c176865e8e",
+  "baseline_provenance": {
+    "corpus_sha256": "8bd9d55ce7ff52aa72de1ba76e1cb43e7fedd17d365e35f200b89e4ddf753784",
+    "limitation": "4/4 has a Wilson 95% lower bound near 0.51. It is insufficient for production quality claims.",
+    "records_sha256": "f18611c176865e8e76a9c975779f6cf2d62b282a165af67a12a199721e300196",
+    "rubric_revision": "family-rubrics-v7-1"
+  },
+  "baseline_revision": "v7-calibration-only-f18611c176865e8e",
+  "calibration_candidate": "v9-local-beta-869c7592376cf547",
+  "calibration_generation_freeze_sha256": "e417a9953411383a9a425eb5c3cc35219fe5d0a1ccfe4752985d89a7ac94c9d6",
+  "calibration_source_sha256": "869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd",
+  "eligibility_rule": "Retained V7 cohorts unchanged; new V9 contracts require original all-pass full family and exact observed demand, provider-default preset, measured transport and 32000 output allowance.",
   "eligible_by_family": {
+    "api_design": [
+      "sol-default",
+      "terra-default"
+    ],
+    "architecture": [],
+    "business_planning": [
+      "haiku-default",
+      "luna-default",
+      "mini-low",
+      "opus48-default",
+      "sol-default",
+      "terra-default"
+    ],
+    "classification": [
+      "gpt54-medium",
+      "luna-default",
+      "mini-low",
+      "sonnet-default",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default",
+      "terra-default"
+    ],
+    "code": [
+      "luna-default",
+      "terra-default"
+    ],
+    "content_creation": [
+      "gpt54-medium",
+      "luna-default",
+      "sol-default"
+    ],
+    "conversation_control": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "sonnet-default",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default",
+      "terra-default"
+    ],
     "data_gathering": [
       "gpt54-medium",
       "luna-default",
       "mini-low",
       "sonnet-default"
     ],
+    "development": [
+      "sol-default"
+    ],
+    "editing_localization": [
+      "luna-default",
+      "sonnet-default",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default",
+      "terra-default"
+    ],
     "evidence_synthesis": [
       "luna-default",
       "mini-low",
-      "sonnet-default"
+      "sonnet-default",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default",
+      "terra-default"
+    ],
+    "extraction": [
+      "gpt54-medium",
+      "luna-default",
+      "mini-low",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default"
+    ],
+    "performance_analysis": [
+      "sol-default"
+    ],
+    "quantitative": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "mini-low",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default",
+      "terra-default"
+    ],
+    "rca": [
+      "sol-default",
+      "terra-default"
+    ],
+    "requirements": [
+      "sol-default"
+    ],
+    "security_review": [
+      "sol-default",
+      "terra-default"
+    ],
+    "test_design": [
+      "sol-default",
+      "terra-default"
+    ],
+    "tool_workflow": [
+      "gpt54-medium",
+      "haiku-default",
+      "luna-default",
+      "mini-low",
+      "sonnet-default",
+      "opus47-default",
+      "opus48-default",
+      "sol-default",
+      "terra-default"
     ],
     "transformation": [
       "gpt54-medium",
       "haiku-default",
       "luna-default",
       "mini-low",
-      "sonnet-default"
-    ],
-    "extraction": [
-      "gpt54-medium",
-      "luna-default",
-      "mini-low"
-    ],
-    "classification": [
-      "gpt54-medium",
-      "luna-default",
-      "mini-low",
-      "sonnet-default"
-    ],
-    "content_creation": [
-      "gpt54-medium",
-      "luna-default"
-    ],
-    "editing_localization": [
-      "luna-default",
-      "sonnet-default"
-    ],
-    "quantitative": [
-      "gpt54-medium",
-      "haiku-default",
-      "luna-default",
-      "mini-low"
-    ],
-    "business_planning": [
-      "haiku-default",
-      "luna-default",
-      "mini-low"
-    ],
-    "requirements": [],
-    "test_design": [],
-    "code": [
-      "luna-default"
-    ],
-    "rca": [],
-    "tool_workflow": [
-      "gpt54-medium",
-      "haiku-default",
-      "luna-default",
-      "mini-low",
-      "sonnet-default"
-    ],
-    "conversation_control": [
-      "gpt54-medium",
-      "haiku-default",
-      "luna-default",
-      "sonnet-default"
+      "sonnet-default",
+      "opus47-default",
+      "opus48-default",
+      "opus5-default",
+      "sol-default",
+      "terra-default"
     ]
   },
-  "production_promotion_allowed": false,
-  "eligibility_rule": "4/4 complete calibration task successes; no unknown; retain existing operation/demand/effort ceilings.",
   "fallback": "Configured baseline family, explicitly insufficient evidence; no universal Luna or other model qualification.",
-  "corpus_sha256": "8bd9d55ce7ff52aa72de1ba76e1cb43e7fedd17d365e35f200b89e4ddf753784",
-  "rubric_revision": "family-rubrics-v7-1",
-  "records_sha256": "f18611c176865e8e76a9c975779f6cf2d62b282a165af67a12a199721e300196",
-  "limitation": "4/4 has a Wilson 95% lower bound near 0.51. It is insufficient for production quality claims."
+  "limitation": "Retained V7 provenance is baseline_provenance. V9 uses 3/3 or 4/4 original calibration successes, with Wilson 95% lower bounds about 0.44 or 0.51; exact per-cell bounds/counts remain in calibration-v9.json. Both cohorts remain provisional.",
+  "production_promotion_allowed": false,
+  "revision": "v7-calibration-only-f18611c176865e8e+v9-local-beta-869c7592376cf547"
 }

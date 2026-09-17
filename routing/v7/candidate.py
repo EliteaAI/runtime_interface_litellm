@@ -26,6 +26,10 @@ business_planning (choose options and plan business actions), requirements (stor
 test_design (test scenarios and expected results), code (create/explain/review code),
 rca (diagnose causal failure), tool_workflow (explicit ordered tool actions/recovery),
 conversation_control (greeting or retrieving/updating an earlier task's stated facts).
+Also architecture (system structure, boundaries and tradeoffs), development
+(implement/change runnable behavior), api_design (API contracts and semantics),
+security_review (security controls and adversarial threat analysis), and
+performance_analysis (latency, throughput, scaling and resource diagnosis).
 Classify the requested deliverable, not merely nouns in its source. Tools needed
 to fetch sources do not automatically make every task tool_workflow. If unclear,
 return task_family="unknown". This field never selects a model or grants access.
@@ -64,6 +68,22 @@ class CalibratedRouter(FixedV6Router):
         self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT})[:12]
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
+        # V9 defaults are admitted only by the original full-family calibration
+        # cell, including its observed demand bands. Unknown/ambiguous work must
+        # never reach one through the insufficient-evidence fallback.
+        from .routing import DEMAND
+        permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
+        demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
+        for vid in list(permitted):
+            contract = self.catalog['variants'][vid].get('calibration_contract')
+            if not contract:
+                continue
+            cell = contract['families'].get(descriptor.get('task_family'))
+            if (not cell or demand not in cell['demand_coverage'] or descriptor.get('needs_context')
+                    or descriptor.get('relation') == 'ambiguous'
+                    or descriptor.get('operation') in {'other', 'greeting'}):
+                permitted.remove(vid)
+        allowed = permitted
         original=super().select(descriptor,allowed,previous,min_demand)
         family=descriptor.get('task_family','unknown')
         # Preserve pre-existing narrowly validated standalone rules. No label
