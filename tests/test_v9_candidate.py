@@ -124,6 +124,32 @@ def test_native_opus_contract_cannot_override_live_configuration(metadata):
                 **inputs('opus5-default',**metadata))
 
 
+def test_compatible_opus_is_reported_as_unmeasured_transport_not_incapable():
+    args = fixture()
+    extra = inputs('opus5-default', openai_compatible=True)
+    args['models'].append(extra['models'][1])
+    args['price_snapshot']['entries'].append(extra['price_snapshot']['entries'][-1])
+    result = resolve(request('Reformat supplied records A=1 B=2.'),
+                     complete=lambda *a, **k: classified(), **args)
+    gap = result['trace']['inventory']['unmeasured_contracts']['opus5-default']
+    assert gap == {'reasons': ['CALIBRATION_TRANSPORT_UNMEASURED'],
+                   'configured_transport': 'chat_completions',
+                   'measured_transport': 'anthropic_messages'}
+    assert DATA['variants']['opus5-default']['model'] not in result['trace']['inventory']['excluded']
+
+
+def test_unmeasured_effort_is_distinct_from_transport_gap():
+    args = fixture()
+    extra = inputs('sol-default')
+    args['models'].append(extra['models'][1])
+    args['price_snapshot']['entries'].append(extra['price_snapshot']['entries'][-1])
+    req = request('Reformat supplied records A=1 B=2.')
+    req['selection']['reasoning'] = {'mode': 'explicit', 'preset': 'high'}
+    result = resolve(req, complete=lambda *a, **k: classified(), **args)
+    gap = result['trace']['inventory']['unmeasured_contracts']['sol-default']
+    assert gap['reasons'] == ['CALIBRATION_EXPLICIT_EFFORT_UNMEASURED']
+
+
 def test_explicit_measured_cap_is_accepted_and_missing_price_stays_unknown():
     req=request('Reformat A=1.');req['output_cap']=32000
     result=resolve(req,complete=lambda *a,**k: classified(),**inputs('terra-default'))

@@ -54,7 +54,7 @@
     "availability.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/tool_availability_candidate.py",
       "sha256": "b4129fdcf69a769cda12f52a5cfc8c8d22604a3254b0cb610e0a402bee48b5b0",
-      "product_sha256": "aff08fd97d67c6b9f6601be379c1f9d44b48041fe0f7be833a90f9556df1c55f"
+      "product_sha256": "784a3677f02b401c5bb60dfb5d37affdfb1b606cf845698eda332577e64189fb"
     },
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
@@ -87,7 +87,8 @@
     "Release 2.0.7 publication manifest refresh only; runtime policy source is unchanged by publication preparation",
     "V9 generated original calibration-only contracts retain all100cells;54full-family successes admitted for exact observed demand at provider default",
     "Per-variant measured output allowance and exact transport participate in live inventory admission, pricing and signed run binding",
-    "Internal policy revision changes; old active pins reject and require a drained rollout while the public saved profile handle stays stable"
+    "Internal policy revision changes; old active pins reject and require a drained rollout while the public saved profile handle stays stable",
+    "V10 availability contract candidate: explicit source/status coherence, strict reason-coded rejection and bounded factual/current-information prompt clarification; no extra classifier call or lexical shortcut"
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",

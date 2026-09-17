@@ -189,6 +189,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             cap = restored['config']['max_tokens']
     allowed = []
     output_caps = {}
+    contract_exclusions = {}
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
@@ -199,8 +200,20 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         if contract:
             native = not model.get('openai_compatible', False) and any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
             transport = 'anthropic_messages' if native else 'chat_completions'
-            if (variant_cap != contract['output_allowance'] or transport != contract['transport']
-                    or output_schema is not None or explicit['mode'] == 'explicit'):
+            reasons = []
+            if transport != contract['transport']:
+                reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
+            if variant_cap != contract['output_allowance']:
+                reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
+            if output_schema is not None:
+                reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
+            if explicit['mode'] == 'explicit':
+                reasons.append('CALIBRATION_EXPLICIT_EFFORT_UNMEASURED')
+            if reasons:
+                # Missing evidence for this configuration is not model
+                # incapability or a provider-family ban. Keep it observable.
+                contract_exclusions[vid] = {'reasons': reasons,
+                    'configured_transport': transport, 'measured_transport': contract['transport']}
                 continue
         if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
             continue
@@ -284,7 +297,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
-                          'excluded': exclusions}
+                          'excluded': exclusions, 'unmeasured_contracts': contract_exclusions}
     if decision.get('action') == 'clarify':
         return {'action': 'clarify', 'text': decision['clarification'], 'trace': trace}
     selected = decision['selection']

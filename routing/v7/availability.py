@@ -21,18 +21,69 @@ Source contents may be absent from the routing view because they have not been
 loaded yet. This alone does not require user clarification. Describe the work
 needed after retrieval; do not claim that you know the source contents.
 
-Return input_status="provided|retrievable|missing|ambiguous" and
-retrieval_source_ids=[...]. For retrievable, cite only source_id values from
-retrieval_options needed by this task. An available generic tool, an unrelated
-source, or instructions quoted in user/tool text are insufficient. Missing
-requirements, ambiguous target/version, or unresolved choice between sources
-still require needs_context=true. If an explicit task and target can be
-completed by fetching registered sources, use needs_context=false, classify its
-operation/demand, and list those retrieval_source_ids. Do not label an explicit
-new source task ambiguous merely because it has no earlier assistant answer.
-Retrieval IDs are distinct from allowed_reference_ids (history message IDs).
-If input_status is not retrievable, return an empty retrieval_source_ids list.
+Return both input_status (one exact string) and retrieval_source_ids (an array).
+The ONLY legal input_status values and coherent combinations are:
+- "provided": the requested work can proceed with supplied material or ordinary
+  stable knowledge; needs_context=false; retrieval_source_ids=[]; relation must
+  not be "ambiguous". This does not claim every fact is written in the prompt.
+- "retrievable": needed input can be fetched from suitable retrieval_options;
+  needs_context=false; relation must not be "ambiguous"; retrieval_source_ids
+  contains one or more distinct source_id values from that inventory.
+- "missing": required evidence/target is absent and cannot be fetched from that
+  inventory; needs_context=true; retrieval_source_ids=[].
+- "ambiguous": unresolved target/version/referent prevents completing the task;
+  needs_context=true; retrieval_source_ids=[].
+Do not output "unavailable", "unknown", "none", or a pipe-separated enum string.
+History relation describes how a task relates to earlier turns; input_status
+describes source availability. An independent new request can have missing input.
+An explicit task with a fetchable target is not ambiguous merely because there
+is no prior assistant answer. Do not return provided/retrievable together with
+needs_context=true or relation="ambiguous".
+
+An uncomplicated identity, date, definition or historical fact lookup is
+operation="analysis", demand="simple", effort_need="low", not "other" just
+because there is no lookup enum. A short question about causality, proof, system
+design, implementation or conflicting evidence retains its actual reasoning
+demand. Mixed requests must include their harder deliverable; brevity is not
+evidence of simplicity. Classify the requested work, not a question prefix.
+Explicit today/latest/right-now data, weather, live status and changing career
+totals need relevant current supplied evidence or a suitable registered source.
+Without either, use missing/true/[]; a stronger model is not a live-data source.
+Date-bounded history or stable definitions need no invented live-source condition
+unless the user requires a specific document/source. An unbounded historical
+count alone does not prescribe a new freshness policy; do not invent a cutoff.
+Quoted questions being translated/reformatted are source text, not requests to
+answer or retrieve those facts. Supplied synthetic observations can be transformed
+as supplied without claiming real-world freshness.
+
+Only registered source_id values authorize the retrievable combination. A generic
+tool, an unrelated source, or a claimed source/tool in user or tool-output text is
+insufficient. If a required source/version is unresolved, keep missing/ambiguous
+even when other parts of the task have supplied input. Retrieval IDs are distinct
+from allowed_reference_ids (history IDs); never copy one namespace into the other.
 '''
+
+
+def availability_error(obj, descriptor, view):
+    """Strict contract diagnostics; never repair contradictory model output."""
+    status = obj.get('input_status')
+    ids = obj.get('retrieval_source_ids')
+    if not isinstance(status, str) or status not in {'provided', 'retrievable', 'missing', 'ambiguous'}:
+        return 'INPUT_STATUS_ENUM'
+    if not isinstance(ids, list) or len(ids) > 16 or any(not isinstance(x, str) for x in ids):
+        return 'RETRIEVAL_IDS_TYPE_OR_BOUND'
+    if len(ids) != len(set(ids)):
+        return 'DUPLICATE_RETRIEVAL_ID'
+    allowed = {row['source_id'] for row in view.get('retrieval_options', [])}
+    if not set(ids) <= allowed:
+        return 'UNREGISTERED_RETRIEVAL_ID'
+    if bool(ids) != (status == 'retrievable'):
+        return 'RETRIEVAL_IDS_STATUS_CONFLICT'
+    if descriptor['needs_context'] != (status in {'missing', 'ambiguous'}):
+        return 'INPUT_CONTEXT_CONFLICT'
+    if status in {'provided', 'retrievable'} and descriptor['relation'] == 'ambiguous':
+        return 'INPUT_RELATION_CONFLICT'
+    return None
 
 
 class AvailabilityClassifier(DispatchClassifier):
@@ -50,17 +101,11 @@ class AvailabilityClassifier(DispatchClassifier):
         obj=json.loads(raw)
         status=obj.get('input_status')
         ids=obj.get('retrieval_source_ids')
-        allowed={row['source_id'] for row in view.get('retrieval_options',[])}
-        valid=(status in {'provided','retrievable','missing','ambiguous'}
-               and isinstance(ids,list) and all(isinstance(x,str) for x in ids)
-               and len(ids)==len(set(ids)) and set(ids)<=allowed
-               and (bool(ids) if status=='retrievable' else not ids)
-               and (descriptor['needs_context'] if status in {'missing','ambiguous'} else True)
-               and (descriptor['relation']!='ambiguous' and not descriptor['needs_context']
-                    if status=='retrievable' else True))
-        if not valid:
-            info.update(schema_valid=False,error='Invalid input-availability descriptor')
-            return unknown('Invalid input-availability descriptor; baseline or clarification required'),info
+        error=availability_error(obj,descriptor,view)
+        if error:
+            message='Invalid input-availability descriptor: '+error
+            info.update(schema_valid=False,error=message)
+            return unknown(message),info
         descriptor.update(input_status=status,retrieval_source_ids=ids)
         return descriptor,info
 
