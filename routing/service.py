@@ -104,11 +104,32 @@ class ClassifierTransport:
             raise GatewayError('Classifier transport unavailable') from exc
 
 
+class GenerationRouter(CalibratedRouter):
+    """Product Auto chooses a model; only that model responds to the user."""
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.revision += '-model-owned-clarification-1'
+
+    def _resolve(self, messages, mode, binding, hint, previous, allowed, min_demand):
+        decision = super()._resolve(messages, mode, binding, hint, previous, allowed, min_demand)
+        if decision.get('action') == 'clarify':
+            # Remain inside the router's request ContextVar: qualification and
+            # effort filters must see the same invocation contract. Retain the
+            # uncertain descriptor; never invent sources or force a cheap route.
+            decision['uncertainty'] = {'handling': 'generation_model',
+                                       'reason': decision['selection']['reason']}
+            decision['selection'] = self.select(decision['descriptor'], allowed, previous, min_demand)
+            decision['action'] = 'generate'
+            decision.pop('clarification', None)
+        return decision
+
+
 @lru_cache(maxsize=1)
 def compiled_router():
     # Immutable source/profile is compiled once per process. Invocation data is
     # isolated in ContextVars; authority/prices remain current request snapshots.
-    return CalibratedRouter(ClassifierTransport(), catalog=compile_catalog())
+    return GenerationRouter(ClassifierTransport(), catalog=compile_catalog())
 
 
 def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, policy_revision):
@@ -277,14 +298,12 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             decision = router.resolve(messages, output_cap=cap if cap is not None else 8000, tools=tools, allowed=allowed,
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
-            state_token = None
-            if decision.get('action') != 'clarify':
-                cap = output_caps[decision['selection']['variant']]
-                decision['budget']['completion_cap'] = cap
-                state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
-                    project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
-                    policy_revision=router.revision), signing_key)
-                publish(entry, state_token)
+            cap = output_caps[decision['selection']['variant']]
+            decision['budget']['completion_cap'] = cap
+            state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
+                project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
+                policy_revision=router.revision), signing_key)
+            publish(entry, state_token)
     finally:
         _REQUEST.reset(context_token)
 
@@ -298,8 +317,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
                           'excluded': exclusions, 'unmeasured_contracts': contract_exclusions}
-    if decision.get('action') == 'clarify':
-        return {'action': 'clarify', 'text': decision['clarification'], 'trace': trace}
+    if 'uncertainty' in decision:
+        trace['uncertainty'] = decision['uncertainty']
     selected = decision['selection']
     model = visible[selected['model']]
     config = {'model_name': selected['model'], 'model_project_id': model['project_id'],

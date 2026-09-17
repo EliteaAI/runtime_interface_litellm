@@ -31,6 +31,19 @@ dispatch requires the exact owner-prefixed LiteLLM deployment; it never falls
 back to a same-name shared deployment or raw model name when that deployment
 disappears. Existing manual dispatch retains its previous mapping behavior.
 
+Product Auto always returns a generation binding, never a router-authored chat
+reply. `service.GenerationRouter` converts ancestor clarification decisions
+(missing input, ambiguous references or non-unique pending tasks) through the
+same eligibility and effort selector while its invocation context is active.
+It preserves `needs_context`, input status and uncertainty in the trace; it does
+not invent sources, lower demand, add advisory prompts or make another classifier
+call. The selected model receives the original SDK messages and tools and can
+answer or ask for information naturally. These uncertain requests retain the
+existing conservative selection policy. If no model is eligible, normal admission
+failure remains an error. The resulting model/effort pin survives same-run tools
+and resume. This product boundary adds `model-owned-clarification-1` to the internal
+policy revision; ancestor calibration behavior and frozen evidence are unchanged.
+
 The calibration candidate changes the internal signed policy revision while
 retaining the public saved profile handle. Drain active Auto invocations before
 installing it: old active pins receive a 409 rather than silently changing models.

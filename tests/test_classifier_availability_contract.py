@@ -68,14 +68,14 @@ def test_invalid_output_is_rejected_with_safe_exact_code_not_repaired(change,cod
 
 
 @pytest.mark.parametrize('task,row,action', [
-    ('What is the weather today in San Francisco?',value(input_status='missing',needs_context=True),'clarify'),
+    ('What is the weather today in San Francisco?',value(input_status='missing',needs_context=True),'generate'),
     ('Explain why the sky appears blue.',value(),'generate'),
-    ('Summarize the document I have not attached.',value(input_status='missing',needs_context=True,task_family='evidence_synthesis'),'clarify'),
-    ('Use the report from our previous choice.',value(input_status='ambiguous',needs_context=True,relation='ambiguous'),'clarify'),
+    ('Summarize the document I have not attached.',value(input_status='missing',needs_context=True,task_family='evidence_synthesis'),'generate'),
+    ('Use the report from our previous choice.',value(input_status='ambiguous',needs_context=True,relation='ambiguous'),'generate'),
     ('Translate "What is the live exchange rate?" into Spanish.',value(operation='transform',task_family='editing_localization'),'generate'),
     ('Prove durable replay under worker crash and two-zone failure.',value(operation='design',demand='deep',effort_need='high',task_family='architecture'),'generate'),
 ])
-def test_single_call_preserves_clarification_versus_generation_and_demand(task,row,action):
+def test_single_call_preserves_input_uncertainty_for_generation_model(task,row,action):
     calls=[]
     def complete(*args,**kwargs):calls.append(args);return {'message':{'content':json.dumps(row)},'finish_reason':'stop'}
     result=resolve(request(task),complete=complete,**fixture())
@@ -83,6 +83,8 @@ def test_single_call_preserves_clarification_versus_generation_and_demand(task,r
     assert result['action']==action
     assert result['trace']['descriptor']['demand']==row['demand']
     assert result['trace']['descriptor']['operation']==row['operation']
+    assert result['trace']['descriptor']['needs_context']==row['needs_context']
+    assert result['pin'] and 'text' not in result
 
 
 def test_prompt_preserves_known_failure_guards_without_entity_shortcuts():
