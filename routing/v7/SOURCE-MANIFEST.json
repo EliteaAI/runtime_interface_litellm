@@ -1,0 +1,127 @@
+{
+  "policy": "Retained V7 plus provisional V12 model-effort contracts from original V11 observations",
+  "sources": {
+    "context_resolution.py": {
+      "source": "autorouting_impl/poc/context_resolution.py",
+      "sha256": "8cf100ecd0c533b4f7a0e48baae1b2e626c3d16b609c9d8ecfeb487c65c41ed7",
+      "product_sha256": "8cf100ecd0c533b4f7a0e48baae1b2e626c3d16b609c9d8ecfeb487c65c41ed7"
+    },
+    "routing.py": {
+      "source": "autorouting_impl/poc/routing.py",
+      "sha256": "5fe57360f055e4ba2cea83baa85d3824442a9f842c50875b037802a5093a914c",
+      "product_sha256": "bdbb58c25dfb31fb0ea15bbda3ef632658d274e021d8fff3d2ddb5b749eadf85"
+    },
+    "catalog.json": {
+      "source": "autorouting_impl/poc/catalog.json",
+      "sha256": "2b62b95673633a10b1233c06464545989ab323ef5dfc546f494d019821bc847a",
+      "product_sha256": "2b62b95673633a10b1233c06464545989ab323ef5dfc546f494d019821bc847a"
+    },
+    "catalog.py": {
+      "source": "autorouting_impl/poc/router_v6/catalog.py",
+      "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
+      "product_sha256": "cbed959cf79338c088280c806067ea736f0cc8367dbff6c79f9fb20f81e7cc26"
+    },
+    "lexical.py": {
+      "source": "autorouting_impl/poc/router_v6/lexical.py",
+      "sha256": "f9ed28ea8d730c56c558382641b9a5a76feb31099346238d5555c4940b8a520e",
+      "product_sha256": "16402da32f59cec653f03610bab9d8ed2ac4c56773bbf780f831425458f9f4da"
+    },
+    "protocol.py": {
+      "source": "autorouting_impl/poc/router_v6/protocol.py",
+      "sha256": "f583fdb883c19a1e386bfaa850bc643e6ab4233a72b9556aee21eed0bde918b2",
+      "product_sha256": "aa5cbed7dbaeadc14c8a453637711f4518874be38e468abd1b98aedf138fc3e2"
+    },
+    "retrieval.py": {
+      "source": "autorouting_impl/poc/router_v6/retrieval.py",
+      "sha256": "f562101aeeba4248d37a3167dcc7e6669be98e48f7e57436625fe2dad49d77bd",
+      "product_sha256": "6d029609e4a64a44a006bf661ef4b6df56e0ad1576f77771a2e54aecc6eeb130"
+    },
+    "state.py": {
+      "source": "autorouting_impl/poc/router_v6/state.py",
+      "sha256": "267f9b3fe48d9d5c70c5d90bf0c52e7e6132e99d81de284a60154e7d307ec514",
+      "product_sha256": "f5067da6a7676ac8b43cc433d5c568bdd60c385da1e78e9bd8b817734552d0d6"
+    },
+    "coordinator.py": {
+      "source": "autorouting_impl/poc/router_v6/coordinator.py",
+      "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
+      "product_sha256": "0dc8f2cec8dfd14e0e77f90e7cac97b1dce1a33c47e9b6a22d675b134f7e0fc0"
+    },
+    "fallback.py": {
+      "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
+      "sha256": "e358cc047c0cd2f6c79bcb705d86020ac52008e8367e17b3b6767b026471ff24",
+      "product_sha256": "dab5814959e9f80145b9d13200cb44be7c5747efdc2a3a6d8db34f47a4db9bb6"
+    },
+    "availability.py": {
+      "source": "autorouting_impl/experiments/trajectory-v6/tool_availability_candidate.py",
+      "sha256": "b4129fdcf69a769cda12f52a5cfc8c8d22604a3254b0cb610e0a402bee48b5b0",
+      "product_sha256": "784a3677f02b401c5bb60dfb5d37affdfb1b606cf845698eda332577e64189fb"
+    },
+    "candidate.py": {
+      "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
+      "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
+      "product_sha256": "bdf2af3792fdfb683c10400bded1c645c20f4c010d82edb8acbae51e67e4add7"
+    },
+    "qualification-policy.json": {
+      "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
+      "sha256": "41465ccd56c9336cce1da7bb8f9a6d2d38b3de5b79280f5d7437a07f01319173",
+      "product_sha256": "a28ff2e03c2d5333964b8052b8c11b316476616cff1e4f719cbb0a989e680683"
+    },
+    "social.py": {
+      "source": "autorouting_impl/experiments/phase1-social-v9/social.py",
+      "sha256": "897cf9c4c43a0b3d624a16d7070cdfeeb257b5229b5650c2319c8e3fc701ce84",
+      "product_sha256": "897cf9c4c43a0b3d624a16d7070cdfeeb257b5229b5650c2319c8e3fc701ce84"
+    }
+  },
+  "product_changes": [
+    "Package-relative imports; no experiment HTTP server, credential dependency or workspace imports",
+    "Removed lab execution, implicit binding and root-call allowance adapters; product SDK/Worker own invocation binding",
+    "Pricing supplied by current exact-model Costs snapshot; V7 upper-scenario and five-percent hysteresis retained",
+    "Catalog marks exact GPT 5.4/mini ordinary-input cache writes; native Anthropic requires separate qualified write price",
+    "Session.record_pending accepts actual final assistant index after a tool exchange",
+    "R2 concrete Project Context/vectorstore availability is attested over existing Worker/Main private bridge; unrecognized source types remain unavailable",
+    "Installed R8 preserves typed task and authored instruction provenance through graph input conversion; full generation size bound remains separate",
+    "R8 graph-entry scope and existing trusted run identity preserve whole-run binding across internal node task namespaces",
+    "R9 shared bounded social matcher and validator; matcher revision participates in policy digest",
+    "R9 trusted standalone creative rule emits content_creation family; arbitrary classifier descriptors still require qualification",
+    "R9 aligned historical projection and advisory response receipt preserve pending task; cache evidence retains original completion time",
+    "Release 2.0.7 publication manifest refresh only; runtime policy source is unchanged by publication preparation",
+    "V9 generated original calibration-only contracts retain all100cells;54full-family successes admitted for exact observed demand at provider default",
+    "Per-variant measured output allowance and exact transport participate in live inventory admission, pricing and signed run binding",
+    "Internal policy revision changes; old active pins reject and require a drained rollout while the public saved profile handle stays stable",
+    "V10 availability contract candidate: explicit source/status coherence, strict reason-coded rejection and bounded factual/current-information prompt clarification; no extra classifier call or lexical shortcut"
+  ],
+  "product_support_files": {
+    "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
+    "economics.py": "c6b0ce8ea28765e58b1e45d7a36b06290613826727ff903b577a1350d3b589dd",
+    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
+    "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
+    "calibration-v12.json": "f1638c2af9a9033a822f98d973ec43261261e8b017d50f16209bbe5257b36f65",
+    "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
+    "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d"
+  },
+  "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion",
+  "calibration_compiler": {
+    "path": "scripts/compile_v9_candidate.py",
+    "sha256": "ff37a90f6872f248c7dcfff85c8cf79366f25e2b0d160b2eb77fa607aba5a346",
+    "source_sha256": "869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd"
+  },
+  "observation_compilers": {
+    "v11": {
+      "path": "scripts/compile_v11_observations.py",
+      "sha256": "23dc71fdbf8251f7547b7e19082d3174099d973805ec735da44fd344bcf1942d",
+      "source_sha256": "f7d41aff3cd17021d0ae4aa216e3ba60b9f03e2f51a46e477371fddeb6de9ca0",
+      "runtime_eligibility_granted": false
+    }
+  },
+  "effort_compiler": {
+    "path": "scripts/compile_v12_candidate.py",
+    "sha256": "df3b823ea90f0321a84793e3f5965e84cf2851d78c04fc3c3140c797715226cd",
+    "source_sha256": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc"
+  },
+  "implementation_notes": [
+    "V12 retains original failures and unknowns;248 full-family model/effort cells provisionally admitted with exact transport/demand/32000 total output allowance.",
+    "Classifier adds bounded work/reasoning/evidence/creativity/verification fields in the same call; conservative floors do not create new model capability claims.",
+    "Source anchors survive group pruning or are explicitly unavailable; generation receives full unchanged history.",
+    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium."
+  ]
+}

@@ -32,6 +32,7 @@ from ..utils.metering import prepare_llm_call
 
 
 LLM_ENDPOINT_WHITELIST = [
+    "/v1/auto-routing/resolve",
     "/v1/models",
     "/v1/completions",
     "/v1/chat/completions",
@@ -292,6 +293,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     #
                     if user_in_project:
                         project_id = candidate_project_id
+                    elif proxy_target_endpoint == '/v1/auto-routing/resolve':
+                        return {'error': 'Project access denied'}, 403
             #
             if project_id is None:
                 try:
@@ -309,6 +312,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 return "Error", 400
             #
             proxy_auth["project_id"] = project_id
+            #
+            if proxy_target_endpoint == '/v1/auto-routing/resolve':
+                return self.resolve_auto_routing(proxy_target, proxy_auth)
             #
             public_project_id = self.get_public_project_id()
             #
@@ -387,6 +393,64 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 return "Error", 400
             #
             llm_key = project_secrets["project_llm_key"]
+            # Signed Auto bindings are checked before mapping and removed before relay.
+            routing_pin = proxy_target['headers'].get('X-Elitea-Routing-Pin')
+            proxy_target['headers'].remove('X-Elitea-Routing-Pin')
+            routing_invocation = proxy_target['headers'].get('X-Elitea-Routing-Invocation')
+            proxy_target['headers'].remove('X-Elitea-Routing-Invocation')
+            auto_binding = proxy_auth.get('_auto_model_binding')
+            if routing_pin:
+                from ..routing.service import decode_pin, RoutingUnavailable
+                try:
+                    settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+                    pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
+                    if routing_invocation != pin.get('invocation_id'):
+                        raise RoutingUnavailable('Routing invocation mismatch')
+                    from ..routing.service import compiled_router
+                    if pin.get('policy_revision') != compiled_router().revision:
+                        raise RoutingUnavailable('Pinned routing policy changed')
+                    auto_binding = pin.get('model_binding')
+                    if not auto_binding:
+                        raise RoutingUnavailable('Routing binding requires renewal')
+                    body = proxy_target.get('json') or {}
+                    effort = body.get('reasoning_effort') or (body.get('reasoning') or {}).get('effort') or (body.get('output_config') or {}).get('effort')
+                    if effort is None and 'anthropic' in pin['config']['model_name'] and (body.get('thinking') or {}).get('type') == 'enabled':
+                        effort = {2048: 'low', 4096: 'medium', 9092: 'high'}.get(body['thinking'].get('budget_tokens'))
+                    if effort != pin['config']['reasoning_effort']:
+                        raise RoutingUnavailable('Pinned reasoning effort mismatch')
+                    if body.get('model') != pin['config']['model_name']:
+                        raise RoutingUnavailable('Pinned model mismatch')
+                    transport = pin['config'].get('routing_transport')
+                    if transport:
+                        endpoint = {'chat_completions': '/v1/chat/completions',
+                                    'anthropic_messages': '/v1/messages'}.get(transport)
+                        if proxy_target_endpoint != endpoint:
+                            raise RoutingUnavailable('Pinned measured transport mismatch')
+                        if 'routing_reasoning_fields' in pin['config']:
+                            from ..routing.effort import validate_fields
+                            validate_fields(pin['config'], body)
+                        elif body.get('thinking') is not None or body.get('reasoning'):
+                            raise RoutingUnavailable('Pinned provider-default reasoning changed')
+                    output_limit = body.get('max_completion_tokens', body.get('max_tokens', body.get('max_output_tokens')))
+                    if type(output_limit) is not int or output_limit > pin['config']['max_tokens']:
+                        raise RoutingUnavailable('Pinned output allowance exceeded')
+                    if output_limit < pin['config'].get('routing_min_output_cap', 0):
+                        raise RoutingUnavailable('Pinned measured output allowance reduced')
+                    from ..routing.effort import FIELDS
+                    pinned_envelope = {k: v for k, v in body.items() if k in FIELDS | {
+                        'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'}}
+                except (ValueError, KeyError, TypeError):
+                    return {'error': 'Auto binding expired, revoked or incompatible'}, 409
+            if auto_binding:
+                from ..routing.inventory import validate_binding
+                try:
+                    inventory = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, user_id)
+                    validate_binding(auto_binding, inventory['items'], project_id)
+                    if raw_model != auto_binding['name']:
+                        raise ValueError('Auto model binding mismatch')
+                except (ValueError, KeyError, TypeError):
+                    return {'error': 'Auto model configuration changed or is unavailable'}, 409
+
             #
             proxy_target["headers"]["Authorization"] = f"Bearer {llm_key}"
             #
@@ -416,6 +480,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         if drop_param in proxy_target["json"]:
                             log.debug("Dropping param for model %s: %s", request_model_name, drop_param)
                             proxy_target["json"].pop(drop_param, None)
+            if routing_pin and any(proxy_target['json'].get(k) != v or k not in proxy_target['json']
+                                   for k, v in pinned_envelope.items()):
+                # Configuration drops must not silently undo a measured contract
+                # already authenticated above. Manual requests keep their drops.
+                return {'error': 'Auto binding conflicts with configured parameter drops'}, 409
             #
             # The two facts metering cannot work out for itself: the name the caller asked
             # for, and the project the model resolved in. Collected here, handed over below.
@@ -424,9 +493,19 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
-                model_name, is_shared = self._map_model_name(
-                    raw_model_name, project_id, public_project_id,
-                )
+                if auto_binding:
+                    from ..routing.inventory import map_bound_model
+                    try:
+                        model_name, is_shared = map_bound_model(
+                            auto_binding, project_id=project_id, public_project_id=public_project_id,
+                            lookup=self.service_node.call.litellm_api_call,
+                        )
+                    except ValueError:
+                        return {'error': 'Auto model deployment is unavailable'}, 503
+                else:
+                    model_name, is_shared = self._map_model_name(
+                        raw_model_name, project_id, public_project_id,
+                    )
                 #
                 if model_name != raw_model_name:
                     log.debug("Mapped model name (JSON): %s -> %s", raw_model_name, model_name)

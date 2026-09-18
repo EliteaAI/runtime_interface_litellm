@@ -1,0 +1,113 @@
+{
+  "revision": "local-poc-1",
+  "qualification": "Provisional hypothesis for experiments, not production quality qualification",
+  "pricing": "User-provided cheap/mid bands only; no verified currency prices or output-token forecasts",
+  "baseline": "gpt54-medium",
+  "variants": {
+    "mini-low": {
+      "model": "gpt-5.4-mini",
+      "effort": "low",
+      "cost_band": 1,
+      "tasks": [
+        "greeting",
+        "creative",
+        "transform",
+        "analysis"
+      ],
+      "max_demand": "standard",
+      "enabled": true
+    },
+    "haiku-default": {
+      "model": "eu.anthropic.claude-haiku-4-5-20251001-v1:0",
+      "effort": null,
+      "cost_band": 1,
+      "tasks": [
+        "greeting",
+        "creative",
+        "transform"
+      ],
+      "max_demand": "standard",
+      "enabled": true
+    },
+    "gpt54-medium": {
+      "model": "gpt-5.4",
+      "effort": "medium",
+      "cost_band": 2,
+      "tasks": [
+        "greeting",
+        "creative",
+        "transform",
+        "analysis",
+        "design",
+        "other"
+      ],
+      "max_demand": "deep",
+      "enabled": true
+    },
+    "sonnet-default": {
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "effort": null,
+      "cost_band": 2,
+      "tasks": [
+        "greeting",
+        "creative",
+        "transform",
+        "analysis",
+        "design",
+        "other"
+      ],
+      "max_demand": "deep",
+      "enabled": true
+    },
+    "luna-default": {
+      "model": "global.openai.gpt-5.6-luna",
+      "effort": null,
+      "cost_band": 1,
+      "tasks": [
+        "greeting",
+        "creative",
+        "transform",
+        "analysis"
+      ],
+      "max_demand": "standard",
+      "enabled": true
+    }
+  },
+  "preferences": {
+    "greeting": [
+      "haiku-default",
+      "mini-low",
+      "luna-default",
+      "gpt54-medium",
+      "sonnet-default"
+    ],
+    "creative": [
+      "haiku-default",
+      "luna-default",
+      "mini-low",
+      "sonnet-default",
+      "gpt54-medium"
+    ],
+    "transform": [
+      "mini-low",
+      "haiku-default",
+      "luna-default",
+      "gpt54-medium",
+      "sonnet-default"
+    ],
+    "analysis": [
+      "mini-low",
+      "luna-default",
+      "gpt54-medium",
+      "sonnet-default"
+    ],
+    "design": [
+      "gpt54-medium",
+      "sonnet-default"
+    ],
+    "other": [
+      "gpt54-medium",
+      "sonnet-default"
+    ]
+  }
+}
