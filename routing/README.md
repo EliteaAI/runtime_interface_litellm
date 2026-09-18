@@ -15,14 +15,12 @@ inventory. A discovered model without evidence appears as
 Users and administrators do not maintain model-to-rubric mappings. Broader
 calibration produces central profiles, which require validation before promotion.
 The local-beta candidate retains the V7-derived five-model/eight-variant cohort
-and adds five provider-default contracts from the original sealed V9 calibration:
-10 model identities and 13 presets in total. Only 54 of the 100 new family cells
-were fully successful. Exact observed demand, provider-default reasoning, measured
-transport and a 32000-token total output allowance remain required; smaller
-explicit limits exclude the new contracts. Failed/unknown cells, unmeasured
-explicit efforts and native structured-output schemas receive no new eligibility.
-This is provisional, not production promotion. See the [candidate contract and
-provenance](../README.md#auto-local-beta-calibration-candidate).
+and compiles twenty measured presets from V11: ten model identities and 28 presets
+in total. Only 248 of 400 new family/preset cells passed all original tasks. Exact
+observed demand, measured effort/transport and 32,000 total output allowance remain
+required. Smaller explicit limits and native schema-enforced output exclude these
+contracts. V9 remains available for historical replay. See the
+[V12 implementation contract](V12-IMPLEMENTATION.md) for data flow and limits.
 
 `v7/calibration-v11-observations.json` is a separate evidence-only export of
 five models × four requested efforts × 75 matched calibration tasks. Its 400
@@ -34,12 +32,13 @@ Actual realized effort was not reported; native Anthropic observations do not
 qualify compatible-mode execution. Three/four examples per cell and provisional
 dual judges do not establish population quality guarantees.
 
-No runtime loader reads that file: it grants no models, efforts or eligibility,
-and does not change the live project/shared inventory or current V9 selection.
-Activating explicit efforts requires a separate reviewed admission/transport
-change and matched held-out validation. The [V11 next-phase plan](V11-NEXT-PHASES.md)
-specifies grader qualification, effort propagation, provider coverage and release
-acceptance gates. Judges and adjudicators remain evaluation-only.
+No runtime loader reads that raw observation file. A separate compiler produces
+`calibration-v12.json`, whose conservative all-pass contracts now drive provisional
+effort admission. The live project/shared inventory remains authoritative.
+Held-out quality validation remains a separate promotion gate. The
+[V11 next-phase plan](V11-NEXT-PHASES.md) remains the historical plan;
+[V12](V12-IMPLEMENTATION.md) records implementation and remaining work. Judges and
+adjudicators remain evaluation-only.
 Reproduce the export from the sealed
 experiment package (no model calls):
 

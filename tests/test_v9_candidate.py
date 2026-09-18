@@ -10,11 +10,23 @@ import pytest
 from test_auto_routing_service import fixture, request
 from routing.service import resolve, encode_pin, RoutingUnavailable, compiled_router
 from routing.v7.catalog import calibration_candidate, compile_catalog
-from routing.v7.candidate import CalibratedRouter
+from routing.v7.candidate import CalibratedRouter as CurrentRouter
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = calibration_candidate()
 VARIANTS = sorted(DATA['variants'])
+
+
+def CalibratedRouter(*args, **kwargs):
+    return CurrentRouter(*args, catalog=compile_catalog('v9'), **kwargs)
+
+
+@pytest.fixture(autouse=True)
+def retained_v9_policy(monkeypatch):
+    # Reproduce the historical candidate explicitly; V12 has a separate suite.
+    import routing.service as service
+    router = service.GenerationRouter(service.ClassifierTransport(), catalog=compile_catalog('v9'))
+    monkeypatch.setattr(service, 'compiled_router', lambda: router)
 
 
 def descriptor(family='transformation', demand='standard', **changes):
@@ -57,7 +69,7 @@ def test_generated_evidence_keeps_all_original_failures_unknowns_and_bounds():
     assert {v['effort'] for v in DATA['variants'].values()} == {None}
     assert {v['total_output_allowance'] for v in DATA['variants'].values()} == {32000}
     assert all(r['wilson95'][0] < .6 for r in DATA['records'] if r['eligible_local_beta'])
-    assert set(compile_catalog()['variants']) == set(VARIANTS) | {
+    assert set(compile_catalog('v9')['variants']) == set(VARIANTS) | {
         'gpt54-medium', 'gpt54-low', 'gpt54-high', 'mini-low', 'mini-medium',
         'haiku-default', 'sonnet-default', 'luna-default'}
 

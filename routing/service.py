@@ -228,8 +228,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                 reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
             if output_schema is not None:
                 reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
-            if explicit['mode'] == 'explicit':
+            if explicit['mode'] == 'explicit' and 'reasoning_fields' not in contract:
                 reasons.append('CALIBRATION_EXPLICIT_EFFORT_UNMEASURED')
+            if variant['effort'] is not None and model.get('supports_reasoning') is False:
+                reasons.append('CONFIGURATION_REASONING_DISABLED')
             if reasons:
                 # Missing evidence for this configuration is not model
                 # incapability or a provider-family ban. Keep it observable.
@@ -240,7 +242,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             continue
         # The current native Anthropic SDK uses bounded enabled-thinking for
         # this frozen pool. Its budget must fit inside Auto's total allowance.
-        if 'anthropic' in variant['model'] and variant['effort'] and not model.get('openai_compatible'):
+        if ('anthropic' in variant['model'] and variant['effort'] and not model.get('openai_compatible')
+                and not (contract and 'reasoning_fields' in contract)):
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
                 continue
@@ -312,7 +315,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     classifier_info = decision.get('classifier') or {}
     trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
-    trace['classifier']['called'] = bool(classifier_info)
+    trace['classifier']['called'] = classifier_info.get('called', bool(classifier_info))
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
@@ -329,6 +332,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if contract:
         config['routing_transport'] = contract['transport']
         config['routing_min_output_cap'] = contract['output_allowance']
+        if 'reasoning_fields' in contract:
+            config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
         trace['calibration_contract'] = {
             'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
             'status': 'provisional_local_beta', 'production_promotion_allowed': False,

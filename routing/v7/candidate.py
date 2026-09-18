@@ -9,6 +9,7 @@ ROOT = Path(__file__).parent
 def read_json(path):
     return json.loads(path.read_text())
 from .availability import AvailabilityClassifier
+from .task_profile import PROFILE_PROMPT, apply_profile
 FAMILIES = set(read_json(ROOT/'qualification-policy.json')['eligible_by_family'])
 
 FAMILY_PROMPT='''
@@ -36,36 +37,57 @@ return task_family="unknown". This field never selects a model or grants access.
 '''
 
 
-@lru_cache(maxsize=1)
-def compiled_policy():
+@lru_cache(maxsize=2)
+def compiled_policy(calibration_revision='v12'):
     """Load one frozen snapshot per process, never per routing request."""
-    return read_json(ROOT/'qualification-policy.json')
+    policy = read_json(ROOT/'qualification-policy.json')
+    if calibration_revision == 'v9':
+        return policy
+    from .catalog import effort_candidate, calibration_candidate
+    candidate = effort_candidate()
+    replaced = set(calibration_candidate()['variants']) | set(candidate['variants'])
+    for family, variants in policy['eligible_by_family'].items():
+        policy['eligible_by_family'][family] = [v for v in variants if v not in replaced]
+    for row in candidate['records']:
+        if row['eligible_local_beta']:
+            policy['eligible_by_family'].setdefault(row['family'], []).append(row['variant'])
+    policy['revision'] += '+'+candidate['revision']
+    return policy
 
 
 class FamilyClassifier(AvailabilityClassifier):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
-        for classifier in (self.text,self.tools):classifier.system_prompt += FAMILY_PROMPT
+        for classifier in (self.text,self.tools):classifier.system_prompt += FAMILY_PROMPT + PROFILE_PROMPT
 
     def classify(self,view):
+        if (view.get('required_source_coverage') or {}).get('status') == 'unavailable':
+            from .routing import unknown
+            return unknown('Required source groups exceed the classifier view; generation retains full history'), {'schema_valid':False,'called':False,'error':'REQUIRED_SOURCE_COVERAGE_UNAVAILABLE'}
         if (view.get('active_instructions') or {}).get('truncated'):
             from .routing import unknown
-            return unknown('Active instructions exceed the qualified classifier view; conservative baseline required'), {'schema_valid':False,'error':'ACTIVE_INSTRUCTIONS_TRUNCATED'}
+            return unknown('Active instructions exceed the qualified classifier view; conservative baseline required'), {'schema_valid':False,'called':False,'error':'ACTIVE_INSTRUCTIONS_TRUNCATED'}
         descriptor,info=super().classify(view)
         if info.get('schema_valid'):
             raw=info['response']['message'].get('content') or ''
             raw=re.sub(r'^```(?:json)?\s*|\s*```$', '',raw.strip())
-            family=json.loads(raw).get('task_family','unknown')
+            parsed=json.loads(raw)
+            family=parsed.get('task_family','unknown')
             descriptor['task_family']=family if family in FAMILIES else 'unknown'
+            try:
+                descriptor=apply_profile(descriptor, parsed.get('work_profile'))
+            except ValueError as exc:
+                from .routing import unknown
+                return unknown(str(exc)), {**info, 'schema_valid': False, 'error': str(exc)}
         return descriptor,info
 
 
 class CalibratedRouter(FixedV6Router):
     def __init__(self,*args,policy=None,**kwargs):
         super().__init__(*args,**kwargs)
-        self.policy=policy if policy is not None else compiled_policy()
+        self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
         self.classifier=FamilyClassifier(self.gateway,self.classifier.variant,self.catalog)
-        self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT})[:12]
+        self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT})[:12]
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
         # V9 defaults are admitted only by the original full-family calibration

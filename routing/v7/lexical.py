@@ -8,11 +8,18 @@ from collections import Counter
 from .context_resolution import STOP,artifacts,resolve_references,augment_view,can_preclarify
 from .routing import unknown
 from .routing import rules
+from .mechanical import match_mechanical
 
 COMMAND=re.compile(r'\b(?:and|then|also)\s+(?:please\s+)?(?:design|debug|implement|prove|analy[sz]e|calculate|explain|derive|generate|compare|solve|write|build|evaluate|review)\b',re.I)
 
 def guarded_rules(view):
     result=rules(view)
+    if result['operation']=='other' and not view.get('instruction_context') and not (view.get('active_instructions') or {}).get('text') and not view.get('pending_task'):
+        mechanical=match_mechanical(view['latest']['text'])
+        if mechanical:
+            return {**{k:v for k,v in mechanical.items() if k!='rule'}, 'demand':'simple',
+                    'relation':'independent','reference_ids':[],'needs_context':False,
+                    'reason':'Complete bounded mechanical grammar: '+mechanical['rule']}
     if result['operation']=='creative' and COMMAND.search(view['latest']['text']):
         return unknown('Possible additional task inside joke request; classifier required')
     return result

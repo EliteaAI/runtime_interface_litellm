@@ -14,6 +14,7 @@ from .state import Session,observe_cache
 from .economics import rank
 from .catalog import compile_catalog,QualificationSnapshot
 from .social import REVISION as SOCIAL_REVISION
+from .mechanical import REVISION as MECHANICAL_REVISION
 
 EFFORT_SYSTEM='''
 Also include effort_need="low|medium|high". This describes a requested reasoning
@@ -44,7 +45,7 @@ class Router(Coordinator):
     def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
-        self.revision='v6-'+digest({'algorithm_revision':4,'social_revision':SOCIAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
+        self.revision='v6-'+digest({'algorithm_revision':5,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
         self.local=ContextVar('routing_request_'+str(id(self)),default=None)
         self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=guarded_rules
@@ -69,12 +70,13 @@ class Router(Coordinator):
         if ctx.get('pending_task'):
             view['pending_task']=copy.deepcopy(ctx['pending_task'])
         if (getattr(self.gateway,'runtime_context',{}).get('active_instructions') or {}).get('text'):
-            resolution={'status':'ranked','selected_ids':[],'candidates':[],'method':'Active Agent instructions require classification'}
+            resolution={**resolution,'status':'ranked','candidates':[],'method':'Active Agent instructions require classification'}
         ctx['resolution']=resolution
+        view['reference_resolution']=copy.deepcopy(resolution)
         return view
 
     def _preprocess(self,messages,view):
-        return view,self.local.get()['resolution']
+        return view,view['reference_resolution']
 
     def resolve(self,messages,*,mode='economic',binding=None,hint=None,previous=None,scope=None,allowed=None,
                 min_demand='simple',session=None,output_cap=None,tools=None,view_bytes=24000,

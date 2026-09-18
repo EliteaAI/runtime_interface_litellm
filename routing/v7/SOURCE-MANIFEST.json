@@ -1,5 +1,5 @@
 {
-  "policy": "Retained V7 plus generated V9 local-beta calibration candidate",
+  "policy": "Retained V7 plus provisional V12 model-effort contracts from original V11 observations",
   "sources": {
     "context_resolution.py": {
       "source": "autorouting_impl/poc/context_resolution.py",
@@ -19,12 +19,12 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "fedbaf4fc2fb3049b79c551bde3020dbfc9c7db0352141077c1cc65a7633cdeb"
+      "product_sha256": "cbed959cf79338c088280c806067ea736f0cc8367dbff6c79f9fb20f81e7cc26"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
       "sha256": "f9ed28ea8d730c56c558382641b9a5a76feb31099346238d5555c4940b8a520e",
-      "product_sha256": "225da2d615933fa8bba567f0830479406bd83c58b7b84342e02e88a7c5578aad"
+      "product_sha256": "16402da32f59cec653f03610bab9d8ed2ac4c56773bbf780f831425458f9f4da"
     },
     "protocol.py": {
       "source": "autorouting_impl/poc/router_v6/protocol.py",
@@ -34,17 +34,17 @@
     "retrieval.py": {
       "source": "autorouting_impl/poc/router_v6/retrieval.py",
       "sha256": "f562101aeeba4248d37a3167dcc7e6669be98e48f7e57436625fe2dad49d77bd",
-      "product_sha256": "594adeec50767d3d20332ebbcd920efd8688f656babc79a70f94cf03822cf584"
+      "product_sha256": "6d029609e4a64a44a006bf661ef4b6df56e0ad1576f77771a2e54aecc6eeb130"
     },
     "state.py": {
       "source": "autorouting_impl/poc/router_v6/state.py",
       "sha256": "267f9b3fe48d9d5c70c5d90bf0c52e7e6132e99d81de284a60154e7d307ec514",
-      "product_sha256": "2ecdf78fecd8d891c4969412af9df1c7d6aa6b6ad693335b0ade26fb8f617e5e"
+      "product_sha256": "f5067da6a7676ac8b43cc433d5c568bdd60c385da1e78e9bd8b817734552d0d6"
     },
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "3106227bc550d933b22b83b7bfd5126ccba1db4c3e481879fae02f098c998710"
+      "product_sha256": "0dc8f2cec8dfd14e0e77f90e7cac97b1dce1a33c47e9b6a22d675b134f7e0fc0"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -59,7 +59,7 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "21f81a6986c51d6337b1047241387615014b04e84e63e2b9ab51f2cbdefcf06d"
+      "product_sha256": "bdf2af3792fdfb683c10400bded1c645c20f4c010d82edb8acbae51e67e4add7"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
@@ -92,11 +92,14 @@
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
-    "economics.py": "3f7b42597162efebf4d7f5a53e69374ac1bc627dd52e4b5244af647a4791a75c",
+    "economics.py": "c6b0ce8ea28765e58b1e45d7a36b06290613826727ff903b577a1350d3b589dd",
     "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
-    "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc"
+    "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
+    "calibration-v12.json": "f1638c2af9a9033a822f98d973ec43261261e8b017d50f16209bbe5257b36f65",
+    "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
+    "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d"
   },
-  "product_revision": "V7 R2/R8/R9 integration plus V9 default-only calibration candidate; no production promotion",
+  "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion",
   "calibration_compiler": {
     "path": "scripts/compile_v9_candidate.py",
     "sha256": "ff37a90f6872f248c7dcfff85c8cf79366f25e2b0d160b2eb77fa607aba5a346",
@@ -109,5 +112,16 @@
       "source_sha256": "f7d41aff3cd17021d0ae4aa216e3ba60b9f03e2f51a46e477371fddeb6de9ca0",
       "runtime_eligibility_granted": false
     }
-  }
+  },
+  "effort_compiler": {
+    "path": "scripts/compile_v12_candidate.py",
+    "sha256": "df3b823ea90f0321a84793e3f5965e84cf2851d78c04fc3c3140c797715226cd",
+    "source_sha256": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc"
+  },
+  "implementation_notes": [
+    "V12 retains original failures and unknowns;248 full-family model/effort cells provisionally admitted with exact transport/demand/32000 total output allowance.",
+    "Classifier adds bounded work/reasoning/evidence/creativity/verification fields in the same call; conservative floors do not create new model capability claims.",
+    "Source anchors survive group pruning or are explicitly unavailable; generation receives full unchanged history.",
+    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium."
+  ]
 }

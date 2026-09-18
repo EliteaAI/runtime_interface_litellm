@@ -125,12 +125,14 @@ def cache_identity(gateway,variant,tools,cap):
 
 def observe_cache(session,gateway,variant_id,variant,messages,tools,cap,result,now=None):
     usage=result.get('usage')or{};detail=usage.get('prompt_tokens_details')or{}
-    read=detail.get('cached_tokens',usage.get('cache_read_input_tokens',0))or 0
-    write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens',0))or 0
-    if not read and not write:return
-    if any(type(x)is not int or x<0 for x in [read,write])or read+write>usage.get('prompt_tokens',-1):return
+    read=detail.get('cached_tokens',usage.get('cache_read_input_tokens'))
+    write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens',0))
+    if read is not None and (type(read)is not int or read<0):return
+    if type(write)is not int or write<0:return
+    if read is None and not write:return  # Unknown is not an observed miss.
+    if type(usage.get('prompt_tokens'))is not int or (read or 0)+write>usage['prompt_tokens']:return
     item={'variant':variant_id,'identity':cache_identity(gateway,variant,tools,cap),
-        'message_hashes':[digest(m) for m in messages],'read_tokens':read+write,'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
+        'message_hashes':[digest(m) for m in messages],'read_tokens':(read or 0)+write,'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
         'observed_at':now if now is not None else time.time(),'epoch':session.epoch}
     with session.lock:
         session.cache.append(item);session.cache=session.cache[-64:]
@@ -143,8 +145,11 @@ def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=180,no
                  and 0<=now-x['observed_at']<=ttl and hashes[:len(x['message_hashes'])]==x['message_hashes']]
     if not matches:return None
     best=max(matches,key=lambda x:x['read_tokens'])
+    observed=[x for x in matches if type(x.get('observed_read_tokens'))is int]
+    hits=sum(x['observed_read_tokens']>0 for x in observed)
     return {'read_token_upper_bound':best['read_tokens'],'hit_probability_range':[0,1],
         'compatible_prefix':True,'route_identity_matches':True,'effort_matches':True,'within_ttl':True,
         'variant':variant_id,'returned_model_last_observed':best['returned_model'],
+        'historical_read_hits':hits,'historical_observations':len(observed),
         'observed_read_tokens':best.get('observed_read_tokens',best['read_tokens']),'observed_write_tokens':best.get('observed_write_tokens',0),
         'basis':'Observed cache read/write on identical prior request prefix; hidden gateway/provider changes remain uncertain'}

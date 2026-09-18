@@ -3,6 +3,11 @@ Runtime interface: LiteLLM
 
 ## Auto local-beta calibration candidate
 
+The current candidate is **V12**: measured model/effort contracts, task-group
+context retrieval, richer classifier properties and comparable expenditure
+ranking. See the [current implementation and rollout contract](routing/V12-IMPLEMENTATION.md).
+The V9 description below is retained as historical provenance and replay guidance.
+
 Auto remains off by default, with the saved public handle `v7-quality-cost` revision 1.
 The live inventory comes from authenticated Configurations: current-project models
 plus shared public-project models. A current-project definition shadows only the

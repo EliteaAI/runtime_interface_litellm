@@ -135,17 +135,20 @@ def test_compiler_provenance_is_evidence_only():
     assert entry['source_sha256'] == DATA['provenance']['sources']['SUMMARY.json']
 
 
-def test_runtime_does_not_load_observations_or_grant_explicit_efforts(monkeypatch):
+def test_runtime_loads_compiled_candidate_not_raw_observations(monkeypatch):
     original_read = Path.read_text
     def guarded_read(path, *args, **kwargs):
         assert path.name != 'calibration-v11-observations.json', 'Evidence was read as runtime policy'
         return original_read(path, *args, **kwargs)
     monkeypatch.setattr(Path, 'read_text', guarded_read)
     calibration_candidate.cache_clear()
-    active = compile_catalog()
+    active = compile_catalog('v9')
     assert len(active['variants']) == 13
     measured = [v for v in active['variants'].values() if v.get('calibration_contract')]
     assert len(measured) == 5 and all(v['effort'] is None for v in measured)
     policy = json.loads((ROOT/'routing/v7/qualification-policy.json').read_text())
     explicit = {p for p, c in DATA['presets'].items() if c['effort'] is not None}
     assert not explicit & {v for vs in policy['eligible_by_family'].values() for v in vs}
+    from routing.v7.catalog import effort_candidate
+    effort_candidate.cache_clear()
+    assert len(compile_catalog()['variants']) == 28

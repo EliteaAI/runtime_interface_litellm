@@ -146,3 +146,28 @@ def test_measured_default_contract_cannot_change_transport_allowance_or_thinking
     assert relay.method.prepare_request(target,auth)[1]==409
     relay.lookup.assert_not_called()
     relay.metering.assert_not_called()
+
+
+@pytest.mark.parametrize('preset,field', [('terra-high','reasoning'),('opus5-high','thinking'),
+    ('opus5-high','output_config'),('terra-high','max_tokens'),('terra-high','model')])
+@pytest.mark.parametrize('scope', ['additional_drop_params','model_drop_params'])
+def test_parameter_drops_cannot_change_measured_auto_contract(relay,preset,field,scope):
+    from test_v12_efforts import inputs, descriptor, DATA
+    service=importlib.import_module('plugin_under_test.routing.service')
+    data=inputs(preset)
+    relay.models[:]=data['models'];relay.args['price_snapshot']=data['price_snapshot']
+    contract=DATA['variants'][preset]
+    cell=next(r for r in DATA['records'] if r['variant']==preset and r['eligible_local_beta'])
+    req=request('Analyze supplied evidence');req['selection']['reasoning']={'mode':'explicit','preset':contract['effort']}
+    import json
+    desc=descriptor(cell['family'],cell['demand_coverage'][0],contract['effort'])
+    result=service.resolve(req,complete=lambda *a,**k:{'message':{'content':json.dumps(desc)},'finish_reason':'stop'},**relay.args)
+    config=result['config']
+    target={'endpoint':'/v1/messages' if config['routing_transport']=='anthropic_messages' else '/v1/chat/completions',
+            'headers':relay.proxy.Headers({'X-Elitea-Routing-Pin':result['pin'],'X-Elitea-Routing-Invocation':'a'*64}),
+            'json':{'model':config['model_name'],'max_tokens':config['max_tokens'],**config['routing_reasoning_fields']},'data':None}
+    drops=[field] if scope=='additional_drop_params' else {config['model_name']:[field]}
+    relay.proxy.this.descriptor.config['additional_litellm_params']={scope:drops}
+    assert relay.method.prepare_request(target,{'type':'token','user':{'id':42,'name':'user'}})[1]==409
+    relay.lookup.assert_not_called()
+    relay.metering.assert_not_called()

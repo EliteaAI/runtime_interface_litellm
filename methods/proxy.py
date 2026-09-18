@@ -426,15 +426,19 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                                     'anthropic_messages': '/v1/messages'}.get(transport)
                         if proxy_target_endpoint != endpoint:
                             raise RoutingUnavailable('Pinned measured transport mismatch')
-                        # These new contracts measured the provider default,
-                        # not an adaptive/enabled/disabled thinking override.
-                        if body.get('thinking') is not None or body.get('reasoning'):
+                        if 'routing_reasoning_fields' in pin['config']:
+                            from ..routing.effort import validate_fields
+                            validate_fields(pin['config'], body)
+                        elif body.get('thinking') is not None or body.get('reasoning'):
                             raise RoutingUnavailable('Pinned provider-default reasoning changed')
                     output_limit = body.get('max_completion_tokens', body.get('max_tokens', body.get('max_output_tokens')))
                     if type(output_limit) is not int or output_limit > pin['config']['max_tokens']:
                         raise RoutingUnavailable('Pinned output allowance exceeded')
                     if output_limit < pin['config'].get('routing_min_output_cap', 0):
                         raise RoutingUnavailable('Pinned measured output allowance reduced')
+                    from ..routing.effort import FIELDS
+                    pinned_envelope = {k: v for k, v in body.items() if k in FIELDS | {
+                        'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'}}
                 except (ValueError, KeyError, TypeError):
                     return {'error': 'Auto binding expired, revoked or incompatible'}, 409
             if auto_binding:
@@ -476,6 +480,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         if drop_param in proxy_target["json"]:
                             log.debug("Dropping param for model %s: %s", request_model_name, drop_param)
                             proxy_target["json"].pop(drop_param, None)
+            if routing_pin and any(proxy_target['json'].get(k) != v or k not in proxy_target['json']
+                                   for k, v in pinned_envelope.items()):
+                # Configuration drops must not silently undo a measured contract
+                # already authenticated above. Manual requests keep their drops.
+                return {'error': 'Auto binding conflicts with configured parameter drops'}, 409
             #
             # The two facts metering cannot work out for itself: the name the caller asked
             # for, and the project the model resolved in. Collected here, handed over below.
