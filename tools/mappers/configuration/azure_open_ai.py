@@ -107,5 +107,6 @@ def to_model(  # pylint: disable=R0913
         },
         "model_info": {
             "centry_configuration_uuid": configuration_uuid,
+            "base_model": model_name,
         },
     }

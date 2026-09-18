@@ -169,6 +169,7 @@ def to_models(  # pylint: disable=R0913
             },
             "model_info": {
                 "centry_integration_uid": integration_uid,
+                "base_model": model_name,
             },
         })
     #
