@@ -93,12 +93,21 @@
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
     "economics.py": "3f7b42597162efebf4d7f5a53e69374ac1bc627dd52e4b5244af647a4791a75c",
-    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a"
+    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
+    "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc"
   },
   "product_revision": "V7 R2/R8/R9 integration plus V9 default-only calibration candidate; no production promotion",
   "calibration_compiler": {
     "path": "scripts/compile_v9_candidate.py",
     "sha256": "ff37a90f6872f248c7dcfff85c8cf79366f25e2b0d160b2eb77fa607aba5a346",
     "source_sha256": "869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd"
+  },
+  "observation_compilers": {
+    "v11": {
+      "path": "scripts/compile_v11_observations.py",
+      "sha256": "23dc71fdbf8251f7547b7e19082d3174099d973805ec735da44fd344bcf1942d",
+      "source_sha256": "f7d41aff3cd17021d0ae4aa216e3ba60b9f03e2f51a46e477371fddeb6de9ca0",
+      "runtime_eligibility_granted": false
+    }
   }
 }

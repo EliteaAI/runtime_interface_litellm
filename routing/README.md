@@ -24,6 +24,31 @@ explicit efforts and native structured-output schemas receive no new eligibility
 This is provisional, not production promotion. See the [candidate contract and
 provenance](../README.md#auto-local-beta-calibration-candidate).
 
+`v7/calibration-v11-observations.json` is a separate evidence-only export of
+five models × four requested efforts × 75 matched calibration tasks. Its 400
+family/preset cells preserve original results, difficulty support, fresh-default
+pairs, catalog generation costs and unknown charges. Four targeted regrades
+(three passes, one still invalid), nineteen source-shape ambiguity annotations,
+and offline unchanged-code checks remain separate from the original outcomes.
+Actual realized effort was not reported; native Anthropic observations do not
+qualify compatible-mode execution. Three/four examples per cell and provisional
+dual judges do not establish population quality guarantees.
+
+No runtime loader reads that file: it grants no models, efforts or eligibility,
+and does not change the live project/shared inventory or current V9 selection.
+Activating explicit efforts requires a separate reviewed admission/transport
+change and matched held-out validation. The [V11 next-phase plan](V11-NEXT-PHASES.md)
+specifies grader qualification, effort propagation, provider coverage and release
+acceptance gates. Judges and adjudicators remain evaluation-only.
+Reproduce the export from the sealed
+experiment package (no model calls):
+
+```sh
+python scripts/compile_v11_observations.py --source-root /path/to/model-efforts-v11 \
+  --output routing/v7/calibration-v11-observations.json
+python -m pytest --rootdir=tests --confcutdir=tests tests/test_v11_observations.py -q
+```
+
 Classifier and generation dispatch use the selected configuration owner and the
 caller's billing-project key. Signed pins contain the configuration fingerprint
 and policy revision. Renewal rechecks the current effective inventory. Auto
