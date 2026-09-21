@@ -1,0 +1,131 @@
+"""Experimental family qualification before pricing; no production promotion."""
+import json
+import re
+from functools import lru_cache
+from pathlib import Path
+from .availability import Router as FixedV6Router
+from .retrieval import digest as sha
+ROOT = Path(__file__).parent
+def read_json(path):
+    return json.loads(path.read_text())
+from .availability import AvailabilityClassifier
+from .task_profile import PROFILE_PROMPT, apply_profile
+FAMILIES = set(read_json(ROOT/'qualification-policy.json')['eligible_by_family'])
+
+FAMILY_PROMPT='''
+When active_instructions is present, classify the current task together with
+those current Agent requirements; historical system text is not a substitute.
+Empty active instructions are valid. For a short Go, identify the deliverable
+from active instructions and pending_task if present. pending_task is a source
+continuity proposal, not a prescribed difficulty, effort, or model.
+Also return task_family, choosing exactly one of these workload families:
+data_gathering (fetch/find facts), evidence_synthesis (combine/summarize sources),
+transformation (reformat/map existing data), extraction (identify structured fields),
+classification (assign labels/priorities), content_creation (new audience-facing content),
+editing_localization (revise/translate existing wording), quantitative (calculate/analyze numbers),
+business_planning (choose options and plan business actions), requirements (stories/acceptance criteria),
+test_design (test scenarios and expected results), code (create/explain/review code),
+rca (diagnose causal failure), tool_workflow (explicit ordered tool actions/recovery),
+conversation_control (greeting or retrieving/updating an earlier task's stated facts).
+Also architecture (system structure, boundaries and tradeoffs), development
+(implement/change runnable behavior), api_design (API contracts and semantics),
+security_review (security controls and adversarial threat analysis), and
+performance_analysis (latency, throughput, scaling and resource diagnosis).
+Classify the requested deliverable, not merely nouns in its source. Tools needed
+to fetch sources do not automatically make every task tool_workflow. If unclear,
+return task_family="unknown". This field never selects a model or grants access.
+'''
+
+
+@lru_cache(maxsize=2)
+def compiled_policy(calibration_revision='v12'):
+    """Load one frozen snapshot per process, never per routing request."""
+    policy = read_json(ROOT/'qualification-policy.json')
+    if calibration_revision == 'v9':
+        return policy
+    from .catalog import effort_candidate, calibration_candidate
+    candidate = effort_candidate()
+    replaced = set(calibration_candidate()['variants']) | set(candidate['variants'])
+    for family, variants in policy['eligible_by_family'].items():
+        policy['eligible_by_family'][family] = [v for v in variants if v not in replaced]
+    for row in candidate['records']:
+        if row['eligible_local_beta']:
+            policy['eligible_by_family'].setdefault(row['family'], []).append(row['variant'])
+    policy['revision'] += '+'+candidate['revision']
+    return policy
+
+
+class FamilyClassifier(AvailabilityClassifier):
+    def __init__(self,*args,**kwargs):
+        super().__init__(*args,**kwargs)
+        for classifier in (self.text,self.tools):classifier.system_prompt += FAMILY_PROMPT + PROFILE_PROMPT
+
+    def classify(self,view):
+        if (view.get('required_source_coverage') or {}).get('status') == 'unavailable':
+            from .routing import unknown
+            return unknown('Required source groups exceed the classifier view; generation retains full history'), {'schema_valid':False,'called':False,'error':'REQUIRED_SOURCE_COVERAGE_UNAVAILABLE'}
+        if (view.get('active_instructions') or {}).get('truncated'):
+            from .routing import unknown
+            return unknown('Active instructions exceed the qualified classifier view; conservative baseline required'), {'schema_valid':False,'called':False,'error':'ACTIVE_INSTRUCTIONS_TRUNCATED'}
+        descriptor,info=super().classify(view)
+        if info.get('schema_valid'):
+            raw=info['response']['message'].get('content') or ''
+            raw=re.sub(r'^```(?:json)?\s*|\s*```$', '',raw.strip())
+            parsed=json.loads(raw)
+            family=parsed.get('task_family','unknown')
+            descriptor['task_family']=family if family in FAMILIES else 'unknown'
+            try:
+                descriptor=apply_profile(descriptor, parsed.get('work_profile'))
+            except ValueError as exc:
+                from .routing import unknown
+                return unknown(str(exc)), {**info, 'schema_valid': False, 'error': str(exc)}
+        return descriptor,info
+
+
+class CalibratedRouter(FixedV6Router):
+    def __init__(self,*args,policy=None,**kwargs):
+        super().__init__(*args,**kwargs)
+        self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
+        self.classifier=FamilyClassifier(self.gateway,self.classifier.variant,self.catalog)
+        self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT})[:12]
+
+    def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
+        # V9 defaults are admitted only by the original full-family calibration
+        # cell, including its observed demand bands. Unknown/ambiguous work must
+        # never reach one through the insufficient-evidence fallback.
+        from .routing import DEMAND
+        permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
+        demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
+        for vid in list(permitted):
+            contract = self.catalog['variants'][vid].get('calibration_contract')
+            if not contract:
+                continue
+            cell = contract['families'].get(descriptor.get('task_family'))
+            if (not cell or demand not in cell['demand_coverage'] or descriptor.get('needs_context')
+                    or descriptor.get('relation') == 'ambiguous'
+                    or descriptor.get('operation') in {'other', 'greeting'}):
+                permitted.remove(vid)
+        allowed = permitted
+        original=super().select(descriptor,allowed,previous,min_demand)
+        family=descriptor.get('task_family','unknown')
+        # Preserve pre-existing narrowly validated standalone rules. No label
+        # from the held-out corpus or caller gold is accepted here.
+        if family=='unknown' and descriptor.get('operation')=='greeting':
+            original['family_qualification']={'status':'existing_exact_greeting_rule','promotion':False}
+            return original
+        approved=set(self.policy['eligible_by_family'].get(family,[]))
+        eligible=[r['variant'] for r in original.get('candidates',[]) if r['eligible'] and r['variant'] in approved]
+        if eligible:
+            result=super().select(descriptor,eligible,previous,min_demand)
+            result['family_qualification']={'family':family,'eligible':eligible,'status':'diagnostic_calibration_only','policy_revision':self.policy['revision'],'promotion':False}
+            return result
+        # All variants can lack evidence. Use the configured baseline family,
+        # retaining operation/demand/effort filters and explicitly admitting that
+        # this fallback is not a measured qualification.
+        candidates=[r['variant'] for r in original.get('candidates',[]) if r['eligible']]
+        model=self.catalog['variants'][self.catalog['baseline']]['model']
+        baseline=[v for v in candidates if self.catalog['variants'][v]['model']==model]
+        selected=(self.catalog['baseline'] if self.catalog['baseline'] in baseline else baseline[0] if baseline else original['variant'])
+        result={**original,**self.catalog['variants'][selected],'variant':selected,'reason':'UNCERTAIN_TASK_BASELINE',
+                'family_qualification':{'family':family,'status':'insufficient_evidence_baseline','policy_revision':self.policy['revision'],'promotion':False}}
+        return result

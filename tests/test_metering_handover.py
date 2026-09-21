@@ -181,6 +181,12 @@ class TestTheHandOver(unittest.TestCase):
         self.assertEqual(served, "wrapped")
         self.assertEqual(hooks.metered[0][2:], ("response", "iterator"))
 
+    def test_prepare_preserves_usage_admission_denial(self):
+        denied = ({'error': 'project_budget_exceeded'}, 429)
+        hooks = types.SimpleNamespace(prepare_llm_call=lambda *a: denied)
+        with HooksInstalled(hooks):
+            self.assertIs(metering.prepare_llm_call({}, {}, 'chosen', 7), denied)
+
 
 class TestAnOlderOrBrokenUsagePlugin(unittest.TestCase):
     """The repos are versioned independently, so a mismatch must cost nothing but metering."""
@@ -270,7 +276,7 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         proxy.this = self._this
         proxy.VaultClient = self._vault
 
-    def _prepare(self, is_shared, body=None, data=None):
+    def _prepare(self, is_shared, body=None, data=None, expected_response=None):
         method = proxy.Method()
         method.preprocess_headers = lambda headers: headers
         method.descriptor = types.SimpleNamespace(
@@ -289,9 +295,14 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         }
         proxy_auth = {"type": "token", "user": {"id": 42, "name": "someone"}}
         #
-        self.assertIsNone(method.prepare_request(proxy_target, proxy_auth))
+        self.assertIs(method.prepare_request(proxy_target, proxy_auth), expected_response)
         #
         return proxy_target, proxy_auth
+
+    def test_usage_denial_reaches_existing_route_early_return(self):
+        denied = ({'error': 'Usage accounting is temporarily unavailable'}, 503)
+        proxy.prepare_llm_call = lambda *a: denied
+        self._prepare(is_shared=True, expected_response=denied)
 
     def test_the_raw_name_is_handed_over_not_the_mapped_one(self):
         proxy_target, _ = self._prepare(is_shared=False)
