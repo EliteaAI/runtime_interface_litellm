@@ -60,6 +60,31 @@ def to_credential(  # pylint: disable=R0913
     return result
 
 
+def _protocol_params(api_protocol, model_name, credential_data):
+    """ Helper: DIAL fronts three upstream protocols, each on its own route """
+    api_base = str(credential_data.get("api_base") or "").rstrip("/")
+    #
+    if api_protocol == "anthropic" and api_base:
+        return {
+            "custom_llm_provider": "anthropic",
+            "api_base": f"{api_base}/anthropic",
+            "model": f"anthropic/{model_name}",
+        }
+    #
+    if api_protocol == "openai" and api_base:
+        # "responses/" is what makes litellm bridge to the Responses API per model
+        return {
+            "custom_llm_provider": "openai",
+            "api_base": f"{api_base}/openai/v1",
+            "model": f"openai/responses/{model_name}",
+        }
+    #
+    return {
+        "custom_llm_provider": "azure",
+        "model": model_name,
+    }
+
+
 def to_model(  # pylint: disable=R0913
         expanded_configuration_info,
 ):
@@ -85,12 +110,15 @@ def to_model(  # pylint: disable=R0913
     configuration_uuid = expanded_configuration_info["uuid"]
     configuration_project = expanded_configuration_info["project_id"]
     #
+    protocol_params = _protocol_params(
+        configuration_data.get("api_protocol") or "azure", model_name, credential_data,
+    )
+    #
     return {
         "model_name": f"{configuration_project}_{model_name}",
         "litellm_params": {
-            "custom_llm_provider": "azure",
             **credential_values,
-            "model": model_name,
+            **protocol_params,
         },
         "model_info": {
             "centry_configuration_uuid": configuration_uuid,
