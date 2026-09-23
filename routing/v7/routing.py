@@ -28,8 +28,9 @@ Schema: {"operation":"greeting|creative|transform|analysis|design|other",
 "demand":"simple|standard|deep", "relation":"independent|followup|return|ambiguous",
 "reference_ids":["mN"], "needs_context":false, "reason":"short evidence-based description"}.
 Greeting alone is simple. A short standalone joke is creative/simple even after deep engineering.
-Creating a distributed architecture, recovery design, or evaluating complex safety tradeoffs is
-design/deep or analysis/deep. Converting an EXISTING design into acceptance criteria is
+An architecture outline with stated components and bounded tradeoffs can be design/standard.
+Reconciling interacting failure guarantees, recovery correctness, or complex safety tradeoffs
+is design/deep or analysis/deep. Converting an EXISTING design into acceptance criteria is
 transform/standard unless the ask adds new design, exhaustive verification, or complex reasoning.
 Operation and domain are distinct: using an architecture as source does not itself mean redesign.
 Correcting a race, repairing a commit protocol, or changing failure guarantees is design/deep

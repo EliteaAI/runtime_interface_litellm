@@ -18,6 +18,7 @@ from .v7.candidate import CalibratedRouter
 from .v7.routing import GatewayError
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
+from .output import native_anthropic
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
@@ -107,9 +108,12 @@ class ClassifierTransport:
 class GenerationRouter(CalibratedRouter):
     """Product Auto chooses a model; only that model responds to the user."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, output_policy='provider_default', **kwargs):
+        if output_policy not in {'provider_default', 'measured'}:
+            raise ValueError('Unknown output policy')
+        self.output_policy = output_policy
         super().__init__(*args, **kwargs)
-        self.revision += '-model-owned-clarification-1'
+        self.revision += '-model-owned-clarification-1-output-' + output_policy
 
     def _resolve(self, messages, mode, binding, hint, previous, allowed, min_demand):
         decision = super()._resolve(messages, mode, binding, hint, previous, allowed, min_demand)
@@ -155,7 +159,7 @@ def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, p
         raise RoutingUnavailable('Invalid or foreign routing checkpoint') from exc
 
 
-def resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None):
+def resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None, router=None):
     if not settings.get('enabled'):
         raise RoutingUnavailable('Auto model selection is disabled for this project')
     if not isinstance(request, dict) or len(json.dumps(request).encode()) > MAX_REQUEST_BYTES:
@@ -172,8 +176,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if request.get('surface') not in {'chat', 'agent'}:
         raise RoutingUnavailable('Auto is unavailable for this execution surface')
     cap = request.get('output_cap')
-    if 'output_cap' in request and (type(cap) is not int or not 256 <= cap <= 32000):
-        raise RoutingUnavailable('Auto output allowance must be between 256 and 32000 tokens')
+    if 'output_cap' in request and (type(cap) is not int or cap < 1):
+        raise RoutingUnavailable('Auto output allowance must be a positive integer')
     messages = request.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 4096:
         raise RoutingUnavailable('Auto requires a bounded task history')
@@ -184,7 +188,11 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if not isinstance(tools, list) or len(tools) > 256:
         raise RoutingUnavailable('Unsupported tool inventory')
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
-    router = compiled_router()
+    # Trusted in-process injection supports frozen candidate comparisons. No
+    # request field can supply a router, catalog, or output policy.
+    router = router if router is not None else compiled_router()
+    measured_output = router.output_policy == 'measured'
+    output_mode = 'explicit' if cap is not None else ('measured' if measured_output else 'provider_default')
     catalog = router.catalog
     visible = effective_models(models, project_id)
     runtime_variants, exclusions = qualified_inventory(visible, catalog)
@@ -208,6 +216,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         # default. A user-specified cap can narrow it but cannot enlarge it.
         if cap is None:
             cap = restored['config']['max_tokens']
+            output_mode = restored['config'].get('routing_output_mode', 'measured')
     allowed = []
     output_caps = {}
     contract_exclusions = {}
@@ -217,14 +226,17 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     for vid, model in runtime_variants.items():
         variant = catalog['variants'][vid]
         contract = variant.get('calibration_contract')
-        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
+        variant_cap = cap if cap is not None else ((contract['output_allowance'] if contract else 8000)
+                                                  if measured_output else model.get('max_output_tokens'))
+        if type(variant_cap) is not int or variant_cap < 1:
+            continue
         if contract:
             native = not model.get('openai_compatible', False) and any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
             transport = 'anthropic_messages' if native else 'chat_completions'
             reasons = []
             if transport != contract['transport']:
                 reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
-            if variant_cap != contract['output_allowance']:
+            if measured_output and variant_cap != contract['output_allowance']:
                 reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
             if output_schema is not None:
                 reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
@@ -247,7 +259,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
                 continue
-        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
+        # Optional output defaults let the provider use the remaining context.
+        # Native required limits and explicit limits must fit in full.
+        reserve = variant_cap if output_mode != 'provider_default' or native_anthropic(model) else 0
+        if type(model.get('context_window')) is not int or size+reserve >= model['context_window']:
             continue
         if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
             continue
@@ -281,6 +296,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             if cap > restored['config']['max_tokens']:
                 raise RoutingUnavailable('The checkpoint output allowance cannot be enlarged')
             restored['config']['max_tokens'] = cap
+            restored['config']['routing_output_mode'] = output_mode
             restored['expires_at'] = int(time.time() if now is None else now)+3600
             return {'action': 'generate', 'config': restored['config'], 'pin': encode_pin(restored, signing_key),
                     'invocation_id': invocation_id, 'expires_at': restored['expires_at'],
@@ -327,11 +343,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     config = {'model_name': selected['model'], 'model_project_id': model['project_id'],
               'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
               'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'], 'max_tokens': cap,
-              'routing_total_output_cap': True}
+              'routing_total_output_cap': True, 'routing_output_mode': output_mode,
+              'routing_output_required': native_anthropic(model)}
     contract = catalog['variants'][selected['variant']].get('calibration_contract')
     if contract:
         config['routing_transport'] = contract['transport']
-        config['routing_min_output_cap'] = contract['output_allowance']
+        if measured_output:
+            config['routing_min_output_cap'] = contract['output_allowance']
         if 'reasoning_fields' in contract:
             config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
         trace['calibration_contract'] = {
@@ -339,6 +357,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             'status': 'provisional_local_beta', 'production_promotion_allowed': False,
             'family': decision['descriptor']['task_family'],
             'cell': contract['families'][decision['descriptor']['task_family']]}
+        trace['calibration_contract']['output_allowance'] = {
+            'measured': contract['output_allowance'], 'execution_bound': cap, 'mode': output_mode,
+            'transfer_requires_validation': output_mode == 'provider_default' or cap != contract['output_allowance']}
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
            'model_binding': model_binding(model), 'policy_revision': router.revision,

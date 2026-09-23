@@ -1,4 +1,5 @@
 """Experimental family qualification before pricing; no production promotion."""
+import copy
 import json
 import re
 from functools import lru_cache
@@ -53,6 +54,16 @@ def compiled_policy(calibration_revision='v12'):
         if row['eligible_local_beta']:
             policy['eligible_by_family'].setdefault(row['family'], []).append(row['variant'])
     policy['revision'] += '+'+candidate['revision']
+    return policy
+
+
+def candidate_policy(candidate, calibration_revision='v12'):
+    """Trusted offline candidate overlay; preserve every baseline cohort."""
+    policy = copy.deepcopy(compiled_policy(calibration_revision))
+    for row in candidate['records']:
+        if row['eligible_local_beta']:
+            policy['eligible_by_family'].setdefault(row['family'], []).append(row['variant'])
+    policy['revision'] += '+' + candidate['revision']
     return policy
 
 

@@ -83,7 +83,7 @@ class Router(Coordinator):
                 access_revision='local-authorized-v1',trusted_role=None,task_family=None,task_contract='text-tools-v1'):
         hint=copy.deepcopy(hint or {'kind':'chat_turn'})
         cap=output_cap if output_cap is not None else hint.get('generation_output_cap',8000)
-        if type(cap)is not int or not 256<=cap<=32000:raise ValueError('Completion ceiling must be 256–32000')
+        if type(cap)is not int or cap<1:raise ValueError('Completion allowance must be a positive integer')
         if type(view_bytes)is not int or not 6000<=view_bytes<=64000:raise ValueError('Classifier view budget outside bounds')
         session=session or getattr(scope,'routing_session',None) or Session()
         if scope is not None and not hasattr(scope,'routing_session'):scope.routing_session=session

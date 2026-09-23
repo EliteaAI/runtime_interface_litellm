@@ -14,6 +14,15 @@ Describe the CURRENT deliverable using its required sources and active instructi
 An explanation and an implementation of the same architecture differ. Crash/race
 correctness proofs have interacting constraints; technical names alone do not.
 Open creativity alone is not deep reasoning. Effort is separate from these properties.
+Ground demand in the requested work: simple means a bounded lookup, filter, rewrite,
+calculation or local explanation with explicit rules; standard means dependent steps,
+integration or evidence reconciliation with bounded uncertainty; deep means interacting
+invariants, race/crash recovery, nonlocal changes, proof or substantial unresolved uncertainty.
+Reading a source or running a test does not by itself raise the reasoning demand. Do not
+infer deep work from code, architecture, security, detailed wording or answer length alone.
+Conversely, a short request to implement durable recovery can be deep. Unknown file
+contents are uncertainty, not proof that a repair is easy. Classify a continuation's new
+deliverable again at the next user task boundary; do not inherit the previous stage's demand.
 '''
 
 ENUMS = {

@@ -16,7 +16,7 @@ def effort_candidate():
     return json.loads((Path(__file__).parent/'calibration-v12.json').read_text())
 
 
-def compile_catalog(calibration_revision='v12'):
+def compile_catalog(calibration_revision='v12', *, candidate=None):
     if calibration_revision not in {'v9', 'v12'}:
         raise ValueError('Unknown calibration revision')
     value=copy.deepcopy(CATALOG);value['revision']='v6-effort-profiles-1'
@@ -28,7 +28,17 @@ def compile_catalog(calibration_revision='v12'):
     # These are exact frozen transport contracts, not prefix or price inference.
     for variant in value['variants'].values():
         variant['cache_write_mode'] = ('ordinary_input' if variant['model'] in {'gpt-5.4', 'gpt-5.4-mini'} else 'separate')
-    candidate = effort_candidate() if calibration_revision == 'v12' else calibration_candidate()
+    base = effort_candidate() if calibration_revision == 'v12' else calibration_candidate()
+    _apply_candidate(value, base)
+    if candidate is not None:
+        if set(candidate['variants']) & set(value['variants']):
+            raise ValueError('Candidate variants must not replace frozen baseline identities')
+        _apply_candidate(value, candidate)
+    return value
+
+
+def _apply_candidate(value, candidate):
+    """Compile trusted evidence through the same path for baseline and candidate."""
     value['revision'] += '+'+candidate['revision']
     for vid, identity in candidate['variants'].items():
         evidence = {r['family']: {key: copy.deepcopy(r[key]) for key in (
@@ -58,7 +68,6 @@ def compile_catalog(calibration_revision='v12'):
                 'production_promotion_allowed': False}}
         if 'requested_reasoning_fields' in identity:
             value['variants'][vid]['calibration_contract']['reasoning_fields'] = copy.deepcopy(identity['requested_reasoning_fields'])
-    return value
 
 
 class QualificationSnapshot:

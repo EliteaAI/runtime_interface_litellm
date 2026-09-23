@@ -14,6 +14,11 @@ def relay(monkeypatch):
     # modules have installed their own import contracts during collection.
     from test_metering_handover import proxy
     args = fixture(); args['user_id'] = 42
+    service = importlib.import_module('plugin_under_test.routing.service')
+    # This suite loads a separate plugin namespace; its ContextVar and router
+    # must come from that same module, including the frozen comparison policy.
+    args['router'] = service.GenerationRouter(service.ClassifierTransport(), output_policy='measured')
+    monkeypatch.setattr(service, 'compiled_router', lambda: args['router'])
     args.pop('now')
     models = args['models']
     seen = []
@@ -63,6 +68,26 @@ def test_auto_dispatch_uses_exact_owner_and_callers_key(relay):
     assert target['headers']['Authorization'] == 'Bearer unit-test-only'
     assert target['json']['model'] == '7_'+config['model_name']
     assert relay.metering.call_args.args[3] == 7
+
+
+def test_provider_default_omits_optional_limit_through_real_proxy(relay):
+    service = importlib.import_module('plugin_under_test.routing.service')
+    relay.args['router'] = service.GenerationRouter(service.ClassifierTransport())
+    target, auth, config = signed_request(relay)
+    assert config['routing_output_mode'] == 'provider_default'
+    target['json'].pop('max_tokens')
+    assert relay.method.prepare_request(target, auth) is None
+    assert not {'max_tokens', 'max_completion_tokens'} & target['json'].keys()
+    assert relay.metering.call_count == 1
+
+
+def test_provider_default_still_rejects_over_capacity_limit(relay):
+    service = importlib.import_module('plugin_under_test.routing.service')
+    relay.args['router'] = service.GenerationRouter(service.ClassifierTransport())
+    target, auth, config = signed_request(relay)
+    target['json']['max_tokens'] = config['max_tokens'] + 1
+    assert relay.method.prepare_request(target, auth)[1] == 409
+    relay.metering.assert_not_called()
 
 
 def test_auto_dispatch_does_not_fall_back_when_project_deployment_disappears(relay):

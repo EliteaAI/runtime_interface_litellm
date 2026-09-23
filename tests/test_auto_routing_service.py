@@ -12,12 +12,14 @@ from routing.v7.catalog import compile_catalog
 
 
 def fixture():
+    from routing.service import GenerationRouter, ClassifierTransport
     catalog = compile_catalog()
     # Retained V7 deployment fixture. V9 candidate admission has its own32k
     # inventory fixtures; discovering new contracts does not deploy them here.
     names = sorted({v['model'] for v in catalog['variants'].values() if not v.get('calibration_contract')})
     return dict(project_id=7, user_id=2, settings={'enabled': True, 'revision': 'g1'},
         signing_key='unit-test-only', now=100,
+        router=GenerationRouter(ClassifierTransport(), catalog=catalog, output_policy='measured'),
         models=[{'name': n, 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000} for n in names],
         price_snapshot={'revision': 'p1', 'entries': [dict(model_name=n, input_cost_per_token='.000001',
             output_cost_per_token='.000002', cache_read_input_token_cost='.0000001',
@@ -245,7 +247,7 @@ def test_new_go_stage_reclassifies_with_pending_source_after_gateway_restart():
     assert final['trace']['descriptor']['effort_need']=='high'
     assert final['trace']['selection']['reason'] != 'VERIFIED_PENDING_TASK_REUSE'
     state = restore_state(final['state_token'], args['signing_key'], project_id=7, user_id=2,
-        scope_id=go['scope_id'], gate_revision='g1', policy_revision=compiled_router().revision)
+        scope_id=go['scope_id'], gate_revision='g1', policy_revision=args['router'].revision)
     assert next(iter(state['checkpoint']['intents'].values()))['status'] == 'running'
 
 
@@ -263,7 +265,7 @@ def test_pending_observation_requires_real_completed_response_and_signed_prefix(
     def intents(payload):
         result=resolve(payload,complete=classifier_design,**args)
         state=restore_state(result['state_token'],args['signing_key'],project_id=7,user_id=2,
-            scope_id=req['scope_id'],gate_revision='g1',policy_revision=compiled_router().revision)
+            scope_id=req['scope_id'],gate_revision='g1',policy_revision=args['router'].revision)
         return state['checkpoint']['intents']
     assert len(intents(next_req))==expected
     # Retry/branching from the same signed input produces one source intent,
@@ -332,7 +334,7 @@ def test_index_is_rebuilt_but_cache_observations_survive_signed_restore():
     assert session.cache and session.cache[-1]['observed_read_tokens'] == 50
     from routing.service import restore_state, compiled_router
     state = restore_state(second['state_token'], args['signing_key'], project_id=7, user_id=2,
-        scope_id=req['scope_id'], gate_revision='g1', policy_revision=compiled_router().revision)
+        scope_id=req['scope_id'], gate_revision='g1', policy_revision=args['router'].revision)
     from routing.v7.state import Session
     restored = Session.restore(state['checkpoint'])
     assert restored.cache == session.cache
@@ -384,7 +386,7 @@ def test_concurrent_branches_restore_their_own_signed_parent_state():
         req['observation'] = {'message_digest': message_digest(answer), 'finish_reason': 'stop'}
         result = resolve(req, complete=classifier_design, **args)
         return restore_state(result['state_token'], args['signing_key'], project_id=7, user_id=2,
-            scope_id=req['scope_id'], gate_revision='g1', policy_revision=compiled_router().revision)
+            scope_id=req['scope_id'], gate_revision='g1', policy_revision=args['router'].revision)
     with ThreadPoolExecutor(max_workers=2) as pool:
         states = list(pool.map(branch, ['Tell me a joke about bears', 'Cancel the task']))
     statuses = [next(iter(s['checkpoint']['intents'].values()))['status'] for s in states]
