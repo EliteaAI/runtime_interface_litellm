@@ -160,6 +160,20 @@ def test_unreported_cache_usage_is_not_counted_as_a_miss():
     assert not session.cache
 
 
+def test_restore_preserves_existing_economic_quotes_without_inventing_hits():
+    args=economics_fixture()
+    selection,messages,catalog,gateway,session=args
+    import time
+    for i,read in enumerate([80,0,100]):
+        observe_cache(session,gateway,'a',catalog['variants']['a'],messages,None,1000,
+            {'usage':{'prompt_tokens':200,'prompt_tokens_details':{'cached_tokens':read}}},now=time.time()-3+i)
+    before=ranked(args)
+    restored=ranked((*args[:-1],Session.restore(session.checkpoint())))
+    assert restored['variant']==before['variant']
+    assert restored['economics']==before['economics']
+    assert restored['economics']['quotes']['a']['cache_observed_mix']['observations']==3
+
+
 @pytest.mark.parametrize('value',[None,False,'',-1])
 def test_invalid_or_null_cache_usage_is_not_an_observed_miss(value):
     _,messages,catalog,gateway,session=economics_fixture()

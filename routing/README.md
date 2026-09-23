@@ -1,5 +1,8 @@
 # Runtime inventory and calibrated policy
 
+The EL-6722 candidate adds [restart-safe advisory cache observations](V13-CACHE-OBSERVATIONS.md)
+with a matching SDK timing/usage envelope. It does not promote new calibration cells.
+
 Auto reads `configurations_get_routing_models(project_id, user_id)` after the
 Gateway authenticates the actor and execution project. The effective inventory
 is a union of current-project and shared models. Only a same-name shared entry

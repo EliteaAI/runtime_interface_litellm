@@ -1,8 +1,8 @@
 """Signed, caller-owned V7 state carried by existing assistant checkpoints.
 
 The bounded process cache accelerates the exact current checkpoint. A restart,
-branch, edit, expiry or eviction restores signed durable state with cold cache
-estimates, as required by V7. It is not a second persistence or billing store.
+branch or eviction restores signed durable state without refreshing advisory
+cache observations. Expiry/edit checks remain in the policy. No billing store.
 """
 import copy
 import json
@@ -10,7 +10,7 @@ import threading
 import time
 from collections import OrderedDict
 from contextlib import contextmanager
-from .v7.state import Session, message_digest, observe_cache
+from .v7.state import Session, message_digest, observe_cache, valid_time
 from .v7.retrieval import digest
 
 _LOCK = threading.RLock()
@@ -76,11 +76,13 @@ def apply_observation(session, state, observation, messages, gateway, catalog, t
     session.finish_pending(decision.get('pending_intent_id'), result)
     vid = decision['selection']['variant']
     completed_at = observation.get('completed_at')
-    if type(completed_at) in (int, float) and 0 <= time.time() - completed_at <= 180:
+    started_at = observation.get('request_started_at')
+    if (valid_time(started_at) and valid_time(completed_at)
+            and started_at <= completed_at <= time.time() and 0 <= time.time()-started_at <= 180):
         # Rebuilding/Continue/restart must not refresh old provider evidence.
         # Missing, future or expired times can inform intent, never warm cache.
         observe_cache(session, gateway, vid, catalog['variants'][vid], messages[:response_index], tools,
-                      decision['budget']['completion_cap'], result, now=completed_at)
+                      decision['budget']['completion_cap'], result, now=started_at)
 
 
 def state_value(session, decision, messages, *, scope_id, project_id, user_id, gate_revision, policy_revision):
@@ -91,6 +93,9 @@ def state_value(session, decision, messages, *, scope_id, project_id, user_id, g
              'gate_revision': gate_revision, 'policy_revision': policy_revision,
              'checkpoint': session.checkpoint(), 'input_count': len(messages), 'input_digest': digest(messages),
              'decision': compact_decision}
+    if len(json.dumps(value).encode()) > MAX_CHECKPOINT_BYTES:
+        # Optional cache evidence must not consume the task state's headroom.
+        value['checkpoint']['cache'] = []
     if len(json.dumps(value).encode()) > MAX_CHECKPOINT_BYTES:
         raise ValueError('Routing checkpoint exceeds its supported bound')
     return value

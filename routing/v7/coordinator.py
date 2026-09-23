@@ -10,7 +10,7 @@ from .routing import Coordinator,Classifier,CLASSIFIER_SYSTEM,DEMAND,unknown,CAT
 from .retrieval import build,bounded,digest
 from .protocol import SYSTEM
 from .lexical import guarded_rules
-from .state import Session,observe_cache
+from .state import Session,observe_cache,CACHE_STATE_REVISION
 from .economics import rank
 from .catalog import compile_catalog,QualificationSnapshot
 from .social import REVISION as SOCIAL_REVISION
@@ -45,7 +45,7 @@ class Router(Coordinator):
     def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
-        self.revision='v6-'+digest({'algorithm_revision':5,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
+        self.revision='v6-'+digest({'algorithm_revision':5,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
         self.local=ContextVar('routing_request_'+str(id(self)),default=None)
         self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=guarded_rules

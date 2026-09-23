@@ -1,14 +1,43 @@
 """Caller-owned conversation state with explicit checkpoint serialization.
 
 Only user messages or trusted application events create/cancel pending actions.
-Provider cache estimates never survive checkpoint restoration without fresh use.
+Provider cache observations survive restoration without refreshing their age.
 """
-import copy,json,re,threading,time,uuid
+import copy,json,math,re,threading,time,uuid
 from .retrieval import ContextIndex,digest
 
 CONTINUE=re.compile(r'(?:go|proceed|continue|start(?: coding)?)[.! ]*',re.I)
 READY=re.compile(r'\b(?:ready to (?:code|implement)|wait for my (?:go|confirmation).*?(?:code|implement)|(?:code|implement).*?wait for my (?:go|confirmation))\b',re.I|re.S)
 CANCEL=re.compile(r'(?:please\s+)?(?:cancel|forget|drop)\s+(?:all(?:\s+pending)?\s+tasks|(?:the |my )?(?:pending )?(?:task|implementation|plan))[.! ]*',re.I)
+CACHE_STATE_REVISION='bounded-cache-checkpoint-1'
+MAX_CACHE_BYTES=64_000
+
+
+def valid_time(value):
+    return type(value) in (int,float) and math.isfinite(value) and value>=0
+
+
+def bounded_cache(rows):
+    """Optional advisory state may be dropped; task/intent state must survive."""
+    if not isinstance(rows,list):return []
+    kept=[];seen=set();size=2
+    for row in reversed(rows[-64:]):
+        if not isinstance(row,dict):continue
+        try:
+            if not valid_time(row['observed_at']):continue
+            if type(row['epoch']) is not int or row['epoch']<0:continue
+            if any(type(row[k]) is not int or row[k]<0 for k in ('read_tokens','observed_write_tokens')):continue
+            if row['observed_read_tokens'] is not None and (type(row['observed_read_tokens']) is not int or row['observed_read_tokens']<0):continue
+            if any(not isinstance(row[k],str) or len(row[k])>256 for k in ('variant','identity')):continue
+            if not isinstance(row['message_hashes'],list) or not row['message_hashes']:continue
+            if any(not isinstance(h,str) or not re.fullmatch('[0-9a-f]{64}',h) for h in row['message_hashes']):continue
+            if row['returned_model'] is not None and (not isinstance(row['returned_model'],str) or len(row['returned_model'])>256):continue
+            key=digest([row[k] for k in ('identity','epoch','message_hashes','observed_at')])
+            encoded=json.dumps(row,allow_nan=False).encode()
+            if key in seen or size+len(encoded)+2>MAX_CACHE_BYTES:continue
+        except (KeyError,TypeError,ValueError):continue
+        seen.add(key);size+=len(encoded)+2;kept.append(copy.deepcopy(row))
+    return list(reversed(kept))
 
 def message_digest(message):
     return digest({k:message.get(k)for k in ['role','content','tool_calls','tool_call_id']})
@@ -105,15 +134,16 @@ class Session:
 
     def checkpoint(self):
         with self.lock:
-            return json.loads(json.dumps({'version':1,'id':self.id,'epoch':self.epoch,'history_hashes':self.history_hashes,
+            return json.loads(json.dumps({'version':2,'id':self.id,'epoch':self.epoch,'history_hashes':self.history_hashes,
                 'access_revision':getattr(self,'access_revision','local-authorized-v1'),'intents':self.intents,
-                'evidence_sets':self.evidence_sets}))
+                'evidence_sets':self.evidence_sets,'cache':bounded_cache(self.cache)}))
 
     @classmethod
     def restore(cls,value):
-        if value.get('version')!=1:raise ValueError('Unsupported routing checkpoint')
+        if value.get('version') not in (1,2):raise ValueError('Unsupported routing checkpoint')
         s=cls(value['id'])
         for k in ['epoch','history_hashes','access_revision','intents','evidence_sets']:setattr(s,k,copy.deepcopy(value[k]))
+        if value['version']==2:s.cache=bounded_cache(value.get('cache',[]))
         return s
 
 
@@ -124,6 +154,8 @@ def cache_identity(gateway,variant,tools,cap):
 
 
 def observe_cache(session,gateway,variant_id,variant,messages,tools,cap,result,now=None):
+    now=time.time() if now is None else now
+    if not valid_time(now):return
     usage=result.get('usage')or{};detail=usage.get('prompt_tokens_details')or{}
     read=detail.get('cached_tokens',usage.get('cache_read_input_tokens'))
     write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens',0))
@@ -133,9 +165,9 @@ def observe_cache(session,gateway,variant_id,variant,messages,tools,cap,result,n
     if type(usage.get('prompt_tokens'))is not int or (read or 0)+write>usage['prompt_tokens']:return
     item={'variant':variant_id,'identity':cache_identity(gateway,variant,tools,cap),
         'message_hashes':[digest(m) for m in messages],'read_tokens':(read or 0)+write,'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
-        'observed_at':now if now is not None else time.time(),'epoch':session.epoch}
+        'observed_at':now,'epoch':session.epoch}
     with session.lock:
-        session.cache.append(item);session.cache=session.cache[-64:]
+        session.cache=bounded_cache([*session.cache,item])
 
 
 def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=180,now=None):

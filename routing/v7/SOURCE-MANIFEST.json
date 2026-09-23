@@ -39,12 +39,12 @@
     "state.py": {
       "source": "autorouting_impl/poc/router_v6/state.py",
       "sha256": "267f9b3fe48d9d5c70c5d90bf0c52e7e6132e99d81de284a60154e7d307ec514",
-      "product_sha256": "f5067da6a7676ac8b43cc433d5c568bdd60c385da1e78e9bd8b817734552d0d6"
+      "product_sha256": "ab810bf09fa9b98739ce252c6024355e6eadacc1c251a55d4f4e1c66034799bc"
     },
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "0dc8f2cec8dfd14e0e77f90e7cac97b1dce1a33c47e9b6a22d675b134f7e0fc0"
+      "product_sha256": "de0ab48fbbb7036477e348713032daa27bd59aa924d305d3881751384181aa9e"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",

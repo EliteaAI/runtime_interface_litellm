@@ -308,7 +308,7 @@ def test_compiled_router_reused_without_reusing_request_authority():
     assert second['pin'] != first['pin']
 
 
-def test_incremental_index_and_observed_cache_are_local_acceleration_only():
+def test_index_is_rebuilt_but_cache_observations_survive_signed_restore():
     from routing.checkpoint import _SESSIONS
     from routing.v7.state import message_digest
     args = fixture();req = request('Explain the fetched source')
@@ -324,7 +324,7 @@ def test_incremental_index_and_observed_cache_are_local_acceleration_only():
     second_req['messages'] = req['messages']+[answer]+second_req['messages']
     second_req['state_token'] = first['state_token']
     second_req['observation'] = {'message_digest': message_digest(answer), 'finish_reason': 'stop',
-        'completed_at': time.time(),
+        'request_started_at': time.time()-1, 'completed_at': time.time(),
         'usage': {'prompt_tokens': 100, 'prompt_tokens_details': {'cached_tokens': 50}}}
     second = resolve(second_req, complete=classifier_design, **args)
     session = _SESSIONS['7:2:'+req['scope_id']]['session']
@@ -335,12 +335,12 @@ def test_incremental_index_and_observed_cache_are_local_acceleration_only():
         scope_id=req['scope_id'], gate_revision='g1', policy_revision=compiled_router().revision)
     from routing.v7.state import Session
     restored = Session.restore(state['checkpoint'])
-    assert restored.cache == []
+    assert restored.cache == session.cache
     assert restored.index.builds == 0
 
 
 @pytest.mark.parametrize('age,accepted',[(None,False),(-10,False),(400,False),(10,True)])
-def test_replayed_cache_receipt_keeps_original_response_time(age,accepted,monkeypatch):
+def test_replayed_cache_receipt_keeps_original_request_time(age,accepted,monkeypatch):
     from routing.checkpoint import apply_observation
     from routing.v7.state import Session,message_digest
     from routing.v7.retrieval import digest
@@ -356,7 +356,9 @@ def test_replayed_cache_receipt_keeps_original_response_time(age,accepted,monkey
     session=Session('fixture')
     receipt={'message_digest':message_digest(answer),'message_index':1,'finish_reason':'stop',
         'usage':{'prompt_tokens':100,'prompt_tokens_details':{'cached_tokens':80}}}
-    if age is not None:receipt['completed_at']=1000-age
+    if age is not None:
+        receipt['request_started_at']=1000-age
+        receipt['completed_at']=1000-age+1
     messages=prefix+[answer,{'role':'user','content':'Tell me a joke about bears.'}]
     args=(session,state,receipt,messages,SimpleNamespace(),{'variants':{'luna-default':{}}},[],'policy')
     apply_observation(*args);apply_observation(*args)
