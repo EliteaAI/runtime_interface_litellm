@@ -31,6 +31,10 @@ def compile_catalog(calibration_revision='v12'):
     candidate = effort_candidate() if calibration_revision == 'v12' else calibration_candidate()
     value['revision'] += '+'+candidate['revision']
     for vid, identity in candidate['variants'].items():
+        evidence = {r['family']: {key: copy.deepcopy(r[key]) for key in (
+                    'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage',
+                    'quality_fail', 'refused') if key in r}
+                    for r in candidate['records'] if r['variant'] == vid}
         families = {r['family']: {key: copy.deepcopy(r[key]) for key in (
                     'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage')}
                     for r in candidate['records']
@@ -40,15 +44,16 @@ def compile_catalog(calibration_revision='v12'):
             if row['variant'] == vid and row['family'] in families and row.get('usage_profile'):
                 families[row['family']]['usage_profile'] = copy.deepcopy(row['usage_profile'])
         value['variants'][vid] = {
-            'model': identity['model'], 'effort': identity['effort'], 'enabled': True,
+            'model': identity['model'], 'effort': identity['effort'], 'enabled': bool(demands),
             # These are the selector's legal known operations, not independent
             # model capability claims. CalibratedRouter requires the exact
             # measured family/demand cell before this generic selector runs.
             'tasks': ['creative', 'transform', 'analysis', 'design'],
-            'max_demand': max(demands, key={'simple':0, 'standard':1, 'deep':2}.get),
+            'max_demand': max(demands, key={'simple':0, 'standard':1, 'deep':2}.get) if demands else 'simple',
             'cost_band': 2, 'cache_write_mode': 'separate',
             'calibration_contract': {'revision': candidate['revision'],
                 'source_sha256': candidate['source_sha256'], 'families': families,
+                'family_evidence': evidence,
                 'transport': identity['transport'], 'output_allowance': identity['total_output_allowance'],
                 'production_promotion_allowed': False}}
         if 'requested_reasoning_fields' in identity:

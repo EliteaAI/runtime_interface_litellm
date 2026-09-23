@@ -10,6 +10,7 @@ def read_json(path):
     return json.loads(path.read_text())
 from .availability import AvailabilityClassifier
 from .task_profile import PROFILE_PROMPT, apply_profile
+from .qualification import assess
 FAMILIES = set(read_json(ROOT/'qualification-policy.json')['eligible_by_family'])
 
 FAMILY_PROMPT='''
@@ -96,28 +97,29 @@ class CalibratedRouter(FixedV6Router):
         from .routing import DEMAND
         permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
         demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
+        assessments = {}
         for vid in list(permitted):
             contract = self.catalog['variants'][vid].get('calibration_contract')
             if not contract:
                 continue
-            cell = contract['families'].get(descriptor.get('task_family'))
-            if (not cell or demand not in cell['demand_coverage'] or descriptor.get('needs_context')
-                    or descriptor.get('relation') == 'ambiguous'
-                    or descriptor.get('operation') in {'other', 'greeting'}):
+            assessment = assess(contract, descriptor, demand)
+            assessments[vid] = assessment
+            if not assessment['eligible']:
                 permitted.remove(vid)
+        evidence_trace = {'assessments': assessments} if assessments else {}
         allowed = permitted
         original=super().select(descriptor,allowed,previous,min_demand)
         family=descriptor.get('task_family','unknown')
         # Preserve pre-existing narrowly validated standalone rules. No label
         # from the held-out corpus or caller gold is accepted here.
         if family=='unknown' and descriptor.get('operation')=='greeting':
-            original['family_qualification']={'status':'existing_exact_greeting_rule','promotion':False}
+            original['family_qualification']={'status':'existing_exact_greeting_rule','promotion':False,**evidence_trace}
             return original
         approved=set(self.policy['eligible_by_family'].get(family,[]))
         eligible=[r['variant'] for r in original.get('candidates',[]) if r['eligible'] and r['variant'] in approved]
         if eligible:
             result=super().select(descriptor,eligible,previous,min_demand)
-            result['family_qualification']={'family':family,'eligible':eligible,'status':'diagnostic_calibration_only','policy_revision':self.policy['revision'],'promotion':False}
+            result['family_qualification']={'family':family,'eligible':eligible,'status':'diagnostic_calibration_only','policy_revision':self.policy['revision'],'promotion':False,**evidence_trace}
             return result
         # All variants can lack evidence. Use the configured baseline family,
         # retaining operation/demand/effort filters and explicitly admitting that
@@ -127,5 +129,5 @@ class CalibratedRouter(FixedV6Router):
         baseline=[v for v in candidates if self.catalog['variants'][v]['model']==model]
         selected=(self.catalog['baseline'] if self.catalog['baseline'] in baseline else baseline[0] if baseline else original['variant'])
         result={**original,**self.catalog['variants'][selected],'variant':selected,'reason':'UNCERTAIN_TASK_BASELINE',
-                'family_qualification':{'family':family,'status':'insufficient_evidence_baseline','policy_revision':self.policy['revision'],'promotion':False}}
+                'family_qualification':{'family':family,'status':'insufficient_evidence_baseline','policy_revision':self.policy['revision'],'promotion':False,**evidence_trace}}
         return result
