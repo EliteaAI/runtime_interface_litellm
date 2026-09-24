@@ -43,7 +43,8 @@ def _apply_candidate(value, candidate):
     for vid, identity in candidate['variants'].items():
         evidence = {r['family']: {key: copy.deepcopy(r[key]) for key in (
                     'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage',
-                    'quality_fail', 'refused') if key in r}
+                    'quality_fail', 'refused', 'disagreement', 'delivery_failure',
+                    'profile_evidence') if key in r}
                     for r in candidate['records'] if r['variant'] == vid}
         families = {r['family']: {key: copy.deepcopy(r[key]) for key in (
                     'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage')}

@@ -19,7 +19,7 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "68d36e7dd8d74849ec4f5892144a0f9faf2ec0cd272f2b9584398a762a7a0458"
+      "product_sha256": "eca97319e3f46d9cbe259703858d5c30a497e6005cbdb0ad754999153bd91272"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
@@ -54,7 +54,7 @@
     "availability.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/tool_availability_candidate.py",
       "sha256": "b4129fdcf69a769cda12f52a5cfc8c8d22604a3254b0cb610e0a402bee48b5b0",
-      "product_sha256": "784a3677f02b401c5bb60dfb5d37affdfb1b606cf845698eda332577e64189fb"
+      "product_sha256": "31e79c5474f825f3704435e96f9bf2ab5a100f0cd5e35f5deb08ff8603e96114"
     },
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
@@ -69,7 +69,7 @@
     "social.py": {
       "source": "autorouting_impl/experiments/phase1-social-v9/social.py",
       "sha256": "897cf9c4c43a0b3d624a16d7070cdfeeb257b5229b5650c2319c8e3fc701ce84",
-      "product_sha256": "897cf9c4c43a0b3d624a16d7070cdfeeb257b5229b5650c2319c8e3fc701ce84"
+      "product_sha256": "f796e9bbef589eeb55e830a674b47dfb0ff5363bdbabf0202a1235066d392ee0"
     }
   },
   "product_changes": [
@@ -99,7 +99,7 @@
     "calibration-v12.json": "f1638c2af9a9033a822f98d973ec43261261e8b017d50f16209bbe5257b36f65",
     "task_profile.py": "4c01914c5ca1e95390cc0abf5ddedc856218b750bd7658c300897827950ac790",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
-    "qualification.py": "fd3f48e2e69b2bbb0ecf35f9f0ec84800d641701f404d810ff453c9e602e3da5"
+    "qualification.py": "5d2bb8fa8bdd67f705d7290cfed14fe639189918c51bd927f3e0879e8cfc8b43"
   },
   "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion",
   "calibration_compiler": {
@@ -124,6 +124,7 @@
     "V12 retains original failures and unknowns;248 full-family model/effort cells provisionally admitted with exact transport/demand/32000 total output allowance.",
     "Classifier adds bounded work/reasoning/evidence/creativity/verification fields in the same call; conservative floors do not create new model capability claims.",
     "Source anchors survive group pruning or are explicitly unavailable; generation receives full unchanged history.",
-    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium."
+    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium.",
+    "V13 refresh candidates may restrict admission to exact observed work profiles; disputed assessments and incomplete delivery remain separate from measured quality failures. Existing profiles retain their previous behavior."
   ]
 }

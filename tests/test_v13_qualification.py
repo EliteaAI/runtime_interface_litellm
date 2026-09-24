@@ -82,3 +82,38 @@ def test_selector_reports_negative_evidence_and_retains_baseline():
     assert evidence['status'] == 'measured_failure'
     assert evidence['fail'] == cell['fail']
     assert evidence['sample_count'] == cell['sample_count']
+
+
+def test_disagreement_is_not_reported_as_measured_failure():
+    row = assess(contract({**CELL, 'pass': 2, 'disagreement': 1}, admitted=False), DESC, 'deep')
+    assert row['status'] == 'disputed_assessment'
+    assert not row['eligible'] and row['fail'] == 0
+
+
+def test_profile_evidence_does_not_grant_other_engineering_work():
+    profile = dict(work='implement', reasoning='multi_step', evidence='retrieve',
+                   creativity='none', verification='check')
+    good = {**CELL, 'work_profile': profile, 'eligible_local_beta': True, 'demand_coverage': ['standard']}
+    disputed = {**good, 'work_profile': {**profile, 'reasoning': 'interacting_constraints'},
+                'pass': 2, 'disagreement': 1, 'eligible_local_beta': False}
+    value = contract({**CELL, 'profile_evidence': [good, disputed]})
+    before = copy.deepcopy(value)
+    assert assess(value, {**DESC, 'work_profile': profile}, 'standard')['eligible']
+    assert assess(value, {**DESC, 'work_profile': profile}, 'deep')['status'] == 'unobserved_demand'
+    assert assess(value, {**DESC, 'work_profile': disputed['work_profile']}, 'deep')['status'] == 'disputed_assessment'
+    assert assess(value, DESC, 'standard')['status'] == 'unmeasured_work_profile'
+    assert assess(value, {**DESC, 'work_profile': {**profile, 'work': 'design'}}, 'standard')['status'] == 'unmeasured_work_profile'
+    assert value == before
+
+
+def test_catalog_keeps_narrow_evidence_for_real_selector():
+    candidate = copy.deepcopy(effort_candidate())
+    candidate['variants'] = {'narrow-'+k: v for k, v in candidate['variants'].items()}
+    for row in candidate['records']:
+        row['variant'] = 'narrow-'+row['variant']
+        row['profile_evidence'] = [{**CELL, 'work_profile': {'work': 'design'},
+                                    'eligible_local_beta': False, 'disagreement': 1}]
+    catalog = compile_catalog(candidate=candidate)
+    for row in candidate['records']:
+        observed = catalog['variants'][row['variant']]['calibration_contract']['family_evidence'][row['family']]
+        assert observed['profile_evidence'] == row['profile_evidence']
