@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from test_auto_routing_service import fixture, request
+from test_auto_routing_service import fixture as current_fixture, request
 from routing.service import resolve, encode_pin, RoutingUnavailable, compiled_router
 from routing.v7.catalog import calibration_candidate, compile_catalog
 from routing.v7.candidate import CalibratedRouter as CurrentRouter
@@ -15,6 +15,13 @@ from routing.v7.candidate import CalibratedRouter as CurrentRouter
 ROOT = Path(__file__).resolve().parents[1]
 DATA = calibration_candidate()
 VARIANTS = sorted(DATA['variants'])
+
+
+def fixture():
+    from routing.service import GenerationRouter, ClassifierTransport
+    args = current_fixture()
+    args['router'] = GenerationRouter(ClassifierTransport(), catalog=compile_catalog('v9'), output_policy='measured')
+    return args
 
 
 def CalibratedRouter(*args, **kwargs):
@@ -25,7 +32,7 @@ def CalibratedRouter(*args, **kwargs):
 def retained_v9_policy(monkeypatch):
     # Reproduce the historical candidate explicitly; V12 has a separate suite.
     import routing.service as service
-    router = service.GenerationRouter(service.ClassifierTransport(), catalog=compile_catalog('v9'))
+    router = service.GenerationRouter(service.ClassifierTransport(), catalog=compile_catalog('v9'), output_policy='measured')
     monkeypatch.setattr(service, 'compiled_router', lambda: router)
 
 
