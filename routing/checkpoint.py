@@ -10,7 +10,7 @@ import threading
 import time
 from collections import OrderedDict
 from contextlib import contextmanager
-from .v7.state import Session, message_digest, observe_cache, valid_time
+from .v7.state import Session, message_digest, observe_cache, valid_time, CACHE_TTL_SECONDS
 from .v7.retrieval import digest
 
 _LOCK = threading.RLock()
@@ -78,7 +78,7 @@ def apply_observation(session, state, observation, messages, gateway, catalog, t
     completed_at = observation.get('completed_at')
     started_at = observation.get('request_started_at')
     if (valid_time(started_at) and valid_time(completed_at)
-            and started_at <= completed_at <= time.time() and 0 <= time.time()-started_at <= 180):
+            and started_at <= completed_at <= time.time() and 0 <= time.time()-started_at < CACHE_TTL_SECONDS):
         # Rebuilding/Continue/restart must not refresh old provider evidence.
         # Missing, future or expired times can inform intent, never warm cache.
         observe_cache(session, gateway, vid, catalog['variants'][vid], messages[:response_index], tools,

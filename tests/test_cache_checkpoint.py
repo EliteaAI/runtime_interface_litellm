@@ -29,7 +29,31 @@ def test_restart_preserves_observed_history_without_extending_expiry():
     before=quote(args)
     restored=(Session.restore(args[0].checkpoint()),*args[1:])
     assert quote(restored)==before
-    assert quote(restored,1183) is None
+    assert quote(restored,1301) is not None
+    assert quote(restored,1302) is None
+
+
+@pytest.mark.parametrize('age,valid', [(0,True),(180,True),(299.999,True),(300,False),(360,False)])
+def test_default_five_minute_boundary_survives_restore(age,valid):
+    args=fixture();record(args,1000)
+    restored=(Session.restore(args[0].checkpoint()),*args[1:])
+    assert (quote(args,1000+age) is not None) is valid
+    assert (quote(restored,1000+age) is not None) is valid
+
+
+@pytest.mark.parametrize('changed', ['project','model','effort','tools','cap','cache_policy'])
+def test_restored_warmth_cannot_cross_request_contract(changed):
+    args=fixture();record(args,1000)
+    session=Session.restore(args[0].checkpoint())
+    gateway,variant,messages=copy.deepcopy(args[1:])
+    tools=[];cap=1000
+    if changed=='project':gateway.project=8
+    elif changed=='model':variant['model']='other'
+    elif changed=='effort':variant['effort']='low'
+    elif changed=='tools':tools=[{'name':'new_tool'}]
+    elif changed=='cap':cap=2000
+    else:gateway.cache_policy_revision='one-hour-unverified'
+    assert cache_quote(session,gateway,'a:high',variant,messages,tools,cap,now=1200) is None
 
 
 def test_replaying_same_receipt_does_not_create_additional_hits():

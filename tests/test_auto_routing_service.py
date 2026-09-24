@@ -356,7 +356,7 @@ def test_index_is_rebuilt_but_cache_observations_survive_signed_restore():
     assert restored.index.builds == 0
 
 
-@pytest.mark.parametrize('age,accepted',[(None,False),(-10,False),(400,False),(10,True)])
+@pytest.mark.parametrize('age,accepted',[(None,False),(-10,False),(400,False),(10,True),(299,True),(300,False),(360,False)])
 def test_replayed_cache_receipt_keeps_original_request_time(age,accepted,monkeypatch):
     from routing.checkpoint import apply_observation
     from routing.v7.state import Session,message_digest
@@ -382,7 +382,7 @@ def test_replayed_cache_receipt_keeps_original_request_time(age,accepted,monkeyp
     assert len(session.intents)==1  # Intent remains valid even when cache is cold.
     assert observed.call_count==(2 if accepted else 0)
     if accepted:
-        assert [call.kwargs['now'] for call in observed.call_args_list]==[990,990]
+        assert [call.kwargs['now'] for call in observed.call_args_list]==[1000-age,1000-age]
         monkeypatch.setattr(checkpoint.time,'time',lambda:1300)
         apply_observation(*args)
         assert observed.call_count==2  # A late replay cannot warm the cache again.

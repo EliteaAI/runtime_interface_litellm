@@ -39,7 +39,7 @@
     "state.py": {
       "source": "autorouting_impl/poc/router_v6/state.py",
       "sha256": "267f9b3fe48d9d5c70c5d90bf0c52e7e6132e99d81de284a60154e7d307ec514",
-      "product_sha256": "ab810bf09fa9b98739ce252c6024355e6eadacc1c251a55d4f4e1c66034799bc"
+      "product_sha256": "ee284391def101b4c5e425063a5e4a963359d780c4a47cfddb6373cefdb5f97d"
     },
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",

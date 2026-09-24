@@ -9,7 +9,10 @@ from .retrieval import ContextIndex,digest
 CONTINUE=re.compile(r'(?:go|proceed|continue|start(?: coding)?)[.! ]*',re.I)
 READY=re.compile(r'\b(?:ready to (?:code|implement)|wait for my (?:go|confirmation).*?(?:code|implement)|(?:code|implement).*?wait for my (?:go|confirmation))\b',re.I|re.S)
 CANCEL=re.compile(r'(?:please\s+)?(?:cancel|forget|drop)\s+(?:all(?:\s+pending)?\s+tasks|(?:the |my )?(?:pending )?(?:task|implementation|plan))[.! ]*',re.I)
-CACHE_STATE_REVISION='bounded-cache-checkpoint-1'
+CACHE_STATE_REVISION='bounded-cache-checkpoint-2-default-5m'
+# Default provider-cache evidence window. One-hour caching requires a separate
+# verified request contract; restoring a checkpoint never extends this window.
+CACHE_TTL_SECONDS = 300
 MAX_CACHE_BYTES=64_000
 
 
@@ -170,11 +173,11 @@ def observe_cache(session,gateway,variant_id,variant,messages,tools,cap,result,n
         session.cache=bounded_cache([*session.cache,item])
 
 
-def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=180,now=None):
+def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=CACHE_TTL_SECONDS,now=None):
     identity=cache_identity(gateway,variant,tools,cap);hashes=[digest(m) for m in messages];now=time.time() if now is None else now
     with session.lock:
         matches=[x for x in session.cache if x['variant']==variant_id and x['identity']==identity and x['epoch']==session.epoch
-                 and 0<=now-x['observed_at']<=ttl and hashes[:len(x['message_hashes'])]==x['message_hashes']]
+                 and 0<=now-x['observed_at']<ttl and hashes[:len(x['message_hashes'])]==x['message_hashes']]
     if not matches:return None
     best=max(matches,key=lambda x:x['read_tokens'])
     observed=[x for x in matches if type(x.get('observed_read_tokens'))is int]

@@ -15,9 +15,12 @@ inventory/access/context revision changes still invalidate derived state.
 The matching SDK stamps `request_started_at` immediately before invoke, async
 invoke, stream, async stream and structured invocation. The Gateway requires finite,
 ordered start/completion timestamps; old receipts without a start remain usable
-for task intent but cannot assert warmth. It retains the conservative 180-second
-evidence window, now measured from request start. This window is a local advisory
-policy, not a measured universal provider TTL. Restoring or replaying a receipt
+for task intent but cannot assert warmth. The default evidence window is 300
+seconds (five minutes), measured from request start, with expiry at the boundary.
+Both receipt admission and economic quoting use the same constant. The separate
+180-second in-process session eviction timer does not expire signed cache evidence.
+This is an advisory default, not proof of a future cache hit or universal provider
+retention. One-hour caching requires an explicitly verified contract. Restoring or replaying a receipt
 never refreshes its age. Missing SDK cache counters remain absent; an explicit
 zero remains an observed miss. Native normalized input totals include the cache
 read/write buckets; hidden reasoning is not serialized into routing observations.
