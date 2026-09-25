@@ -44,7 +44,7 @@ def _apply_candidate(value, candidate):
         evidence = {r['family']: {key: copy.deepcopy(r[key]) for key in (
                     'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage',
                     'quality_fail', 'refused', 'disagreement', 'delivery_failure',
-                    'profile_evidence') if key in r}
+                    'profile_evidence', 'validated_pools') if key in r}
                     for r in candidate['records'] if r['variant'] == vid}
         families = {r['family']: {key: copy.deepcopy(r[key]) for key in (
                     'sample_count', 'pass', 'fail', 'unknown', 'wilson95', 'demand_coverage')}
@@ -69,6 +69,8 @@ def _apply_candidate(value, candidate):
                 'production_promotion_allowed': False}}
         if 'requested_reasoning_fields' in identity:
             value['variants'][vid]['calibration_contract']['reasoning_fields'] = copy.deepcopy(identity['requested_reasoning_fields'])
+        if 'qualification_policy' in candidate:
+            value['variants'][vid]['calibration_contract']['qualification_policy']=copy.deepcopy(candidate['qualification_policy'])
 
 
 class QualificationSnapshot:
