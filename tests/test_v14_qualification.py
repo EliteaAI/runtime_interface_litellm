@@ -28,7 +28,8 @@ def test_numeric_clones_do_not_supply_independent_support():
 
 def pool():
     return {**CELL,'work_profile':None,'profile_scope':{k:[v] for k,v in PROFILE.items()},
-            'pooling_validation':{'passed':True,'independent_templates':3}}
+            'validated_profiles':[PROFILE],
+            'pooling_validation':{'passed':True,'independent_templates':3,'method':'leave-template-out-v1','source_sha256':'fixture'}}
 
 
 def test_pool_must_be_validated_and_cannot_erase_an_exact_failure():
@@ -39,6 +40,14 @@ def test_pool_must_be_validated_and_cannot_erase_an_exact_failure():
     assert assess(row,DESC,'standard')['evidence_basis']=='validated_profile_pool'
     row['family_evidence']['development']['validated_pools'][0]['pooling_validation']['passed']=False
     assert assess(row,DESC,'standard')['status']=='unmeasured_work_profile'
+
+
+def test_sparse_exact_evidence_can_use_validated_pool_but_unseen_combinations_cannot():
+    row=contract({**CELL,'independent_templates':2})
+    row['family_evidence']['development']['validated_pools']=[pool()]
+    assert assess(row,DESC,'standard')['evidence_basis']=='validated_profile_pool'
+    row['family_evidence']['development']['validated_pools'][0]['validated_profiles']=[]
+    assert assess(row,DESC,'standard')['status']=='insufficient_independent_templates'
 
 
 @pytest.mark.parametrize('changes,status',[

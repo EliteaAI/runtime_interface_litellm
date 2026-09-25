@@ -127,7 +127,9 @@ def validate_descriptor(value, view):
         raise ValueError("needs_context must be boolean")
     ids = {x["id"] for x in view["recent"] + view["earlier_index"] + view.get('instruction_context',[])}
     refs = value.get("reference_ids")
-    if not isinstance(refs, list) or len(refs) > 8 or any(not isinstance(x, str) or x not in ids for x in refs):
+    if (not isinstance(refs, list) or len(refs) > len(ids)
+            or any(not isinstance(x, str) or x not in ids for x in refs)
+            or len(set(refs)) != len(refs)):
         raise ValueError("Unknown or excessive context references")
     if not isinstance(value.get("reason"), str):
         raise ValueError("Missing reason")

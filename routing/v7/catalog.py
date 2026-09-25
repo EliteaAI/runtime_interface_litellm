@@ -64,15 +64,17 @@ def compile_uniform_catalog(snapshot, *, classifier_variant, baseline_variant):
 
     # Recompute admission rather than trusting a stale family-level flag from a
     # previous compiler. This also prevents a passing aggregate hiding a failed
-    # narrow profile. No cross-profile pool is active without compiler support.
+    # narrow profile. Pools must carry leave-template-out validation evidence.
     candidate = copy.deepcopy(snapshot)
     for row in candidate['records']:
-        if row.get('validated_pools'):
-            raise ValueError('Pooled snapshot compilation needs a validated pool compiler')
         demands = set()
         contract = {'qualification_policy': policy, 'revision': snapshot['revision'],
                     'source_sha256': snapshot['source_sha256'],
                     'family_evidence': {row['family']: row}}
+        for pool in row.get('validated_pools', []):
+            if (pool.get('pooling_validation',{}).get('method')!='leave-template-out-v1'
+                    or not pool['pooling_validation'].get('source_sha256')):
+                raise ValueError('Pool has no compatible validation certificate')
         for cell in row.get('profile_evidence', []):
             eligible_demands = []
             for demand in cell['demand_coverage']:
@@ -95,6 +97,7 @@ def compile_uniform_catalog(snapshot, *, classifier_variant, baseline_variant):
              'preferences': {operation: list(identities) for operation in
                              ('greeting', 'creative', 'transform', 'analysis', 'design', 'other')}}
     _apply_candidate(value, candidate)
+    value['switching_policies']=copy.deepcopy(snapshot.get('switching_policies',[]))
     return value
 
 

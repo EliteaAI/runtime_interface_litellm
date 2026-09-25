@@ -43,13 +43,20 @@ class DispatchClassifier:
 
 class Router(Coordinator):
     supports_request_contract=True
-    def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
+    def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None,
+                 lexical_scorer=None,lexical_mode='shadow'):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
         self.revision='v6-'+digest({'algorithm_revision':5,'continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
+        if lexical_mode not in {'shadow','enabled'}:
+            raise ValueError('Unknown learned lexical mode')
+        if lexical_mode=='enabled' and (lexical_scorer is None or lexical_scorer.artifact.get('promotion_allowed') is not True):
+            raise ValueError('Learned bypass requires a validated enablement artifact')
+        self.lexical_scorer=lexical_scorer;self.lexical_mode=lexical_mode
+        if lexical_scorer is not None:self.revision+='-lexical-'+digest({'artifact':lexical_scorer.artifact,'mode':lexical_mode})[:12]
         self.local=ContextVar('routing_request_'+str(id(self)),default=None)
-        self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=guarded_rules
+        self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=self._lexical_rules
         self.classifier=DispatchClassifier(gateway,classifier_variant,self.catalog)
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
@@ -77,7 +84,23 @@ class Router(Coordinator):
             resolution={**resolution,'status':'ranked','candidates':[],'method':'Active Agent instructions require classification'}
         ctx['resolution']=resolution
         view['reference_resolution']=copy.deepcopy(resolution)
+        if self.lexical_scorer is not None:
+            start=time.perf_counter()
+            flags={'has_history':len(messages)>1,'has_tools':bool(ctx['tools']),
+                   'pending_count':len(tasks)+omitted,
+                   'has_active_instructions':bool((getattr(self.gateway,'runtime_context',{}).get('active_instructions') or {}).get('text'))}
+            proposal=self.lexical_scorer.propose(view['latest']['text'],flags)
+            ctx['lexical_proposal']={**proposal,'mode':self.lexical_mode,
+                                     'cpu_ms':(time.perf_counter()-start)*1000,'used':False}
         return view
+
+    def _lexical_rules(self,view):
+        result=guarded_rules(view)
+        proposal=(self.local.get() or {}).get('lexical_proposal')
+        if result['needs_context'] and proposal and proposal['accepted'] and self.lexical_mode=='enabled':
+            proposal['used']=True
+            return copy.deepcopy(proposal['descriptor'])
+        return result
 
     def _preprocess(self,messages,view):
         return view,view['reference_resolution']
@@ -108,6 +131,7 @@ class Router(Coordinator):
             if cap>pinned:raise ValueError('Child completion ceiling exceeds the root pin contract')
             decision.setdefault('budget',{'completion_cap':cap,'classifier_view_bytes':view_bytes})
             decision['policy_revision']=self.revision;decision['session_id']=session.id
+            if ctx.get('lexical_proposal') is not None:decision['lexical_proposal']=copy.deepcopy(ctx['lexical_proposal'])
             # The full manifest stays in session/checkpoint state. The trace is
             # compact; generation still receives every original tool response.
             if messages and messages[-1].get('role')=='user':

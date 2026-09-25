@@ -10,7 +10,7 @@ ROOT = Path(__file__).parent
 def read_json(path):
     return json.loads(path.read_text())
 from .availability import AvailabilityClassifier
-from .task_profile import PROFILE_PROMPT, FAMILY_PROMPT, FAMILIES, apply_profile
+from .task_profile import PROFILE_PROMPT, FAMILY_PROMPT, FAMILIES, apply_profile, normalize_operation
 from .qualification import assess
 from .task_continuity import PROMPT as CONTINUITY_PROMPT, validate as validate_continuity
 
@@ -67,6 +67,7 @@ class FamilyClassifier(AvailabilityClassifier):
             descriptor['task_family']=family if family in FAMILIES else 'unknown'
             try:
                 descriptor=apply_profile(descriptor, parsed.get('work_profile'))
+                descriptor=normalize_operation(descriptor)
                 continuity=validate_continuity(parsed.get('task_continuity'),view)
                 if continuity is not None:descriptor['task_continuity']=continuity
             except ValueError as exc:
@@ -122,6 +123,8 @@ class CalibratedRouter(FixedV6Router):
         eligible=[r['variant'] for r in original.get('candidates',[]) if r['eligible'] and r['variant'] in approved]
         if eligible:
             result=super().select(descriptor,eligible,previous,min_demand)
+            result['economic_task']={'family':family,'demand':demand,
+                                     'work_profile':copy.deepcopy(descriptor.get('work_profile'))}
             result['family_qualification']={'family':family,'eligible':eligible,'status':'diagnostic_calibration_only','policy_revision':self.policy['revision'],'promotion':False,**evidence_trace}
             return result
         # All variants can lack evidence. Use the configured baseline family,

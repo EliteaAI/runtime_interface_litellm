@@ -24,6 +24,10 @@ def forecast(variant, family, size, cap):
 def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, previous=None):
     if selection['reason'] == 'UNCERTAIN_TASK_BASELINE':
         return selection
+    if catalog.get('uniform_qualification'):
+        from .measured_economics import rank as measured_rank
+        return measured_rank(selection, messages, catalog, session=session,
+                             gateway=gateway, cap=cap, tools=tools, previous=previous)
     eligible = [row['variant'] for row in selection['candidates'] if row['eligible']]
     size = len(json.dumps({'messages': messages, 'tools': tools or [], 'output_schema': getattr(gateway, 'output_schema', None)}, ensure_ascii=False).encode()) + 64*len(messages)
     size = max(size, getattr(gateway, 'generation_input_bytes', 0))

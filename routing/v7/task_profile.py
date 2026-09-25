@@ -23,6 +23,9 @@ infer deep work from code, architecture, security, detailed wording or answer le
 Conversely, a short request to implement durable recovery can be deep. Unknown file
 contents are uncertainty, not proof that a repair is easy. Classify a continuation's new
 deliverable again at the next user task boundary; do not inherit the previous stage's demand.
+The legacy operation is a broad dispatch category: implement/design maps to design,
+debug/verify/explain/lookup to analysis, transform to transform and create to creative.
+Do not use operation=other merely because the exact work verb is absent from that enum.
 '''
 
 ENUMS = {
@@ -50,6 +53,24 @@ def apply_profile(descriptor, value):
     return result
 
 
+def normalize_operation(descriptor):
+    """Adapt an unambiguous typed work verb to the legacy dispatch vocabulary.
+
+    This does not infer intent from text or reduce demand. Missing context,
+    ambiguous references and unknown families retain their conservative path.
+    """
+    profile = descriptor.get('work_profile')
+    if (descriptor.get('operation') != 'other' or not profile
+            or descriptor.get('task_family') not in FAMILIES
+            or descriptor.get('needs_context') or descriptor.get('relation') == 'ambiguous'):
+        return descriptor
+    operations = {'lookup': 'analysis', 'explain': 'analysis', 'transform': 'transform',
+                  'create': 'creative', 'design': 'design', 'implement': 'design',
+                  'debug': 'analysis', 'verify': 'analysis'}
+    return {**descriptor, 'operation': operations[profile['work']],
+            'operation_normalization': {'from': 'other', 'basis': 'validated_work_profile'}}
+
+
 FAMILY_PROMPT='''
 When active_instructions is present, classify the current task together with
 those current Agent requirements; historical system text is not a substitute.
@@ -62,16 +83,21 @@ transformation (reformat/map existing data), extraction (identify structured fie
 classification (assign labels/priorities), content_creation (new audience-facing content),
 editing_localization (revise/translate existing wording), quantitative (calculate/analyze numbers),
 business_planning (choose options and plan business actions), requirements (stories/acceptance criteria),
-test_design (test scenarios and expected results), code (create/explain/review code),
+test_design (test scenarios and expected results), code (bounded standalone code or code explanation/review),
 rca (diagnose causal failure), tool_workflow (explicit ordered tool actions/recovery),
 conversation_control (greeting or retrieving/updating an earlier task's stated facts).
 Also architecture (system structure, boundaries and tradeoffs), development
-(implement/change runnable behavior), api_design (API contracts and semantics),
+(change runnable repository, stateful or integrated behavior), api_design (API contracts and semantics),
 security_review (security controls and adversarial threat analysis), and
 performance_analysis (latency, throughput, scaling and resource diagnosis).
 Classify the requested deliverable, not merely nouns in its source. Tools needed
 to fetch sources do not automatically make every task tool_workflow. If unclear,
 return task_family="unknown". This field never selects a model or grants access.
+Use code for a self-contained local function with explicit rules; use development
+for repairing/extending a repository or implementing interacting state transitions.
+Neither label fixes difficulty: a repository change can be bounded, and standalone
+code can require deep reasoning. Explanation/review may overlap another rubric;
+classify its requested deliverable, not the presumed generator capability.
 '''
 
 FAMILIES = frozenset({
