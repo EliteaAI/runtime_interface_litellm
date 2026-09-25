@@ -47,7 +47,9 @@ def uniform_assessment(contract, descriptor, demand):
 
 
 def assess(contract, descriptor, demand):
-    if contract.get('qualification_policy',{}).get('revision')=='uniform-profile-v1':
+    if 'qualification_policy' in contract:
+        if contract['qualification_policy'].get('revision') != 'uniform-profile-v1':
+            raise ValueError('Unknown qualification policy revision')
         return uniform_assessment(contract,descriptor,demand)
     family = descriptor.get('task_family')
     admitted = contract['families'].get(family)

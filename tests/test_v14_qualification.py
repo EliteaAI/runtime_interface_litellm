@@ -49,3 +49,11 @@ def test_pool_must_be_validated_and_cannot_erase_an_exact_failure():
 ])
 def test_provenance_uncertainty_and_disagreement_remain_gates(changes,status):
     assert assess(contract({**CELL,**changes}),DESC,'standard')['status']==status
+
+
+def test_unknown_policy_cannot_silently_reuse_legacy_grants():
+    value = contract()
+    value['qualification_policy'] = {**POLICY, 'revision': 'typo'}
+    value['families'] = {'development': CELL}
+    with pytest.raises(ValueError, match='Unknown qualification policy'):
+        assess(value, DESC, 'standard')

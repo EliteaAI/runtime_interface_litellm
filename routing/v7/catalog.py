@@ -37,6 +37,65 @@ def compile_catalog(calibration_revision='v12', *, candidate=None):
     return value
 
 
+def compile_uniform_catalog(snapshot, *, classifier_variant, baseline_variant):
+    """Compile a complete V14 pool without inheriting legacy capability grants.
+
+    This is an explicit offline-candidate entry point. The configured product
+    continues to load its existing snapshot until calibration and release gates
+    authorize replacing it. An empty cell disables qualification; it never
+    restores an old grant for the same model.
+    """
+    from .task_profile import FAMILIES
+    from .qualification import uniform_assessment
+
+    policy = snapshot.get('qualification_policy', {})
+    if policy.get('revision') != 'uniform-profile-v1':
+        raise ValueError('A uniform qualification snapshot is required')
+    identities = snapshot['variants']
+    if not identities or classifier_variant not in identities or baseline_variant not in identities:
+        raise ValueError('Classifier and baseline must belong to the same snapshot')
+    records = snapshot['records']
+    pairs = [(r['variant'], r['family']) for r in records]
+    expected = {(vid, family) for vid in identities for family in FAMILIES}
+    if len(pairs) != len(set(pairs)) or set(pairs) != expected:
+        raise ValueError('Every variant needs exactly one record per workload family')
+
+    # Recompute admission rather than trusting a stale family-level flag from a
+    # previous compiler. This also prevents a passing aggregate hiding a failed
+    # narrow profile. No cross-profile pool is active without compiler support.
+    candidate = copy.deepcopy(snapshot)
+    for row in candidate['records']:
+        if row.get('validated_pools'):
+            raise ValueError('Pooled snapshot compilation needs a validated pool compiler')
+        demands = set()
+        contract = {'qualification_policy': policy, 'revision': snapshot['revision'],
+                    'source_sha256': snapshot['source_sha256'],
+                    'family_evidence': {row['family']: row}}
+        for cell in row.get('profile_evidence', []):
+            eligible_demands = []
+            for demand in cell['demand_coverage']:
+                result = uniform_assessment(contract, {'task_family': row['family'],
+                    'work_profile': cell['work_profile'], 'needs_context': False,
+                    'relation': 'independent'}, demand)
+                if result['eligible']:
+                    eligible_demands.append(demand)
+            cell['eligible_local_beta'] = bool(eligible_demands)
+            demands.update(eligible_demands)
+        row['eligible_local_beta'] = bool(demands)
+        row['demand_coverage'] = sorted(demands, key={'simple': 0, 'standard': 1, 'deep': 2}.get)
+
+    # Only non-capability metadata is established here. _apply_candidate starts
+    # from an empty pool, so missing/new/old identities receive identical rules.
+    value = {'revision': 'uniform-catalog-v14', 'calibration_revision': snapshot['revision'],
+             'uniform_qualification': True, 'classifier_variant': classifier_variant,
+             'baseline': baseline_variant, 'variants': {},
+             'qualification': 'Uniform measured work profiles; no inherited legacy grants',
+             'preferences': {operation: list(identities) for operation in
+                             ('greeting', 'creative', 'transform', 'analysis', 'design', 'other')}}
+    _apply_candidate(value, candidate)
+    return value
+
+
 def _apply_candidate(value, candidate):
     """Compile trusted evidence through the same path for baseline and candidate."""
     value['revision'] += '+'+candidate['revision']

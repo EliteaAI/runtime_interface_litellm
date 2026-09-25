@@ -77,8 +77,19 @@ class FamilyClassifier(AvailabilityClassifier):
 
 class CalibratedRouter(FixedV6Router):
     def __init__(self,*args,policy=None,**kwargs):
+        catalog = kwargs.get('catalog')
+        if catalog and catalog.get('uniform_qualification') and 'classifier_variant' not in kwargs and len(args) < 2:
+            kwargs['classifier_variant'] = catalog['classifier_variant']
         super().__init__(*args,**kwargs)
-        self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
+        if self.catalog.get('uniform_qualification'):
+            if policy is not None:
+                raise ValueError('Uniform catalog owns its qualification policy')
+            self.policy = {'revision': self.catalog['revision'], 'eligible_by_family': {
+                family: [vid for vid, value in self.catalog['variants'].items()
+                         if family in value['calibration_contract']['families']]
+                for family in FAMILIES}}
+        else:
+            self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
         self.classifier=FamilyClassifier(self.gateway,self.classifier.variant,self.catalog)
         self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT+CONTINUITY_PROMPT})[:12]
 
