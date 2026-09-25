@@ -177,6 +177,11 @@ def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sou
             'tool_entries_visible':0,'older_cap':older_cap,'full_history_chars':sum(len(r.text) for r in records),
             'ranking':'BM25 over complete task groups and matching passages; full generation history unchanged'}
     if force_sources:
+        # A linked source anchors the entire user/tool trajectory. Keeping only
+        # its first/last message would strand tool results or later evidence.
+        required_indices={int(rid[1:]) for rid in force_sources}
+        expanded={i for group in groups if required_indices.intersection(group) for i in group}
+        force_sources=[f'm{i}' for i in sorted(required_indices|expanded)]
         source_entries=[]
         for rid in force_sources:
             i=int(rid[1:])

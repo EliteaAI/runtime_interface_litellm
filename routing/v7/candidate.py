@@ -10,33 +10,12 @@ ROOT = Path(__file__).parent
 def read_json(path):
     return json.loads(path.read_text())
 from .availability import AvailabilityClassifier
-from .task_profile import PROFILE_PROMPT, apply_profile
+from .task_profile import PROFILE_PROMPT, FAMILY_PROMPT, FAMILIES, apply_profile
 from .qualification import assess
-FAMILIES = set(read_json(ROOT/'qualification-policy.json')['eligible_by_family'])
+from .task_continuity import PROMPT as CONTINUITY_PROMPT, validate as validate_continuity
 
-FAMILY_PROMPT='''
-When active_instructions is present, classify the current task together with
-those current Agent requirements; historical system text is not a substitute.
-Empty active instructions are valid. For a short Go, identify the deliverable
-from active instructions and pending_task if present. pending_task is a source
-continuity proposal, not a prescribed difficulty, effort, or model.
-Also return task_family, choosing exactly one of these workload families:
-data_gathering (fetch/find facts), evidence_synthesis (combine/summarize sources),
-transformation (reformat/map existing data), extraction (identify structured fields),
-classification (assign labels/priorities), content_creation (new audience-facing content),
-editing_localization (revise/translate existing wording), quantitative (calculate/analyze numbers),
-business_planning (choose options and plan business actions), requirements (stories/acceptance criteria),
-test_design (test scenarios and expected results), code (create/explain/review code),
-rca (diagnose causal failure), tool_workflow (explicit ordered tool actions/recovery),
-conversation_control (greeting or retrieving/updating an earlier task's stated facts).
-Also architecture (system structure, boundaries and tradeoffs), development
-(implement/change runnable behavior), api_design (API contracts and semantics),
-security_review (security controls and adversarial threat analysis), and
-performance_analysis (latency, throughput, scaling and resource diagnosis).
-Classify the requested deliverable, not merely nouns in its source. Tools needed
-to fetch sources do not automatically make every task tool_workflow. If unclear,
-return task_family="unknown". This field never selects a model or grants access.
-'''
+
+
 
 
 @lru_cache(maxsize=2)
@@ -70,7 +49,7 @@ def candidate_policy(candidate, calibration_revision='v12'):
 class FamilyClassifier(AvailabilityClassifier):
     def __init__(self,*args,**kwargs):
         super().__init__(*args,**kwargs)
-        for classifier in (self.text,self.tools):classifier.system_prompt += FAMILY_PROMPT + PROFILE_PROMPT
+        for classifier in (self.text,self.tools):classifier.system_prompt += FAMILY_PROMPT + PROFILE_PROMPT + CONTINUITY_PROMPT
 
     def classify(self,view):
         if (view.get('required_source_coverage') or {}).get('status') == 'unavailable':
@@ -88,6 +67,8 @@ class FamilyClassifier(AvailabilityClassifier):
             descriptor['task_family']=family if family in FAMILIES else 'unknown'
             try:
                 descriptor=apply_profile(descriptor, parsed.get('work_profile'))
+                continuity=validate_continuity(parsed.get('task_continuity'),view)
+                if continuity is not None:descriptor['task_continuity']=continuity
             except ValueError as exc:
                 from .routing import unknown
                 return unknown(str(exc)), {**info, 'schema_valid': False, 'error': str(exc)}
@@ -99,7 +80,7 @@ class CalibratedRouter(FixedV6Router):
         super().__init__(*args,**kwargs)
         self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
         self.classifier=FamilyClassifier(self.gateway,self.classifier.variant,self.catalog)
-        self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT})[:12]
+        self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT+CONTINUITY_PROMPT})[:12]
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
         # V9 defaults are admitted only by the original full-family calibration

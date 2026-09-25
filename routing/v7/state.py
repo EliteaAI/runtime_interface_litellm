@@ -72,19 +72,44 @@ class Session:
             return self.epoch
 
     def record_pending(self,messages,decision,result,policy_revision,answer_index=None):
+        if not messages:return
         prompt=messages[-1].get('content','')
-        if messages[-1]['role']!='user' or not isinstance(prompt,str) or not READY.search(prompt) or result.get('finish_reason')!='stop':return
+        if messages[-1]['role']!='user' or not isinstance(prompt,str) or result.get('finish_reason')!='stop':return
         answer=result.get('message',{}).get('content')
         if not answer or decision.get('action')=='clarify':return
+        link=(decision.get('descriptor') or {}).get('task_continuity')
+        action=link['action'] if link else ('defer' if READY.search(prompt) else 'independent')
+        if action in {'independent','resume'}:return
         rid=f'm{len(messages)-1}';aid=f'm{len(messages) if answer_index is None else answer_index}'
         with self.lock:
+            sources={rid:message_digest(messages[-1]),aid:message_digest(result['message']|{'role':'assistant'})}
+            if action in {'amend','cancel','replace'}:
+                item=self.intents.get(link['task_id'])
+                if not item or item['status']!='awaiting_user' or item['epoch']!=self.epoch or item['policy_revision']!=policy_revision:return
+                if action=='amend':
+                    item['source_digests'].update(sources)
+                    item['source_ids']=sorted(item['source_digests'],key=lambda x:int(x[1:]))
+                    return
+                item['status']='cancelled' if action=='cancel' else 'superseded'
+                if action=='cancel':return
             # One intent per explicit source request; retries do not duplicate it.
             key=message_digest(messages[-1])
             if any(i['request_digest']==key for i in self.intents.values()):return
             self.register_pending({'id':uuid.uuid4().hex,'request_digest':key,'status':'awaiting_user',
-                'source_ids':[rid,aid], 'source_digests':{rid:key,aid:message_digest({'role':'assistant','content':answer})},
-                'next_task':'Implement the design in the explicitly requested prior task', 'next_demand':'deep',
+                'source_ids':[rid,aid], 'source_digests':sources,
+                'next_task':link['summary'] if link else 'Perform the deferred deliverable in the prior user request',
                 'decision':copy.deepcopy(decision),'policy_revision':policy_revision,'epoch':self.epoch})
+
+    def pending_index(self,messages,policy_revision):
+        """Small source index for semantic task linking; no implicit resume."""
+        with self.lock:
+            active=[i for i in self.intents.values() if i['status']=='awaiting_user'
+                    and i['epoch']==self.epoch and i['policy_revision']==policy_revision]
+            valid=[i for i in active if all(int(r[1:])<len(messages)-1 and
+                    message_digest(messages[int(r[1:])])==h for r,h in i['source_digests'].items())]
+            # Omission is explicit. The index never implies a unique target.
+            rows=[{'id':i['id'],'summary':i['next_task'][:400],'source_ids':list(i['source_ids'])} for i in valid[-8:]]
+            return rows,len(valid)-len(rows)
 
     def register_pending(self,intent):
         """Trusted application event adapter. Never expose directly to tool text."""

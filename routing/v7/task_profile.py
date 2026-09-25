@@ -48,3 +48,39 @@ def apply_profile(descriptor, value):
     result = {**descriptor, 'work_profile': dict(value), 'profile_demand_floor': floor}
     result['demand'] = max(descriptor['demand'], floor, key=order.get)
     return result
+
+
+FAMILY_PROMPT='''
+When active_instructions is present, classify the current task together with
+those current Agent requirements; historical system text is not a substitute.
+Empty active instructions are valid. For a short Go, identify the deliverable
+from active instructions and pending_task if present. pending_task is a source
+continuity proposal, not a prescribed difficulty, effort, or model.
+Also return task_family, choosing exactly one of these workload families:
+data_gathering (fetch/find facts), evidence_synthesis (combine/summarize sources),
+transformation (reformat/map existing data), extraction (identify structured fields),
+classification (assign labels/priorities), content_creation (new audience-facing content),
+editing_localization (revise/translate existing wording), quantitative (calculate/analyze numbers),
+business_planning (choose options and plan business actions), requirements (stories/acceptance criteria),
+test_design (test scenarios and expected results), code (create/explain/review code),
+rca (diagnose causal failure), tool_workflow (explicit ordered tool actions/recovery),
+conversation_control (greeting or retrieving/updating an earlier task's stated facts).
+Also architecture (system structure, boundaries and tradeoffs), development
+(implement/change runnable behavior), api_design (API contracts and semantics),
+security_review (security controls and adversarial threat analysis), and
+performance_analysis (latency, throughput, scaling and resource diagnosis).
+Classify the requested deliverable, not merely nouns in its source. Tools needed
+to fetch sources do not automatically make every task tool_workflow. If unclear,
+return task_family="unknown". This field never selects a model or grants access.
+'''
+
+FAMILIES = frozenset({
+    "data_gathering", "evidence_synthesis", "transformation", "extraction", "classification",
+    "content_creation", "editing_localization", "quantitative", "business_planning",
+    "requirements", "test_design", "code", "rca", "tool_workflow", "conversation_control",
+    "architecture", "development", "api_design", "security_review", "performance_analysis",
+})
+
+PROFILE_SCHEMA = {"type": "object", "additionalProperties": False,
+                  "properties": {k: {"type": "string", "enum": sorted(v)} for k, v in ENUMS.items()},
+                  "required": list(ENUMS)}

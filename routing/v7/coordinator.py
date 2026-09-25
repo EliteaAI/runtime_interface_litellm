@@ -15,6 +15,7 @@ from .economics import rank
 from .catalog import compile_catalog,QualificationSnapshot
 from .social import REVISION as SOCIAL_REVISION
 from .mechanical import REVISION as MECHANICAL_REVISION
+from .task_continuity import REVISION as CONTINUITY_REVISION
 
 EFFORT_SYSTEM='''
 Also include effort_need="low|medium|high". This describes a requested reasoning
@@ -45,7 +46,7 @@ class Router(Coordinator):
     def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
-        self.revision='v6-'+digest({'algorithm_revision':5,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
+        self.revision='v6-'+digest({'algorithm_revision':5,'continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
         self.local=ContextVar('routing_request_'+str(id(self)),default=None)
         self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=guarded_rules
@@ -69,6 +70,9 @@ class Router(Coordinator):
             max_bytes=ctx['view_bytes'],force_sources=ctx.get('force_sources',()))
         if ctx.get('pending_task'):
             view['pending_task']=copy.deepcopy(ctx['pending_task'])
+        tasks,omitted=ctx['session'].pending_index(messages,self.revision)
+        if tasks or omitted:
+            view['pending_tasks']=tasks;view['pending_tasks_omitted']=omitted
         if (getattr(self.gateway,'runtime_context',{}).get('active_instructions') or {}).get('text'):
             resolution={**resolution,'status':'ranked','candidates':[],'method':'Active Agent instructions require classification'}
         ctx['resolution']=resolution
@@ -140,4 +144,9 @@ class Router(Coordinator):
         if pending and 'intent' in pending and decision.get('action')!='clarify':
             if not session.claim_pending(pending['intent']['id']):raise ValueError('Pending task is already claimed')
             decision['pending_intent_id']=pending['intent']['id']
+        elif decision.get('action')!='clarify':
+            link=(decision.get('descriptor') or {}).get('task_continuity') or {}
+            if link.get('action')=='resume':
+                if not session.claim_pending(link['task_id']):raise ValueError('Pending task is already claimed')
+                decision['pending_intent_id']=link['task_id']
         return decision
