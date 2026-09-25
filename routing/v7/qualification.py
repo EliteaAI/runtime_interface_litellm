@@ -34,7 +34,7 @@ def uniform_assessment(contract, descriptor, demand):
     result.update({k:copy.deepcopy(cell[k]) for k in ('sample_count','independent_templates','pass','fail',
         'unknown','disagreement','delivery_failure','refused','wilson95','demand_coverage') if k in cell})
     result['evidence_basis']=basis
-    if cell.get('fail',0):status='measured_failure'
+    if cell.get('fail',0):status='provider_refusal' if cell.get('refused')==cell['fail'] else 'measured_failure'
     elif cell.get('disagreement',0):status='disputed_assessment'
     elif cell.get('unknown',0):status='unresolved_measurement'
     elif cell.get('delivery_failure',0):status='incomplete_delivery'

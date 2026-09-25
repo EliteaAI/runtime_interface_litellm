@@ -54,6 +54,8 @@ def compile_uniform_catalog(snapshot, *, classifier_variant, baseline_variant):
     identities = snapshot['variants']
     if not identities or classifier_variant not in identities or baseline_variant not in identities:
         raise ValueError('Classifier and baseline must belong to the same snapshot')
+    if any(identity.get('cache_write_mode') not in {'ordinary_input', 'separate'} for identity in identities.values()):
+        raise ValueError('Every uniform variant needs its measured cache write contract')
     records = snapshot['records']
     pairs = [(r['variant'], r['family']) for r in records]
     expected = {(vid, family) for vid in identities for family in FAMILIES}
@@ -120,7 +122,7 @@ def _apply_candidate(value, candidate):
             # measured family/demand cell before this generic selector runs.
             'tasks': ['creative', 'transform', 'analysis', 'design'],
             'max_demand': max(demands, key={'simple':0, 'standard':1, 'deep':2}.get) if demands else 'simple',
-            'cost_band': 2, 'cache_write_mode': 'separate',
+            'cost_band': 2, 'cache_write_mode': identity.get('cache_write_mode', 'separate'),
             'calibration_contract': {'revision': candidate['revision'],
                 'source_sha256': candidate['source_sha256'], 'families': families,
                 'family_evidence': evidence,

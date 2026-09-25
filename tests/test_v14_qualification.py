@@ -42,6 +42,7 @@ def test_pool_must_be_validated_and_cannot_erase_an_exact_failure():
 
 
 @pytest.mark.parametrize('changes,status',[
+    ({'fail':1,'refused':1},'provider_refusal'),
     ({'compatible_contracts':False},'incompatible_measurement_contract'),
     ({'wilson95':[.2,1]},'insufficient_quality_confidence'),
     ({'unknown':1},'unresolved_measurement'),

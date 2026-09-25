@@ -1,5 +1,6 @@
 """Whole-pool replacement must not preserve old capability grants by omission."""
 import copy
+import json
 
 import pytest
 
@@ -11,7 +12,7 @@ from test_v14_qualification import CELL, DESC, POLICY
 
 def snapshot():
     variants = {vid: dict(model=model, effort=None, transport='chat_completions',
-                         total_output_allowance=8000)
+                         total_output_allowance=8000, cache_write_mode='ordinary_input')
                 for vid, model in [('old', 'gpt-5.4'), ('new', 'global.anthropic.claude-opus-5-5'),
                                    ('classifier', 'global.openai.gpt-5.6-luna')]}
     records = []
@@ -35,6 +36,7 @@ def test_complete_pool_contains_only_snapshot_identities_and_disables_missing_ev
     assert not catalog['variants']['classifier']['enabled']
     assert all(v['calibration_contract']['qualification_policy'] == POLICY for v in catalog['variants'].values())
     assert catalog['variants']['old']['calibration_contract']['families'].keys() == {'development'}
+    assert all(v['cache_write_mode']=='ordinary_input' for v in catalog['variants'].values())
     assert value == before
 
 
@@ -61,13 +63,14 @@ def test_stale_positive_family_aggregate_cannot_override_narrow_failure():
     assert catalog['variants']['new']['calibration_contract']['family_evidence']['development']['profile_evidence'][0]['fail'] == 1
 
 
-@pytest.mark.parametrize('mutation', ['missing_family', 'duplicate', 'unknown_variant', 'unknown_policy'])
+@pytest.mark.parametrize('mutation', ['missing_family', 'duplicate', 'unknown_variant', 'unknown_policy', 'missing_cache_contract'])
 def test_incomplete_or_ambiguous_snapshot_does_not_restore_legacy_pool(mutation):
     value = snapshot()
     if mutation == 'missing_family':value['records'].pop()
     if mutation == 'duplicate':value['records'].append(copy.deepcopy(value['records'][0]))
     if mutation == 'unknown_variant':value['records'][0]['variant'] = 'unknown'
     if mutation == 'unknown_policy':value['qualification_policy']['revision'] = 'unrecognized'
+    if mutation == 'missing_cache_contract':value['variants']['old'].pop('cache_write_mode')
     with pytest.raises(ValueError):compile(value)
 
 
@@ -82,3 +85,32 @@ def test_zero_evidence_has_no_unmeasured_fallback_from_old_catalog():
     router = CalibratedRouter(object(), catalog=compile(value))
     with pytest.raises(ValueError, match='No eligible configured model'):
         router.select({**DESC, 'operation': 'design', 'demand': 'standard', 'effort_need': 'low'})
+
+
+def test_uniform_pool_survives_real_service_inventory_pricing_and_signed_binding():
+    from routing.service import GenerationRouter, ClassifierTransport, resolve, decode_pin
+    from test_auto_routing_service import fixture, request
+    value = snapshot()
+    for row in value['records']:
+        if row['variant'] != 'new':row['profile_evidence'] = []
+    catalog = compile(value)
+    args = fixture()
+    args['router'] = GenerationRouter(ClassifierTransport(), catalog=catalog, output_policy='measured')
+    names = [v['model'] for v in catalog['variants'].values()]
+    args['models'] = [dict(name=n, project_id=7, context_window=128000, max_output_tokens=16000,
+                           openai_compatible=True) for n in names]
+    args['price_snapshot']['entries'] = [dict(model_name=n, input_cost_per_token='.000001',
+        output_cost_per_token='.000002', cache_read_input_token_cost='.0000001') for n in names]
+    calls = []
+    def complete(model, messages, **kwargs):
+        calls.append(model)
+        descriptor = {**DESC, 'operation': 'design', 'demand': 'standard', 'effort_need': 'low',
+            'input_status': 'provided', 'retrieval_source_ids': [], 'reference_ids': [], 'reason': 'Bounded implementation',
+            'task_continuity': {'action': 'independent', 'task_id': None, 'summary': ''}}
+        return {'message': {'content': json.dumps(descriptor)}, 'finish_reason': 'stop'}
+    result = resolve(request('Implement the reservation ledger under the supplied contract.'), complete=complete, **args)
+    assert calls == [value['variants']['classifier']['model']]
+    assert result['config']['model_name'] == value['variants']['new']['model']
+    assert result['trace']['selection']['family_qualification']['eligible'] == ['new']
+    pin = decode_pin(result['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=101)
+    assert pin['config'] == result['config']
