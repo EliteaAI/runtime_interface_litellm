@@ -5,14 +5,22 @@ from .retrieval import digest
 
 
 def validate_scope(scope):
-    if (set(scope) != {'id', 'delivery', 'execution_contract', 'tools_sha256', 'history'}
+    keys = {'id', 'delivery', 'execution_contract', 'tools_sha256', 'history'}
+    bounded = scope.get('history') == 'bounded_conversation'
+    if bounded:
+        keys.add('maximum_user_turns')
+    if (set(scope) != keys
             or scope['delivery'] not in {'text', 'repository', 'standalone_code'}
             or not isinstance(scope['execution_contract'], str) or not scope['execution_contract']
             or scope['id'] != scope['delivery'] + ':' + scope['execution_contract']
-            or scope['history'] != 'isolated'
+            or scope['history'] not in {'isolated', 'bounded_conversation'}
             or not isinstance(scope['tools_sha256'], str)
             or not re.fullmatch('[0-9a-f]{64}', scope['tools_sha256'])):
         raise ValueError('Invalid calibrated request scope')
+    if bounded and (scope['delivery'] != 'text' or scope['tools_sha256'] != digest([])
+                    or type(scope['maximum_user_turns']) is not int
+                    or not 1 <= scope['maximum_user_turns'] <= 64):
+        raise ValueError('Invalid bounded conversation scope')
 
 
 def check_request_scope(scope, task_contract, messages, tools):
@@ -23,8 +31,13 @@ def check_request_scope(scope, task_contract, messages, tools):
         raise ValueError('Unmeasured execution envelope: configured task contract differs')
     if digest(tools or []) != scope['tools_sha256']:
         raise ValueError('Unmeasured execution envelope: native tool schema differs')
-    if (sum(m.get('role') == 'user' for m in messages) != 1
-            or any(m.get('role') in {'assistant', 'tool', 'function'} for m in messages)):
+    turns = sum(m.get('role') == 'user' for m in messages)
+    if scope['history'] == 'bounded_conversation':
+        if not 1 <= turns <= scope['maximum_user_turns']:
+            raise ValueError('Unmeasured execution envelope: conversation turn bound exceeded')
+        if any(m.get('role') in {'tool', 'function'} for m in messages):
+            raise ValueError('Unmeasured execution envelope: prior tool history is not calibrated')
+    elif (turns != 1 or any(m.get('role') in {'assistant', 'tool', 'function'} for m in messages)):
         raise ValueError('Unmeasured execution envelope: isolated calibration does not cover conversation history')
 
 
