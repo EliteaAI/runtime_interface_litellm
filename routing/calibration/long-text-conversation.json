@@ -1,12 +1,12 @@
 {
-  "revision": "v14-final-development-r35-bounded-text-conversation",
+  "revision": "v14-final-development-r35-long-text-conversation",
   "qualification_policy": {
     "minimum_templates": 4,
     "minimum_validation_templates": 4,
     "minimum_wilson_lower": 0.5,
     "revision": "uniform-profile-v1"
   },
-  "source_sha256": "2878855139d3182e75cb3690bc41bfef08ca2bc9df411c610bc4bda8596d5d37",
+  "source_sha256": "8b9f2a0a3d92ad7d53558ec86819b8c2facad157e059e5fb9ece255dc7167943",
   "variants": {
     "m06-default": {
       "configuration_fingerprint": "1e303b9ece7a9878cf8640b2044230ff706ad03e276ec7027c520cec3bae8a76",
@@ -162,18 +162,18 @@
             "creativity": "constrained",
             "verification": "none"
           },
-          "sample_count": 5,
-          "pass": 4,
+          "sample_count": 8,
+          "pass": 7,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 1,
           "delivery_failure": 0,
-          "independent_templates": 5,
+          "independent_templates": 7,
           "wilson95": [
-            0.37553462976252533,
-            0.9637758913675698
+            0.4868721707256811,
+            0.9743203756552565
           ],
           "demand_coverage": [
             "simple"
@@ -184,7 +184,10 @@
             "r26/runs/ukrainian/sonnet/turns/000",
             "r26/runs/extensions/sonnet/turns/000",
             "r26/runs/outline/sonnet/turns/000",
-            "r26/runs/aggregate/sonnet/turns/000"
+            "r26/runs/aggregate/sonnet/turns/000",
+            "r29/runs/csv/sonnet/turns/000",
+            "r29/runs/run_length/sonnet/turns/000",
+            "r29/runs/pointer/sonnet/turns/000"
           ],
           "eligible_local_beta": false,
           "qualification_status": "disputed_assessment"
@@ -197,18 +200,18 @@
             "creativity": "none",
             "verification": "check"
           },
-          "sample_count": 4,
+          "sample_count": 6,
           "pass": 2,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
-          "unknown": 2,
+          "unknown": 4,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 4,
+          "independent_templates": 5,
           "wilson95": [
-            0.15003898915214947,
-            0.8499610108478506
+            0.11762077423264783,
+            0.769275718723987
           ],
           "demand_coverage": [
             "simple"
@@ -218,7 +221,9 @@
             "r26/runs/csv/sonnet/turns/002",
             "r26/runs/extensions/sonnet/turns/002",
             "r26/runs/run_length/sonnet/turns/000",
-            "r26/runs/pointer/sonnet/turns/002"
+            "r26/runs/pointer/sonnet/turns/002",
+            "r29/runs/extensions/sonnet/turns/000",
+            "r29/runs/outline/sonnet/turns/001"
           ],
           "eligible_local_beta": false,
           "qualification_status": "unresolved_measurement"
@@ -231,18 +236,18 @@
             "creativity": "none",
             "verification": "check"
           },
-          "sample_count": 5,
-          "pass": 2,
+          "sample_count": 12,
+          "pass": 5,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
-          "unknown": 2,
-          "disagreement": 1,
+          "unknown": 4,
+          "disagreement": 3,
           "delivery_failure": 0,
-          "independent_templates": 5,
+          "independent_templates": 8,
           "wilson95": [
-            0.11762077423264783,
-            0.769275718723987
+            0.13684428582359742,
+            0.6942576053973727
           ],
           "demand_coverage": [
             "simple"
@@ -253,7 +258,14 @@
             "r26/runs/glossary/sonnet/turns/002",
             "r26/runs/outline/sonnet/turns/002",
             "r26/runs/aggregate/sonnet/turns/002",
-            "r26/runs/run_length/sonnet/turns/002"
+            "r26/runs/run_length/sonnet/turns/002",
+            "r29/runs/csv/sonnet/turns/001",
+            "r29/runs/ukrainian/sonnet/turns/001",
+            "r29/runs/extensions/sonnet/turns/001",
+            "r29/runs/glossary/sonnet/turns/001",
+            "r29/runs/aggregate/sonnet/turns/001",
+            "r29/runs/run_length/sonnet/turns/001",
+            "r29/runs/pointer/sonnet/turns/001"
           ],
           "eligible_local_beta": false,
           "qualification_status": "disputed_assessment"
@@ -265,6 +277,40 @@
             "evidence": "supplied",
             "creativity": "none",
             "verification": "none"
+          },
+          "sample_count": 4,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 2,
+          "disagreement": 1,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.06149194472039621,
+            0.7923403991979522
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/glossary/sonnet/turns/000",
+            "r26/runs/pointer/sonnet/turns/000",
+            "r29/runs/glossary/sonnet/turns/000",
+            "r29/runs/aggregate/sonnet/turns/000"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "constrained",
+            "verification": "check"
           },
           "sample_count": 2,
           "pass": 1,
@@ -284,19 +330,19 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "r26/runs/glossary/sonnet/turns/000",
-            "r26/runs/pointer/sonnet/turns/000"
+            "r29/runs/ukrainian/sonnet/turns/000",
+            "r29/runs/outline/sonnet/turns/000"
           ],
           "eligible_local_beta": false,
           "qualification_status": "unresolved_measurement"
         }
       ],
       "validated_pools": [],
-      "sample_count": 16,
-      "pass": 9,
+      "sample_count": 32,
+      "pass": 16,
       "fail": 0,
-      "unknown": 5,
-      "disagreement": 2,
+      "unknown": 11,
+      "disagreement": 5,
       "delivery_failure": 0,
       "wilson95": null,
       "demand_coverage": [],
@@ -494,18 +540,18 @@
             "creativity": "none",
             "verification": "check"
           },
-          "sample_count": 16,
-          "pass": 11,
+          "sample_count": 32,
+          "pass": 20,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
-          "unknown": 5,
+          "unknown": 12,
           "disagreement": 0,
           "delivery_failure": 0,
           "independent_templates": 8,
           "wilson95": [
-            0.13684428582359742,
-            0.6942576053973727
+            0.071479212752109,
+            0.5907245696898311
           ],
           "demand_coverage": [
             "simple"
@@ -527,17 +573,33 @@
             "r26/runs/run_length/sonnet/turns/001",
             "r26/runs/run_length/sonnet/turns/003",
             "r26/runs/pointer/sonnet/turns/001",
-            "r26/runs/pointer/sonnet/turns/003"
+            "r26/runs/pointer/sonnet/turns/003",
+            "r29/runs/csv/sonnet/turns/008",
+            "r29/runs/csv/sonnet/turns/009",
+            "r29/runs/ukrainian/sonnet/turns/008",
+            "r29/runs/ukrainian/sonnet/turns/009",
+            "r29/runs/extensions/sonnet/turns/008",
+            "r29/runs/extensions/sonnet/turns/009",
+            "r29/runs/glossary/sonnet/turns/008",
+            "r29/runs/glossary/sonnet/turns/009",
+            "r29/runs/outline/sonnet/turns/008",
+            "r29/runs/outline/sonnet/turns/009",
+            "r29/runs/aggregate/sonnet/turns/008",
+            "r29/runs/aggregate/sonnet/turns/009",
+            "r29/runs/run_length/sonnet/turns/008",
+            "r29/runs/run_length/sonnet/turns/009",
+            "r29/runs/pointer/sonnet/turns/008",
+            "r29/runs/pointer/sonnet/turns/009"
           ],
           "eligible_local_beta": false,
           "qualification_status": "unresolved_measurement"
         }
       ],
       "validated_pools": [],
-      "sample_count": 16,
-      "pass": 11,
+      "sample_count": 32,
+      "pass": 20,
       "fail": 0,
-      "unknown": 5,
+      "unknown": 12,
       "disagreement": 0,
       "delivery_failure": 0,
       "wilson95": null,
@@ -646,17 +708,17 @@
             "creativity": "constrained",
             "verification": "none"
           },
-          "sample_count": 5,
-          "pass": 5,
+          "sample_count": 12,
+          "pass": 12,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 5,
+          "independent_templates": 7,
           "wilson95": [
-            0.5655175352168251,
+            0.6456695649333126,
             1
           ],
           "demand_coverage": [
@@ -668,7 +730,14 @@
             "r26/runs/ukrainian/luna/turns/000",
             "r26/runs/extensions/luna/turns/000",
             "r26/runs/outline/luna/turns/000",
-            "r26/runs/aggregate/luna/turns/000"
+            "r26/runs/aggregate/luna/turns/000",
+            "r29/runs/csv/luna/turns/000",
+            "r29/runs/ukrainian/luna/turns/000",
+            "r29/runs/extensions/luna/turns/000",
+            "r29/runs/outline/luna/turns/000",
+            "r29/runs/aggregate/luna/turns/000",
+            "r29/runs/run_length/luna/turns/000",
+            "r29/runs/pointer/luna/turns/000"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
@@ -681,8 +750,8 @@
             "creativity": "none",
             "verification": "check"
           },
-          "sample_count": 4,
-          "pass": 4,
+          "sample_count": 7,
+          "pass": 7,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
@@ -702,7 +771,10 @@
             "r26/runs/csv/luna/turns/002",
             "r26/runs/extensions/luna/turns/002",
             "r26/runs/aggregate/luna/turns/002",
-            "r26/runs/run_length/luna/turns/002"
+            "r26/runs/run_length/luna/turns/002",
+            "r29/runs/csv/luna/turns/001",
+            "r29/runs/aggregate/luna/turns/001",
+            "r29/runs/run_length/luna/turns/001"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
@@ -747,6 +819,39 @@
             "creativity": "none",
             "verification": "none"
           },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 2,
+          "wilson95": [
+            0.34238022750665303,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/glossary/luna/turns/000",
+            "r26/runs/pointer/luna/turns/000",
+            "r29/runs/glossary/luna/turns/000"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "none"
+          },
           "sample_count": 2,
           "pass": 2,
           "fail": 0,
@@ -765,8 +870,42 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "r26/runs/glossary/luna/turns/000",
-            "r26/runs/pointer/luna/turns/000"
+            "r26/runs/outline/luna/turns/002",
+            "r29/runs/extensions/luna/turns/001"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/run_length/luna/turns/000",
+            "r26/runs/pointer/luna/turns/002",
+            "r29/runs/outline/luna/turns/001",
+            "r29/runs/pointer/luna/turns/001"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -776,7 +915,7 @@
             "work": "transform",
             "reasoning": "bounded",
             "evidence": "supplied",
-            "creativity": "none",
+            "creativity": "constrained",
             "verification": "none"
           },
           "sample_count": 1,
@@ -797,7 +936,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "r26/runs/outline/luna/turns/002"
+            "r29/runs/ukrainian/luna/turns/001"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -807,39 +946,50 @@
             "work": "explain",
             "reasoning": "bounded",
             "evidence": "supplied",
-            "creativity": "none",
+            "creativity": "constrained",
             "verification": "check"
           },
-          "sample_count": 2,
-          "pass": 2,
+          "sample_count": 1,
+          "pass": 0,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
-          "unknown": 0,
+          "unknown": 1,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 2,
+          "independent_templates": 1,
           "wilson95": [
-            0.34238022750665303,
-            1
+            0,
+            0.7934506856227626
           ],
           "demand_coverage": [
             "simple"
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "r26/runs/run_length/luna/turns/000",
-            "r26/runs/pointer/luna/turns/002"
+            "r29/runs/glossary/luna/turns/001"
           ],
           "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "qualification_status": "unresolved_measurement",
+          "adverse_evidence": [
+            {
+              "slot": "evidence/context-trajectories-r18/runs/multiple-pending/turns/000",
+              "votes_sha256": [
+                "95957a7592d1777fe4a7e9ec90f33e3e2e7f2da6fa82981029af098515f75256",
+                "3b4e4501761ca393b089a016d031d8fe09b04cb28407e28526ae7198c58c3a2e"
+              ],
+              "generation_request_sha256": "fb566aa055fc2c5d57641bab3f91ca156ade56b32ae518b8d8be4acdd12883a2",
+              "kind": "preserved_valid_disagreement",
+              "review": "Supported negative retained as an additive exact-scope admission veto; historical vote/count files unchanged."
+            }
+          ]
         }
       ],
       "validated_pools": [],
-      "sample_count": 16,
-      "pass": 16,
+      "sample_count": 32,
+      "pass": 31,
       "fail": 0,
-      "unknown": 0,
+      "unknown": 1,
       "disagreement": 0,
       "delivery_failure": 0,
       "wilson95": null,
@@ -1040,18 +1190,18 @@
             "creativity": "none",
             "verification": "check"
           },
-          "sample_count": 16,
-          "pass": 16,
+          "sample_count": 32,
+          "pass": 28,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
-          "unknown": 0,
+          "unknown": 4,
           "disagreement": 0,
           "delivery_failure": 0,
           "independent_templates": 8,
           "wilson95": [
-            0.6755924351161198,
-            1
+            0.21521606221387757,
+            0.7847839377861224
           ],
           "demand_coverage": [
             "simple"
@@ -1073,24 +1223,38 @@
             "r26/runs/run_length/luna/turns/001",
             "r26/runs/run_length/luna/turns/003",
             "r26/runs/pointer/luna/turns/001",
-            "r26/runs/pointer/luna/turns/003"
+            "r26/runs/pointer/luna/turns/003",
+            "r29/runs/csv/luna/turns/008",
+            "r29/runs/csv/luna/turns/009",
+            "r29/runs/ukrainian/luna/turns/008",
+            "r29/runs/ukrainian/luna/turns/009",
+            "r29/runs/extensions/luna/turns/008",
+            "r29/runs/extensions/luna/turns/009",
+            "r29/runs/glossary/luna/turns/008",
+            "r29/runs/glossary/luna/turns/009",
+            "r29/runs/outline/luna/turns/008",
+            "r29/runs/outline/luna/turns/009",
+            "r29/runs/aggregate/luna/turns/008",
+            "r29/runs/aggregate/luna/turns/009",
+            "r29/runs/run_length/luna/turns/008",
+            "r29/runs/run_length/luna/turns/009",
+            "r29/runs/pointer/luna/turns/008",
+            "r29/runs/pointer/luna/turns/009"
           ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
+          "eligible_local_beta": false,
+          "qualification_status": "unresolved_measurement"
         }
       ],
       "validated_pools": [],
-      "sample_count": 16,
-      "pass": 16,
+      "sample_count": 32,
+      "pass": 28,
       "fail": 0,
-      "unknown": 0,
+      "unknown": 4,
       "disagreement": 0,
       "delivery_failure": 0,
       "wilson95": null,
-      "demand_coverage": [
-        "simple"
-      ],
-      "eligible_local_beta": true
+      "demand_coverage": [],
+      "eligible_local_beta": false
     }
   ],
   "excluded_observations": [],
@@ -1110,11 +1274,11 @@
   },
   "promotion_allowed": false,
   "request_scope": {
-    "id": "text:reviewed-history-r35-4",
+    "id": "text:reviewed-history-r35-14",
     "delivery": "text",
-    "execution_contract": "reviewed-history-r35-4",
+    "execution_contract": "reviewed-history-r35-14",
     "history": "bounded_conversation",
-    "maximum_user_turns": 4,
+    "maximum_user_turns": 14,
     "tools_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
   },
   "forecast_validation_required": true,

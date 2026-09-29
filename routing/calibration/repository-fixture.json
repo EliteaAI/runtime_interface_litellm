@@ -1,12 +1,12 @@
 {
-  "revision": "v14-application-r25-partition-1",
+  "revision": "v14-final-development-r35-repository-fixture",
   "qualification_policy": {
     "minimum_templates": 4,
     "minimum_validation_templates": 4,
     "minimum_wilson_lower": 0.5,
     "revision": "uniform-profile-v1"
   },
-  "source_sha256": "5039fe8e571b70ead39ad766f17ae0df1d72d65691e11f338b95d98680ead4a3",
+  "source_sha256": "7dd1671509d019ca06c2ce711dec5ea4e9b6d5c1c781163aadb91ec34d8772f1",
   "variants": {
     "m00-default": {
       "configuration_fingerprint": "fcea94de773c2b5b7203728b45c070ac6bfc429f1a1e8571e1508272f8345d8b",
@@ -933,6 +933,40 @@
       "profile_evidence": [
         {
           "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m00-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m00-default",
+            "scope-effective-r13/scope-event-window-development-m00-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m00-default"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
             "creativity": "constrained",
             "evidence": "retrieve",
             "reasoning": "multi_step",
@@ -997,23 +1031,23 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
+            "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "debug"
           },
-          "sample_count": 4,
-          "pass": 4,
+          "sample_count": 1,
+          "pass": 1,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 4,
+          "independent_templates": 1,
           "wilson95": [
-            0.5101091635454027,
+            0.20654931437723745,
             1
           ],
           "demand_coverage": [
@@ -1021,13 +1055,10 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m00-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m00-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m00-default",
-            "scope-effective-r13/scope-event-window-development-m00-default"
+            "scope-effective-r13/scope-event-window-tool_workflow-m00-default"
           ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -1056,37 +1087,6 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-utf8-stream-tool_workflow-m00-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-tool_workflow-m00-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -1396,6 +1396,40 @@
       "profile_evidence": [
         {
           "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m01-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m01-default",
+            "scope-effective-r13/scope-event-window-development-m01-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m01-default"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
             "creativity": "constrained",
             "evidence": "retrieve",
             "reasoning": "multi_step",
@@ -1427,40 +1461,6 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m01-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m01-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m01-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m01-default"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
             "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -1486,39 +1486,8 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-dependency-order-development-m01-default",
-            "scope-effective-r13/scope-utf8-stream-development-m01-default",
-            "scope-effective-r13/scope-quoted-csv-development-m01-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m01-default"
+            "scope-effective-r13/scope-quoted-csv-development-m01-default",
+            "scope-effective-r13/scope-utf8-stream-development-m01-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -1553,6 +1522,37 @@
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m01-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         }
       ],
       "validated_pools": [],
@@ -1859,70 +1859,6 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 3,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 3,
-          "wilson95": [
-            0.4385029682449546,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m02-default",
-            "scope-effective-r13/scope-dependency-order-development-m02-default",
-            "scope-effective-r13/scope-utf8-stream-development-m02-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m02-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
             "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -1947,13 +1883,77 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m02-default",
             "scope-effective-r13/scope-atomic-path-patch-development-m02-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m02-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m02-default"
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m02-default",
+            "scope-effective-r13/scope-event-window-development-m02-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m02-default"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m02-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m02-default",
+            "scope-effective-r13/scope-quoted-csv-development-m02-default",
+            "scope-effective-r13/scope-utf8-stream-development-m02-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -1992,7 +1992,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
           "sample_count": 1,
           "pass": 1,
@@ -2012,7 +2012,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m02-default"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m02-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -2320,6 +2320,71 @@
       "variant": "m03-default",
       "family": "development",
       "profile_evidence": [
+        {
+          "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 1,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.30064184258240184,
+            0.9544127391902995
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m03-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m03-default",
+            "scope-effective-r13/scope-event-window-development-m03-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m03-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m03-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
         {
           "work_profile": {
             "creativity": "constrained",
@@ -2380,71 +2445,6 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m03-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 1,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.30064184258240184,
-            0.9544127391902995
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m03-default",
-            "scope-effective-r13/scope-event-window-development-m03-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m03-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m03-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "disputed_assessment"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m03-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -2807,13 +2807,44 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m04-default",
             "scope-effective-r13/scope-atomic-path-patch-development-m04-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m04-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m04-default"
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m04-default",
+            "scope-effective-r13/scope-event-window-development-m04-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m04-default"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m04-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -2841,40 +2872,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m04-default",
             "scope-effective-r13/scope-dependency-order-development-m04-default",
+            "scope-effective-r13/scope-quoted-csv-development-m04-default",
             "scope-effective-r13/scope-utf8-stream-development-m04-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m04-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -2916,7 +2916,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
           "sample_count": 1,
           "pass": 1,
@@ -2936,7 +2936,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m04-default"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m04-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -3270,13 +3270,44 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m04-high",
             "scope-effective-r13/scope-dependency-order-tool_workflow-m04-high",
             "scope-effective-r13/scope-event-window-development-m04-high",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m04-high",
-            "scope-effective-r13/scope-atomic-path-patch-development-m04-high"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m04-high"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m04-high"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -3310,37 +3341,6 @@
           ],
           "eligible_local_beta": false,
           "qualification_status": "disputed_assessment"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m04-high"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -3379,7 +3379,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
           "sample_count": 1,
           "pass": 1,
@@ -3399,7 +3399,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m04-high"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m04-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -3733,77 +3733,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m04-medium",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m04-medium",
+            "scope-effective-r13/scope-atomic-path-patch-development-m04-medium",
             "scope-effective-r13/scope-dependency-order-tool_workflow-m04-medium",
-            "scope-effective-r13/scope-atomic-path-patch-development-m04-medium"
+            "scope-effective-r13/scope-event-window-development-m04-medium",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m04-medium"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 3,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 3,
-          "wilson95": [
-            0.4385029682449546,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-development-m04-medium",
-            "scope-effective-r13/scope-quoted-csv-development-m04-medium",
-            "scope-effective-r13/scope-dependency-order-development-m04-medium"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m04-medium"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -3842,6 +3778,39 @@
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m04-medium",
+            "scope-effective-r13/scope-quoted-csv-development-m04-medium",
+            "scope-effective-r13/scope-utf8-stream-development-m04-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
             "work": "debug"
           },
           "sample_count": 1,
@@ -3863,6 +3832,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m04-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m04-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -4172,39 +4172,6 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 3,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 3,
-          "wilson95": [
-            0.4385029682449546,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-development-m05-default",
-            "scope-effective-r13/scope-utf8-stream-development-m05-default",
-            "scope-effective-r13/scope-quoted-csv-development-m05-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
             "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -4229,44 +4196,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m05-default",
             "scope-effective-r13/scope-atomic-path-patch-development-m05-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m05-default",
             "scope-effective-r13/scope-event-window-development-m05-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m05-default"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m05-default"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m05-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -4305,6 +4241,39 @@
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m05-default",
+            "scope-effective-r13/scope-quoted-csv-development-m05-default",
+            "scope-effective-r13/scope-utf8-stream-development-m05-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
             "work": "debug"
           },
           "sample_count": 1,
@@ -4326,6 +4295,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m05-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m05-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -4659,13 +4659,44 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m06-default",
             "scope-effective-r13/scope-dependency-order-tool_workflow-m06-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m06-default",
             "scope-effective-r13/scope-event-window-development-m06-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m06-default"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m06-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m06-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -4693,43 +4724,12 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-development-m06-default",
+            "scope-effective-r13/scope-dependency-order-development-m06-default",
             "scope-effective-r13/scope-quoted-csv-development-m06-default",
-            "scope-effective-r13/scope-dependency-order-development-m06-default"
+            "scope-effective-r13/scope-utf8-stream-development-m06-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "disputed_assessment"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m06-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -4768,7 +4768,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
           "sample_count": 1,
           "pass": 1,
@@ -4788,7 +4788,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m06-default"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m06-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -5096,23 +5096,23 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
+            "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
-          "sample_count": 3,
-          "pass": 3,
+          "sample_count": 4,
+          "pass": 4,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 3,
+          "independent_templates": 4,
           "wilson95": [
-            0.4385029682449546,
+            0.5101091635454027,
             1
           ],
           "demand_coverage": [
@@ -5120,43 +5120,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-development-m07-default",
-            "scope-effective-r13/scope-utf8-stream-development-m07-default",
-            "scope-effective-r13/scope-quoted-csv-development-m07-default"
+            "scope-effective-r13/scope-atomic-path-patch-development-m07-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m07-default",
+            "scope-effective-r13/scope-event-window-development-m07-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m07-default"
           ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m07-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -5191,23 +5161,23 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
+            "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
-          "sample_count": 4,
-          "pass": 4,
+          "sample_count": 3,
+          "pass": 3,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 4,
+          "independent_templates": 3,
           "wilson95": [
-            0.5101091635454027,
+            0.4385029682449546,
             1
           ],
           "demand_coverage": [
@@ -5215,13 +5185,12 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-development-m07-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m07-default",
-            "scope-effective-r13/scope-event-window-development-m07-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m07-default"
+            "scope-effective-r13/scope-dependency-order-development-m07-default",
+            "scope-effective-r13/scope-quoted-csv-development-m07-default",
+            "scope-effective-r13/scope-utf8-stream-development-m07-default"
           ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -5250,6 +5219,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m07-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m07-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -5559,37 +5559,6 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m07-high"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
             "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -5614,44 +5583,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m07-high",
             "scope-effective-r13/scope-atomic-path-patch-development-m07-high",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m07-high",
             "scope-effective-r13/scope-event-window-development-m07-high",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m07-high"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m07-high"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-tool_workflow-m07-high"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -5711,8 +5649,70 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-dependency-order-development-m07-high",
-            "scope-effective-r13/scope-utf8-stream-development-m07-high",
-            "scope-effective-r13/scope-quoted-csv-development-m07-high"
+            "scope-effective-r13/scope-quoted-csv-development-m07-high",
+            "scope-effective-r13/scope-utf8-stream-development-m07-high"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-event-window-tool_workflow-m07-high"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m07-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -6020,6 +6020,40 @@
       "variant": "m07-medium",
       "family": "development",
       "profile_evidence": [
+        {
+          "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m07-medium",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m07-medium",
+            "scope-effective-r13/scope-event-window-development-m07-medium",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m07-medium"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
         {
           "work_profile": {
             "creativity": "constrained",
@@ -6054,37 +6088,6 @@
         {
           "work_profile": {
             "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m07-medium"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
@@ -6109,45 +6112,11 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-dependency-order-development-m07-medium",
-            "scope-effective-r13/scope-utf8-stream-development-m07-medium",
-            "scope-effective-r13/scope-quoted-csv-development-m07-medium"
+            "scope-effective-r13/scope-quoted-csv-development-m07-medium",
+            "scope-effective-r13/scope-utf8-stream-development-m07-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-development-m07-medium",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m07-medium",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m07-medium",
-            "scope-effective-r13/scope-event-window-development-m07-medium"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -6176,6 +6145,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m07-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m07-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -6486,7 +6486,7 @@
         {
           "work_profile": {
             "creativity": "constrained",
-            "evidence": "supplied",
+            "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "debug"
@@ -6509,7 +6509,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-tool_workflow-m08-default"
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m08-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -6540,8 +6540,39 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m08-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m08-default"
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m08-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m08-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-event-window-tool_workflow-m08-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -6573,37 +6604,6 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-utf8-stream-tool_workflow-m08-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m08-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -6935,10 +6935,10 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m08-high",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m08-high",
+            "scope-effective-r13/scope-atomic-path-patch-development-m08-high",
             "scope-effective-r13/scope-dependency-order-tool_workflow-m08-high",
-            "scope-effective-r13/scope-atomic-path-patch-development-m08-high"
+            "scope-effective-r13/scope-event-window-development-m08-high",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m08-high"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
@@ -7374,39 +7374,6 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 3,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 3,
-          "wilson95": [
-            0.4385029682449546,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m08-medium",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m08-medium",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m08-medium"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
             "creativity": "constrained",
             "evidence": "retrieve",
             "reasoning": "multi_step",
@@ -7432,6 +7399,39 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m08-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m08-medium",
+            "scope-effective-r13/scope-event-window-development-m08-medium",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m08-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -7801,23 +7801,23 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
+            "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "debug"
           },
-          "sample_count": 1,
-          "pass": 1,
+          "sample_count": 4,
+          "pass": 4,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 1,
+          "independent_templates": 4,
           "wilson95": [
-            0.20654931437723745,
+            0.5101091635454027,
             1
           ],
           "demand_coverage": [
@@ -7825,10 +7825,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-tool_workflow-m09-default"
+            "scope-effective-r13/scope-atomic-path-patch-development-m09-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m09-default",
+            "scope-effective-r13/scope-event-window-development-m09-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m09-default"
           ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -7864,6 +7867,70 @@
         {
           "work_profile": {
             "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m09-default",
+            "scope-effective-r13/scope-quoted-csv-development-m09-default",
+            "scope-effective-r13/scope-utf8-stream-development-m09-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-event-window-tool_workflow-m09-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
@@ -7888,73 +7955,6 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-utf8-stream-tool_workflow-m09-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m09-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m09-default",
-            "scope-effective-r13/scope-event-window-development-m09-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m09-default"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 3,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 3,
-          "wilson95": [
-            0.4385029682449546,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m09-default",
-            "scope-effective-r13/scope-dependency-order-development-m09-default",
-            "scope-effective-r13/scope-utf8-stream-development-m09-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -8289,9 +8289,9 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-atomic-path-patch-development-m09-high",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m09-high",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m09-high",
             "scope-effective-r13/scope-event-window-development-m09-high",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m09-high"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m09-high"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
@@ -8302,7 +8302,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
           "sample_count": 1,
           "pass": 1,
@@ -8322,7 +8322,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m09-high"
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m09-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -8353,9 +8353,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m09-high",
             "scope-effective-r13/scope-quoted-csv-development-m09-high",
-            "scope-effective-r13/scope-utf8-stream-development-m09-high",
-            "scope-effective-r13/scope-dependency-order-development-m09-high"
+            "scope-effective-r13/scope-utf8-stream-development-m09-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -8397,7 +8397,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
           "sample_count": 1,
           "pass": 1,
@@ -8417,7 +8417,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m09-high"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m09-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -8751,13 +8751,44 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m09-medium",
             "scope-effective-r13/scope-dependency-order-tool_workflow-m09-medium",
             "scope-effective-r13/scope-event-window-development-m09-medium",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m09-medium",
-            "scope-effective-r13/scope-atomic-path-patch-development-m09-medium"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m09-medium"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m09-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -8785,40 +8816,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-development-m09-medium",
             "scope-effective-r13/scope-dependency-order-development-m09-medium",
-            "scope-effective-r13/scope-quoted-csv-development-m09-medium"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m09-medium"
+            "scope-effective-r13/scope-quoted-csv-development-m09-medium",
+            "scope-effective-r13/scope-utf8-stream-development-m09-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -8860,7 +8860,7 @@
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
           "sample_count": 1,
           "pass": 1,
@@ -8880,7 +8880,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m09-medium"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m09-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -9190,6 +9190,71 @@
       "profile_evidence": [
         {
           "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m10-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m10-default",
+            "scope-effective-r13/scope-event-window-development-m10-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m10-default"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m10-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
             "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -9220,40 +9285,6 @@
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m10-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m10-default",
-            "scope-effective-r13/scope-event-window-development-m10-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m10-default"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -9316,37 +9347,6 @@
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m10-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         }
       ],
       "validated_pools": [],
@@ -9653,23 +9653,23 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
+            "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
-          "sample_count": 3,
-          "pass": 3,
+          "sample_count": 4,
+          "pass": 4,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 3,
+          "independent_templates": 4,
           "wilson95": [
-            0.4385029682449546,
+            0.5101091635454027,
             1
           ],
           "demand_coverage": [
@@ -9677,12 +9677,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m10-high",
-            "scope-effective-r13/scope-utf8-stream-development-m10-high",
-            "scope-effective-r13/scope-dependency-order-development-m10-high"
+            "scope-effective-r13/scope-atomic-path-patch-development-m10-high",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m10-high",
+            "scope-effective-r13/scope-event-window-development-m10-high",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m10-high"
           ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -9717,57 +9718,23 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m10-high",
-            "scope-effective-r13/scope-atomic-path-patch-development-m10-high",
-            "scope-effective-r13/scope-event-window-development-m10-high",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m10-high"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
             "creativity": "constrained",
-            "evidence": "retrieve",
+            "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "implement"
           },
-          "sample_count": 1,
-          "pass": 1,
+          "sample_count": 3,
+          "pass": 3,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 1,
+          "independent_templates": 3,
           "wilson95": [
-            0.20654931437723745,
+            0.4385029682449546,
             1
           ],
           "demand_coverage": [
@@ -9775,7 +9742,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m10-high"
+            "scope-effective-r13/scope-dependency-order-development-m10-high",
+            "scope-effective-r13/scope-quoted-csv-development-m10-high",
+            "scope-effective-r13/scope-utf8-stream-development-m10-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -9807,6 +9776,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m10-high"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m10-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -10116,37 +10116,6 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-tool_workflow-m10-medium"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
             "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -10171,10 +10140,10 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m10-medium",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m10-medium",
             "scope-effective-r13/scope-atomic-path-patch-development-m10-medium",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m10-medium"
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m10-medium",
+            "scope-effective-r13/scope-event-window-development-m10-medium",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m10-medium"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
@@ -10236,9 +10205,40 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m10-medium",
             "scope-effective-r13/scope-dependency-order-development-m10-medium",
+            "scope-effective-r13/scope-quoted-csv-development-m10-medium",
             "scope-effective-r13/scope-utf8-stream-development-m10-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-event-window-tool_workflow-m10-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -10579,6 +10579,40 @@
       "profile_evidence": [
         {
           "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m11-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m11-default",
+            "scope-effective-r13/scope-event-window-development-m11-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m11-default"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
             "creativity": "constrained",
             "evidence": "retrieve",
             "reasoning": "multi_step",
@@ -10634,74 +10668,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m11-default",
             "scope-effective-r13/scope-dependency-order-development-m11-default",
+            "scope-effective-r13/scope-quoted-csv-development-m11-default",
             "scope-effective-r13/scope-utf8-stream-development-m11-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m11-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m11-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m11-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m11-default"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m11-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -10733,6 +10702,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m11-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m11-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -11066,77 +11066,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m11-high",
             "scope-effective-r13/scope-atomic-path-patch-development-m11-high",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m11-high",
             "scope-effective-r13/scope-event-window-development-m11-high",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m11-high"
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m11-high"
           ],
           "eligible_local_beta": true,
           "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 3,
-          "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 3,
-          "wilson95": [
-            0.4385029682449546,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-development-m11-high",
-            "scope-effective-r13/scope-quoted-csv-development-m11-high",
-            "scope-effective-r13/scope-utf8-stream-development-m11-high"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m11-high"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -11175,6 +11111,39 @@
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 3,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 3,
+          "wilson95": [
+            0.4385029682449546,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m11-high",
+            "scope-effective-r13/scope-quoted-csv-development-m11-high",
+            "scope-effective-r13/scope-utf8-stream-development-m11-high"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
             "work": "debug"
           },
           "sample_count": 1,
@@ -11196,6 +11165,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m11-high"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m11-high"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -11505,23 +11505,23 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
+            "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
-          "sample_count": 3,
-          "pass": 3,
+          "sample_count": 4,
+          "pass": 4,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 3,
+          "independent_templates": 4,
           "wilson95": [
-            0.4385029682449546,
+            0.5101091635454027,
             1
           ],
           "demand_coverage": [
@@ -11529,12 +11529,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m11-medium",
-            "scope-effective-r13/scope-dependency-order-development-m11-medium",
-            "scope-effective-r13/scope-utf8-stream-development-m11-medium"
+            "scope-effective-r13/scope-atomic-path-patch-development-m11-medium",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m11-medium",
+            "scope-effective-r13/scope-event-window-development-m11-medium",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m11-medium"
           ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -11569,57 +11570,23 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m11-medium",
-            "scope-effective-r13/scope-atomic-path-patch-development-m11-medium",
-            "scope-effective-r13/scope-event-window-development-m11-medium",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m11-medium"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
             "creativity": "constrained",
-            "evidence": "retrieve",
+            "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "implement"
           },
-          "sample_count": 1,
-          "pass": 1,
+          "sample_count": 3,
+          "pass": 3,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 1,
+          "independent_templates": 3,
           "wilson95": [
-            0.20654931437723745,
+            0.4385029682449546,
             1
           ],
           "demand_coverage": [
@@ -11627,7 +11594,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m11-medium"
+            "scope-effective-r13/scope-dependency-order-development-m11-medium",
+            "scope-effective-r13/scope-quoted-csv-development-m11-medium",
+            "scope-effective-r13/scope-utf8-stream-development-m11-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -11659,6 +11628,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m11-medium"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m11-medium"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -11968,39 +11968,6 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "implement"
-          },
-          "sample_count": 3,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 1,
-          "delivery_failure": 1,
-          "independent_templates": 3,
-          "wilson95": [
-            0.06149194472039621,
-            0.7923403991979522
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-quoted-csv-development-m12-default",
-            "scope-effective-r13/scope-dependency-order-development-m12-default",
-            "scope-effective-r13/scope-utf8-stream-development-m12-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "disputed_assessment"
-        },
-        {
-          "work_profile": {
             "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -12026,43 +11993,12 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-atomic-path-patch-development-m12-default",
-            "scope-effective-r13/scope-event-window-development-m12-default",
             "scope-effective-r13/scope-dependency-order-tool_workflow-m12-default",
+            "scope-effective-r13/scope-event-window-development-m12-default",
             "scope-effective-r13/scope-quoted-csv-tool_workflow-m12-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "incomplete_delivery"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-tool_workflow-m12-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
         },
         {
           "work_profile": {
@@ -12091,6 +12027,70 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m12-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 3,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 1,
+          "delivery_failure": 1,
+          "independent_templates": 3,
+          "wilson95": [
+            0.06149194472039621,
+            0.7923403991979522
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-dependency-order-development-m12-default",
+            "scope-effective-r13/scope-quoted-csv-development-m12-default",
+            "scope-effective-r13/scope-utf8-stream-development-m12-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-event-window-tool_workflow-m12-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -12429,23 +12429,23 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
+            "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
-          "sample_count": 3,
-          "pass": 3,
+          "sample_count": 4,
+          "pass": 4,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 3,
+          "independent_templates": 4,
           "wilson95": [
-            0.4385029682449546,
+            0.5101091635454027,
             1
           ],
           "demand_coverage": [
@@ -12453,12 +12453,13 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-development-m14-default",
-            "scope-effective-r13/scope-utf8-stream-development-m14-default",
-            "scope-effective-r13/scope-quoted-csv-development-m14-default"
+            "scope-effective-r13/scope-atomic-path-patch-development-m14-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m14-default",
+            "scope-effective-r13/scope-event-window-development-m14-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m14-default"
           ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -12494,22 +12495,22 @@
         {
           "work_profile": {
             "creativity": "constrained",
-            "evidence": "retrieve",
+            "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "implement"
           },
-          "sample_count": 1,
-          "pass": 1,
+          "sample_count": 3,
+          "pass": 3,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 1,
+          "independent_templates": 3,
           "wilson95": [
-            0.20654931437723745,
+            0.4385029682449546,
             1
           ],
           "demand_coverage": [
@@ -12517,44 +12518,12 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m14-default"
+            "scope-effective-r13/scope-dependency-order-development-m14-default",
+            "scope-effective-r13/scope-quoted-csv-development-m14-default",
+            "scope-effective-r13/scope-utf8-stream-development-m14-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-event-window-development-m14-default",
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m14-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m14-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m14-default"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
         },
         {
           "work_profile": {
@@ -12583,6 +12552,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m14-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m14-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -12892,6 +12892,71 @@
       "profile_evidence": [
         {
           "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m15-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m15-default",
+            "scope-effective-r13/scope-event-window-development-m15-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m15-default"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m15-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
             "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
@@ -12950,71 +13015,6 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m15-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 4,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.5101091635454027,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m15-default",
-            "scope-effective-r13/scope-event-window-development-m15-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m15-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m15-default"
-          ],
-          "eligible_local_beta": true,
-          "qualification_status": "provisional_qualified"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m15-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -13355,11 +13355,45 @@
       "profile_evidence": [
         {
           "work_profile": {
+            "creativity": "none",
+            "evidence": "supplied",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "debug"
+          },
+          "sample_count": 4,
+          "pass": 3,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 1,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.30064184258240184,
+            0.9544127391902995
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-atomic-path-patch-development-m16-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m16-default",
+            "scope-effective-r13/scope-event-window-development-m16-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m16-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
             "creativity": "constrained",
             "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
           "sample_count": 1,
           "pass": 1,
@@ -13379,7 +13413,7 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m16-default"
+            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m16-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -13420,37 +13454,6 @@
         {
           "work_profile": {
             "creativity": "constrained",
-            "evidence": "retrieve",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 1,
-          "pass": 1,
-          "fail": 0,
-          "quality_fail": 0,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 1,
-          "wilson95": [
-            0.20654931437723745,
-            1
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-atomic-path-patch-tool_workflow-m16-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
-        },
-        {
-          "work_profile": {
-            "creativity": "constrained",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
@@ -13481,37 +13484,34 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
+            "creativity": "constrained",
+            "evidence": "retrieve",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "debug"
+            "work": "implement"
           },
-          "sample_count": 4,
-          "pass": 3,
+          "sample_count": 1,
+          "pass": 1,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
-          "disagreement": 1,
+          "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 4,
+          "independent_templates": 1,
           "wilson95": [
-            0.30064184258240184,
-            0.9544127391902995
+            0.20654931437723745,
+            1
           ],
           "demand_coverage": [
             "standard"
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m16-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m16-default",
-            "scope-effective-r13/scope-event-window-development-m16-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m16-default"
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m16-default"
           ],
           "eligible_local_beta": false,
-          "qualification_status": "disputed_assessment"
+          "qualification_status": "insufficient_independent_templates"
         }
       ],
       "validated_pools": [],
@@ -13816,36 +13816,37 @@
       "profile_evidence": [
         {
           "work_profile": {
-            "creativity": "constrained",
+            "creativity": "none",
             "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
-            "work": "implement"
+            "work": "debug"
           },
-          "sample_count": 3,
+          "sample_count": 4,
           "pass": 3,
-          "fail": 0,
-          "quality_fail": 0,
+          "fail": 1,
+          "quality_fail": 1,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 3,
+          "independent_templates": 4,
           "wilson95": [
-            0.4385029682449546,
-            1
+            0.30064184258240184,
+            0.9544127391902995
           ],
           "demand_coverage": [
             "standard"
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-development-m17-default",
-            "scope-effective-r13/scope-utf8-stream-development-m17-default",
-            "scope-effective-r13/scope-quoted-csv-development-m17-default"
+            "scope-effective-r13/scope-atomic-path-patch-development-m17-default",
+            "scope-effective-r13/scope-dependency-order-tool_workflow-m17-default",
+            "scope-effective-r13/scope-event-window-development-m17-default",
+            "scope-effective-r13/scope-quoted-csv-tool_workflow-m17-default"
           ],
           "eligible_local_beta": false,
-          "qualification_status": "insufficient_independent_templates"
+          "qualification_status": "measured_failure"
         },
         {
           "work_profile": {
@@ -13880,57 +13881,23 @@
         },
         {
           "work_profile": {
-            "creativity": "none",
-            "evidence": "supplied",
-            "reasoning": "multi_step",
-            "verification": "check",
-            "work": "debug"
-          },
-          "sample_count": 4,
-          "pass": 3,
-          "fail": 1,
-          "quality_fail": 1,
-          "refused": 0,
-          "unknown": 0,
-          "disagreement": 0,
-          "delivery_failure": 0,
-          "independent_templates": 4,
-          "wilson95": [
-            0.30064184258240184,
-            0.9544127391902995
-          ],
-          "demand_coverage": [
-            "standard"
-          ],
-          "compatible_contracts": true,
-          "artifact_ids": [
-            "scope-effective-r13/scope-dependency-order-tool_workflow-m17-default",
-            "scope-effective-r13/scope-event-window-development-m17-default",
-            "scope-effective-r13/scope-quoted-csv-tool_workflow-m17-default",
-            "scope-effective-r13/scope-atomic-path-patch-development-m17-default"
-          ],
-          "eligible_local_beta": false,
-          "qualification_status": "measured_failure"
-        },
-        {
-          "work_profile": {
             "creativity": "constrained",
-            "evidence": "retrieve",
+            "evidence": "supplied",
             "reasoning": "multi_step",
             "verification": "check",
             "work": "implement"
           },
-          "sample_count": 1,
-          "pass": 1,
+          "sample_count": 3,
+          "pass": 3,
           "fail": 0,
           "quality_fail": 0,
           "refused": 0,
           "unknown": 0,
           "disagreement": 0,
           "delivery_failure": 0,
-          "independent_templates": 1,
+          "independent_templates": 3,
           "wilson95": [
-            0.20654931437723745,
+            0.4385029682449546,
             1
           ],
           "demand_coverage": [
@@ -13938,7 +13905,9 @@
           ],
           "compatible_contracts": true,
           "artifact_ids": [
-            "scope-effective-r13/scope-utf8-stream-tool_workflow-m17-default"
+            "scope-effective-r13/scope-dependency-order-development-m17-default",
+            "scope-effective-r13/scope-quoted-csv-development-m17-default",
+            "scope-effective-r13/scope-utf8-stream-development-m17-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"
@@ -13970,6 +13939,37 @@
           "compatible_contracts": true,
           "artifact_ids": [
             "scope-effective-r13/scope-event-window-tool_workflow-m17-default"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "creativity": "constrained",
+            "evidence": "retrieve",
+            "reasoning": "multi_step",
+            "verification": "check",
+            "work": "implement"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "standard"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "scope-effective-r13/scope-utf8-stream-tool_workflow-m17-default"
           ],
           "eligible_local_beta": false,
           "qualification_status": "insufficient_independent_templates"

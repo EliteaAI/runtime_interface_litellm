@@ -7,14 +7,15 @@ from routing.v7.calibration_scope import check_request_scope
 from routing.v7.retrieval import digest
 from test_auto_routing_service import fixture,request
 
-REVISION='v14-application-r28'
+REVISION='v14-application-r35'
 
 def configured(name):
     return bundle.runtime_settings({'enabled':True,'revision':'unit-gate'},
         {'auto_routing_calibration_profiles':{'7':{'profile':name,'revision':REVISION}}},7)
 
 @pytest.mark.parametrize('name,cells,cohorts',[
-    ('isolated-text',179,17),('repository-fixture',22,0),('bounded-text-conversation',5,0)])
+    ('isolated-text',179,17),('repository-fixture',22,0),('bounded-text-conversation',3,0),
+    ('long-text-conversation',2,0)])
 def test_release_profiles_recompile_and_preserve_uniform_admission(name,cells,cohorts):
     router=service.configured_router(configured(name));catalog=router.catalog
     found=0
@@ -39,6 +40,25 @@ def test_release_context_rejects_longer_and_tool_histories():
         check_request_scope(scope,scope['id'],[{'role':'user','content':'x'}]*5,[])
     with pytest.raises(ValueError,match='prior tool history'):
         check_request_scope(scope,scope['id'],[{'role':'user','content':'x'},{'role':'tool','content':'receipt'}],[])
+
+
+def test_reviewed_long_context_scope_and_unknown_admission_veto():
+    router=service.configured_router(configured('long-text-conversation'))
+    scope=router.catalog['request_scope']
+    assert scope['maximum_user_turns']==14
+    check_request_scope(scope,scope['id'],[{'role':'user','content':'x'}]*14,[])
+    with pytest.raises(ValueError,match='turn bound'):
+        check_request_scope(scope,scope['id'],[{'role':'user','content':'x'}]*15,[])
+    held=[]
+    for variant in router.catalog['variants'].values():
+        contract=variant['calibration_contract']
+        for family,record in contract['family_evidence'].items():
+            for cell in record['profile_evidence']:
+                if cell.get('unknown',0):
+                    held.append(cell)
+                    desc=dict(task_family=family,work_profile=cell['work_profile'],relation='independent',needs_context=False)
+                    assert not assess(contract,desc,cell['demand_coverage'][0])['eligible']
+    assert held
 
 
 def test_real_installed_context_service_admits_qualified_transform_without_forecast():

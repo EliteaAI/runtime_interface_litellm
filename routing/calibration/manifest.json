@@ -1,17 +1,21 @@
 {
-  "revision": "v14-application-r28",
+  "revision": "v14-application-r35",
   "profiles": {
     "isolated-text": {
       "file": "isolated-text.json",
-      "sha256": "0e8b21a851f149d712bd91cd84505a66da852d063ea7f3f08c100d1e74cf869d"
+      "sha256": "47946307a9e956b7134fb940aefc83b771b2442972e230b5564f78692c8c9d00"
     },
     "repository-fixture": {
       "file": "repository-fixture.json",
-      "sha256": "e074fb98ce657da2c50fa9243e69e257d6450657caea9fcefcc891e77357086f"
+      "sha256": "4b050b658766f70892761972be8eb0968080711057e51e6b29cf5342a7842470"
     },
     "bounded-text-conversation": {
       "file": "bounded-text-conversation.json",
-      "sha256": "bf02b5e50f3fe56489e914cb0483b0bbdf68be6ef26e389919355f59a8a6fba2"
+      "sha256": "103b1cafe78c9e4b1d11195e0497cdcda2b51eb340f46c15427aa70216d79e66"
+    },
+    "long-text-conversation": {
+      "file": "long-text-conversation.json",
+      "sha256": "67c1cde700c42c7ed9773720d79324da14948e3c09b6beca9ad01b1aca47fc8c"
     }
   }
 }
