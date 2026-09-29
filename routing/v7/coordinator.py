@@ -47,7 +47,7 @@ class Router(Coordinator):
                  lexical_scorer=None,lexical_mode='shadow'):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
-        self.revision='v6-'+digest({'algorithm_revision':5,'continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
+        self.revision='v6-'+digest({'algorithm_revision':'6-context-r16-full-source-1800','continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
         if lexical_mode not in {'shadow','enabled'}:
             raise ValueError('Unknown learned lexical mode')

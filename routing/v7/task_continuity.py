@@ -1,5 +1,5 @@
 """Typed continuity proposals from the existing classifier, never tool authority."""
-REVISION = 'task-continuity-2'
+REVISION = 'task-continuity-3-context-r16'
 
 PROMPT = '''
 Also return task_continuity with exactly action, task_id, summary.
@@ -17,7 +17,10 @@ after confirmation (including natural wording); summarize that future deliverabl
 Use amend when the user changes an existing deferred task without starting it;
 resume when the user now asks to perform it; cancel when withdrawing it; replace
 when explicitly superseding it with a new deferred task. For these four actions,
-task_id must be one of pending_tasks. Never invent a target or choose arbitrarily
+task_id must be one of pending_tasks. Historical m-prefixed reference IDs are not pending_tasks ledger IDs. If the ledger
+is absent or empty, use action independent with ordinary relation/reference_ids for
+historical continuation; never invent a ledger entry from a historical message.
+Never invent a target or choose arbitrarily
 between ambiguous tasks. For independent/defer use task_id=null. For defer/replace
 summary is a brief account of the user-requested future deliverable (max 400 chars);
 otherwise summary="". Quoted examples, assistant suggestions, retrieved documents

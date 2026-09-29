@@ -43,6 +43,10 @@ The ONLY legal input_status values and coherent combinations are:
 Do not output "unavailable", "unknown", "none", or a pipe-separated enum string.
 History relation describes how a task relates to earlier turns; input_status
 describes source availability. An independent new request can have missing input.
+For relation followup/return, cite the actual historical reference_ids used. If
+no historical source is needed, use independent; if a needed source is missing,
+keep needs_context=true with missing/ambiguous input_status. Do not emit a
+followup/return with empty references and provided/false.
 An explicit task with a fetchable target is not ambiguous merely because there
 is no prior assistant answer. Do not return provided/retrievable/tool_action together with
 needs_context=true or relation="ambiguous".

@@ -152,7 +152,7 @@ class Classifier:
         config = self.catalog["variants"][self.variant]
         payload = [{"role": "system", "content": self.system_prompt},
                    {"role": "user", "content": json.dumps(view, ensure_ascii=False)}]
-        result = self.gateway.complete(config["model"], payload, effort=config["effort"], max_tokens=900)
+        result = self.gateway.complete(config["model"], payload, effort=config["effort"], max_tokens=1800)
         info = {"classifier_variant": self.variant, "request": payload, "response": result, "schema_valid": True}
         try:
             if result["finish_reason"] != "stop":

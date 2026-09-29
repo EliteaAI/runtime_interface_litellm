@@ -66,6 +66,9 @@ class FamilyClassifier(AvailabilityClassifier):
             family=parsed.get('task_family','unknown')
             descriptor['task_family']=family if family in FAMILIES else 'unknown'
             try:
+                entries={x['id']:x for lane in ('recent','earlier_index','instruction_context') for x in view.get(lane,[])}
+                if any(entries.get(r,{}).get('content_truncated') for r in descriptor.get('reference_ids',[])):
+                    raise ValueError('SELECTED_SOURCE_CONTENT_INCOMPLETE')
                 descriptor=apply_profile(descriptor, parsed.get('work_profile'))
                 descriptor=normalize_operation(descriptor)
                 continuity=validate_continuity(parsed.get('task_continuity'),view)
