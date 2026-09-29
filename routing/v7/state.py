@@ -9,7 +9,7 @@ from .retrieval import ContextIndex,digest
 CONTINUE=re.compile(r'(?:go|proceed|continue|start(?: coding)?)[.! ]*',re.I)
 READY=re.compile(r'\b(?:ready to (?:code|implement)|wait for my (?:go|confirmation).*?(?:code|implement)|(?:code|implement).*?wait for my (?:go|confirmation))\b',re.I|re.S)
 CANCEL=re.compile(r'(?:please\s+)?(?:cancel|forget|drop)\s+(?:all(?:\s+pending)?\s+tasks|(?:the |my )?(?:pending )?(?:task|implementation|plan))[.! ]*',re.I)
-CACHE_STATE_REVISION='bounded-cache-checkpoint-2-default-5m'
+CACHE_STATE_REVISION='bounded-cache-checkpoint-3-unknown-counters-default-5m'
 # Default provider-cache evidence window. One-hour caching requires a separate
 # verified request contract; restoring a checkpoint never extends this window.
 CACHE_TTL_SECONDS = 300
@@ -29,7 +29,8 @@ def bounded_cache(rows):
         try:
             if not valid_time(row['observed_at']):continue
             if type(row['epoch']) is not int or row['epoch']<0:continue
-            if any(type(row[k]) is not int or row[k]<0 for k in ('read_tokens','observed_write_tokens')):continue
+            if type(row['read_tokens']) is not int or row['read_tokens']<0:continue
+            if row['observed_write_tokens'] is not None and (type(row['observed_write_tokens']) is not int or row['observed_write_tokens']<0):continue
             if row['observed_read_tokens'] is not None and (type(row['observed_read_tokens']) is not int or row['observed_read_tokens']<0):continue
             if any(not isinstance(row[k],str) or len(row[k])>256 for k in ('variant','identity')):continue
             if not isinstance(row['message_hashes'],list) or not row['message_hashes']:continue
@@ -162,16 +163,18 @@ class Session:
 
     def checkpoint(self):
         with self.lock:
-            return json.loads(json.dumps({'version':2,'id':self.id,'epoch':self.epoch,'history_hashes':self.history_hashes,
+            return json.loads(json.dumps({'version':3,'id':self.id,'epoch':self.epoch,'history_hashes':self.history_hashes,
                 'access_revision':getattr(self,'access_revision','local-authorized-v1'),'intents':self.intents,
                 'evidence_sets':self.evidence_sets,'cache':bounded_cache(self.cache)}))
 
     @classmethod
     def restore(cls,value):
-        if value.get('version') not in (1,2):raise ValueError('Unsupported routing checkpoint')
+        if value.get('version') not in (1,2,3):raise ValueError('Unsupported routing checkpoint')
         s=cls(value['id'])
         for k in ['epoch','history_hashes','access_revision','intents','evidence_sets']:setattr(s,k,copy.deepcopy(value[k]))
-        if value['version']==2:s.cache=bounded_cache(value.get('cache',[]))
+        # V2 imputed absent writes as zero; its optional cache evidence cannot
+        # distinguish unknown from observed zero. Preserve task state, stay cold.
+        if value['version']==3:s.cache=bounded_cache(value.get('cache',[]))
         return s
 
 
@@ -186,13 +189,13 @@ def observe_cache(session,gateway,variant_id,variant,messages,tools,cap,result,n
     if not valid_time(now):return
     usage=result.get('usage')or{};detail=usage.get('prompt_tokens_details')or{}
     read=detail.get('cached_tokens',usage.get('cache_read_input_tokens'))
-    write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens',0))
+    write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens'))
     if read is not None and (type(read)is not int or read<0):return
-    if type(write)is not int or write<0:return
+    if write is not None and (type(write)is not int or write<0):return
     if read is None and not write:return  # Unknown is not an observed miss.
-    if type(usage.get('prompt_tokens'))is not int or (read or 0)+write>usage['prompt_tokens']:return
+    if type(usage.get('prompt_tokens'))is not int or (read or 0)+(write or 0)>usage['prompt_tokens']:return
     item={'variant':variant_id,'identity':cache_identity(gateway,variant,tools,cap),
-        'message_hashes':[digest(m) for m in messages],'read_tokens':(read or 0)+write,'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
+        'message_hashes':[digest(m) for m in messages],'read_tokens':(read or 0)+(write or 0),'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
         'observed_at':now,'epoch':session.epoch}
     with session.lock:
         session.cache=bounded_cache([*session.cache,item])
@@ -211,5 +214,5 @@ def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=CACHE_
         'compatible_prefix':True,'route_identity_matches':True,'effort_matches':True,'within_ttl':True,
         'variant':variant_id,'returned_model_last_observed':best['returned_model'],
         'historical_read_hits':hits,'historical_observations':len(observed),
-        'observed_read_tokens':best.get('observed_read_tokens',best['read_tokens']),'observed_write_tokens':best.get('observed_write_tokens',0),
+        'observed_read_tokens':best.get('observed_read_tokens',best['read_tokens']),'observed_write_tokens':best.get('observed_write_tokens'),
         'basis':'Observed cache read/write on identical prior request prefix; hidden gateway/provider changes remain uncertain'}
