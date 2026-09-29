@@ -47,7 +47,7 @@ class Router(Coordinator):
                  lexical_scorer=None,lexical_mode='shadow'):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
-        self.revision='v6-'+digest({'algorithm_revision':'6-context-r16-full-source-1800','continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
+        self.revision='v6-'+digest({'algorithm_revision':'6-context-r25-scoped-instructions','continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
         if lexical_mode not in {'shadow','enabled'}:
             raise ValueError('Unknown learned lexical mode')
@@ -74,7 +74,8 @@ class Router(Coordinator):
     def _view(self,messages,hint):
         ctx=self.local.get()
         view,resolution=build(messages,hint,ctx['session'].index,epoch=ctx['session'].epoch,
-            max_bytes=ctx['view_bytes'],force_sources=ctx.get('force_sources',()))
+            max_bytes=ctx['view_bytes'],force_sources=ctx.get('force_sources',()),
+            active_instructions=getattr(self.gateway,'runtime_context',{}).get('active_instructions'))
         if ctx.get('pending_task'):
             view['pending_task']=copy.deepcopy(ctx['pending_task'])
         tasks,omitted=ctx['session'].pending_index(messages,self.revision)
@@ -108,6 +109,9 @@ class Router(Coordinator):
     def resolve(self,messages,*,mode='economic',binding=None,hint=None,previous=None,scope=None,allowed=None,
                 min_demand='simple',session=None,output_cap=None,tools=None,view_bytes=24000,
                 access_revision='local-authorized-v1',trusted_role=None,task_family=None,task_contract='text-tools-v1'):
+        if self.catalog.get('request_scope'):
+            from .calibration_scope import check_request_scope
+            check_request_scope(self.catalog['request_scope'], task_contract, messages, tools)
         hint=copy.deepcopy(hint or {'kind':'chat_turn'})
         cap=output_cap if output_cap is not None else hint.get('generation_output_cap',8000)
         if type(cap)is not int or cap<1:raise ValueError('Completion allowance must be a positive integer')

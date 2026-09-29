@@ -96,6 +96,10 @@ def compile_uniform_catalog(snapshot, *, classifier_variant, baseline_variant):
              'qualification': 'Uniform measured work profiles; no inherited legacy grants',
              'preferences': {operation: list(identities) for operation in
                              ('greeting', 'creative', 'transform', 'analysis', 'design', 'other')}}
+    if 'request_scope' in snapshot:
+        from .calibration_scope import validate_scope
+        validate_scope(snapshot['request_scope'])
+        value['request_scope'] = copy.deepcopy(snapshot['request_scope'])
     _apply_candidate(value, candidate)
     value['switching_policies']=copy.deepcopy(snapshot.get('switching_policies',[]))
     return value
@@ -137,6 +141,20 @@ def _apply_candidate(value, candidate):
             value['variants'][vid]['calibration_contract']['reasoning_format'] = identity['reasoning_format']
         if 'qualification_policy' in candidate:
             value['variants'][vid]['calibration_contract']['qualification_policy']=copy.deepcopy(candidate['qualification_policy'])
+        if candidate.get('forecast_validation_required'):
+            from .calibration_scope import valid_forecast
+            contract = value['variants'][vid]['calibration_contract']
+            request_hash = digest(identity['request_contract'])
+            cohorts = copy.deepcopy(candidate.get('validated_usage_cohorts', {}).get(vid, []))
+            if any(not valid_forecast(c, request_hash) for c in cohorts):
+                raise ValueError('Usage cohort lacks matching prospective validation')
+            scopes = [(c['delivery'], c['demand']) for c in cohorts]
+            if len(scopes) != len(set(scopes)):
+                raise ValueError('Ambiguous usage cohorts')
+            for family in contract['families'].values():
+                family.pop('usage_profile', None)
+            contract.update(forecast_validation_required=True, usage_cohorts=cohorts,
+                            request_contract_sha256=request_hash)
 
 
 class QualificationSnapshot:

@@ -3,6 +3,7 @@ import copy
 
 
 def cell_status(cell, policy):
+    if cell.get('adverse_evidence'):return 'adverse_exact_scope'
     if cell.get('fail',0):return 'provider_refusal' if cell.get('refused')==cell['fail'] else 'measured_failure'
     if cell.get('disagreement',0):return 'disputed_assessment'
     if cell.get('unknown',0):return 'unresolved_measurement'

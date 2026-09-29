@@ -1,5 +1,5 @@
 {
-  "policy": "Retained historical calibration evidence; V14 development branches with uniform qualification, task continuity, measured trajectories and gated lexical/cache policies",
+  "policy": "Retained origin hashes; V14 scoped candidate with complete selected sources, explicit wire contracts, conservative cache state and prospective forecast certificates. No production activation.",
   "sources": {
     "context_resolution.py": {
       "source": "autorouting_impl/poc/context_resolution.py",
@@ -9,7 +9,7 @@
     "routing.py": {
       "source": "autorouting_impl/poc/routing.py",
       "sha256": "5fe57360f055e4ba2cea83baa85d3824442a9f842c50875b037802a5093a914c",
-      "product_sha256": "ee8bacd960144d70a0f5506d622d045102a4f959cea9ae2c7d14e3e0b6533f32"
+      "product_sha256": "03fa135de1f2f1f1fac1fa0c501a887699b07f8e61fae4800fe24a27e6a6eb20"
     },
     "catalog.json": {
       "source": "autorouting_impl/poc/catalog.json",
@@ -19,7 +19,7 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "888c1ce89195d007fd10d4f8fcb599800695cf060b86ca9ac01a266092af3d30"
+      "product_sha256": "077d5485ddba2ea3d77ac9ae95dfeb2cb425f110c98c3d29732970578bed9a49"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
@@ -34,17 +34,17 @@
     "retrieval.py": {
       "source": "autorouting_impl/poc/router_v6/retrieval.py",
       "sha256": "f562101aeeba4248d37a3167dcc7e6669be98e48f7e57436625fe2dad49d77bd",
-      "product_sha256": "f8b030b04fd392289a3c59438865a31e9e0aeecb1c8ae04b3fa56ba5e51ad208"
+      "product_sha256": "9f779c9484f59757f856a9396f95d6f584f9806c0590c872c77fa513aabf34db"
     },
     "state.py": {
       "source": "autorouting_impl/poc/router_v6/state.py",
       "sha256": "267f9b3fe48d9d5c70c5d90bf0c52e7e6132e99d81de284a60154e7d307ec514",
-      "product_sha256": "4d9f7c42a48bde4020c446a37744f02bd5a28675445dbf2e4812f29722319a31"
+      "product_sha256": "1232cdb2770b32afe0761d9af59e61c2a6de8d2b16e890888921dd6a7c360f1e"
     },
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "fadf6f8380ecc822be2f1a23a50ef512919c5769526d8e191de5d0db1821bc04"
+      "product_sha256": "3a4702faf0d48dea30a83dd12d76ae87a2105381d63b71b171b9cc0e8e6d7c9d"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -54,12 +54,12 @@
     "availability.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/tool_availability_candidate.py",
       "sha256": "b4129fdcf69a769cda12f52a5cfc8c8d22604a3254b0cb610e0a402bee48b5b0",
-      "product_sha256": "31e79c5474f825f3704435e96f9bf2ab5a100f0cd5e35f5deb08ff8603e96114"
+      "product_sha256": "3f97b39a71076ecb2f62db03086210b7d477c32a7fa7be8701ad4db96c861a7b"
     },
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "0cc826d1d1d7f840836002edb796ee61064909207a7d89854e3561920a1dad60"
+      "product_sha256": "eba0545d2e8608087bdbdfd7ede137e070b5d458bf99399ea1acbb2cbeaf8bdb"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
@@ -99,11 +99,12 @@
     "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
     "economics.py": "10a6cabc4e8ca4ffcde67574aa63ca47cb4766821f598fd7bc999fb1bc7cf846",
     "learned_lexical.py": "65d8569fb0e4a24cc390689834566044024ddaf98f410b4922c915cfdd41c5a1",
-    "measured_economics.py": "f4a2b0b6fd3225acf0a29c05129309462bdb4ad62e4fabf42d06d7ada7813781",
+    "measured_economics.py": "711bf624f425c398497e0af2705bb1190f9a6620ec87a22e427d9c286fa8bf69",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
-    "qualification.py": "dac1fd893e5c2555745ce5c25a6d3a9271ea869c418bec41a9d48f2659fe18a2",
-    "task_continuity.py": "6aa68090c41f50d67645a15c67e580d54928aef69f76309c560d82990b7b6e1f",
-    "task_profile.py": "433b472b1f5b790c7f145b62579b21593783c20de0265f9630272441e4190588"
+    "qualification.py": "2f08ba272f4d9f714eaabdcc034bac4cd93ed17e9fd1e2c41d7146926364776f",
+    "task_continuity.py": "06ff50d04b0b8ef338bd1cfabbb2faa4ae031e0eedff7ec01b9e9fa43b0c4626",
+    "task_profile.py": "433b472b1f5b790c7f145b62579b21593783c20de0265f9630272441e4190588",
+    "calibration_scope.py": "7be755b9e34c393b6064ed990fbfcca23a8f67768a8fd49f862717e6225efd16"
   },
   "product_revision": "V14 development implementation; no calibrated snapshot activation or production promotion",
   "calibration_compiler": {

@@ -316,6 +316,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
             decision = router.resolve(messages, output_cap=cap if cap is not None else 8000, tools=tools, allowed=allowed,
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
+                task_contract=settings.get('calibration_task_contract', 'text-tools-v1'),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
             cap = output_caps[decision['selection']['variant']]
             decision['budget']['completion_cap'] = cap

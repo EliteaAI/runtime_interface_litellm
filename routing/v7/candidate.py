@@ -102,6 +102,10 @@ class CalibratedRouter(FixedV6Router):
         # cell, including its observed demand bands. Unknown/ambiguous work must
         # never reach one through the insufficient-evidence fallback.
         from .routing import DEMAND
+        if self.catalog.get('request_scope'):
+            ctx = self.local.get() or {}
+            if ctx.get('task_contract') != self.catalog['request_scope']['id']:
+                raise ValueError('Unmeasured execution envelope: no trusted runtime scope')
         permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
         demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
         assessments = {}
@@ -128,6 +132,8 @@ class CalibratedRouter(FixedV6Router):
             result=super().select(descriptor,eligible,previous,min_demand)
             result['economic_task']={'family':family,'demand':demand,
                                      'work_profile':copy.deepcopy(descriptor.get('work_profile'))}
+            if self.catalog.get('request_scope'):
+                result['economic_task']['delivery'] = self.catalog['request_scope']['delivery']
             result['family_qualification']={'family':family,'eligible':eligible,'status':'diagnostic_calibration_only','policy_revision':self.policy['revision'],'promotion':False,**evidence_trace}
             return result
         # All variants can lack evidence. Use the configured baseline family,

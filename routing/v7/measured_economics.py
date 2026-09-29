@@ -14,6 +14,17 @@ from .state import cache_quote
 
 
 def support(variant, task, size):
+    contract = variant.get('calibration_contract') or {}
+    if contract.get('forecast_validation_required'):
+        from .calibration_scope import valid_forecast
+        matches = [c for c in contract.get('usage_cohorts', [])
+                   if c['delivery'] == task.get('delivery') and c['demand'] == task.get('demand')]
+        if len(matches) != 1 or not valid_forecast(matches[0], contract.get('request_contract_sha256')):
+            return None, 'MISSING_VALIDATED_USAGE_COHORT'
+        profile = matches[0]
+        if not profile['input_bytes']['min'] <= size <= profile['input_bytes']['max']:
+            return None, 'OUTSIDE_MEASURED_INPUT_RANGE'
+        return profile, None
     usage = (variant.get('calibration_contract') or {}).get('families', {}).get(task.get('family'), {}).get('usage_profile')
     if not usage or usage.get('revision') != 'v14-usage-trajectories-1':
         return None, 'MISSING_USAGE_PROFILE'

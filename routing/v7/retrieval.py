@@ -138,7 +138,7 @@ def bounded(view,max_bytes):
     return out
 
 
-def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sources=()):
+def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sources=(),active_instructions=None):
     if not messages or messages[-1].get('role')!='user':raise ValueError('New scope needs a user task')
     if any(m.get('role')not in {'user','assistant','tool','system'} for m in messages):raise ValueError('Unsupported message role')
     has_tools=any(m['role']=='tool' or m.get('tool_calls') for m in messages)
@@ -210,5 +210,11 @@ def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sou
         v['context_truncated']=v['history_omitted']>0 or len(q)>5000 or any(x['content_truncated'] for x in source_entries+instructions)
         resolution={'status':'ranked','selected_ids':list(force_sources),'candidates':[],'method':'Validated pending-task sources'}
         v['reference_resolution']=resolution
+    # Typed application instructions replace scaffolding before the first
+    # budget pass. Replacing it later cannot recover from an earlier overflow.
+    # Original messages and their source IDs remain unchanged for generation.
+    if active_instructions is not None:
+        v['instruction_context']=[]
+        v['active_instructions']=copy.deepcopy(active_instructions)
     view=bounded(v,max_bytes)
     return view,view['reference_resolution']
