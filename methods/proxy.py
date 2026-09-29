@@ -403,11 +403,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 from ..routing.service import decode_pin, RoutingUnavailable
                 try:
                     settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+                    from ..routing.bundle import runtime_settings
+                    settings = runtime_settings(settings, getattr(getattr(self, 'descriptor', None), 'config', {}), project_id)
                     pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
                     if routing_invocation != pin.get('invocation_id'):
                         raise RoutingUnavailable('Routing invocation mismatch')
-                    from ..routing.service import compiled_router
-                    if pin.get('policy_revision') != compiled_router().revision:
+                    from ..routing.service import configured_router
+                    if pin.get('policy_revision') != configured_router(settings).revision:
                         raise RoutingUnavailable('Pinned routing policy changed')
                     auto_binding = pin.get('model_binding')
                     if not auto_binding:

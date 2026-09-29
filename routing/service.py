@@ -136,6 +136,26 @@ def compiled_router():
     return GenerationRouter(ClassifierTransport(), catalog=compile_catalog())
 
 
+@lru_cache(maxsize=8)
+def _calibrated_router(serialized_snapshot):
+    from .v7.catalog import compile_uniform_catalog
+    value = json.loads(serialized_snapshot)
+    catalog = compile_uniform_catalog(value, classifier_variant=value['classifier_variant'],
+                                      baseline_variant=value['baseline_variant'])
+    return GenerationRouter(ClassifierTransport(), catalog=catalog, output_policy='measured')
+
+
+def configured_router(settings):
+    if 'calibration_profile' not in settings:
+        return compiled_router()
+    from .bundle import snapshot
+    value, expected = snapshot(settings.get('calibration_profile'), settings.get('calibration_revision'))
+    if (expected != settings.get('calibration_snapshot_sha256')
+            or value['request_scope']['id'] != settings.get('calibration_task_contract')):
+        raise RoutingUnavailable('The trusted calibration binding changed')
+    return _calibrated_router(json.dumps(value, sort_keys=True))
+
+
 def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, policy_revision):
     if not token:
         return None
@@ -190,7 +210,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
     # Trusted in-process injection supports frozen candidate comparisons. No
     # request field can supply a router, catalog, or output policy.
-    router = router if router is not None else compiled_router()
+    router = router if router is not None else configured_router(settings)
     measured_output = router.output_policy == 'measured'
     output_mode = 'explicit' if cap is not None else ('measured' if measured_output else 'provider_default')
     catalog = router.catalog
