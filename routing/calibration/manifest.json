@@ -1,0 +1,17 @@
+{
+  "revision": "v14-application-r28",
+  "profiles": {
+    "isolated-text": {
+      "file": "isolated-text.json",
+      "sha256": "0e8b21a851f149d712bd91cd84505a66da852d063ea7f3f08c100d1e74cf869d"
+    },
+    "repository-fixture": {
+      "file": "repository-fixture.json",
+      "sha256": "e074fb98ce657da2c50fa9243e69e257d6450657caea9fcefcc891e77357086f"
+    },
+    "bounded-text-conversation": {
+      "file": "bounded-text-conversation.json",
+      "sha256": "bf02b5e50f3fe56489e914cb0483b0bbdf68be6ef26e389919355f59a8a6fba2"
+    }
+  }
+}

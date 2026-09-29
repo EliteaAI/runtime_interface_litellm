@@ -34,3 +34,15 @@ forecast, teacher label or configured baseline is not a capability grant.
 
 Bundle installation, activation, benchmark evidence and deployed browser
 acceptance are separate operations. This code change performs none of them.
+
+The reviewed `v14-application-r28` bundle contains three opt-in profiles:
+
+- `isolated-text`: 179 exact supported cells and 17 prospectively validated usage cohorts.
+- `repository-fixture`: 22 exact supported cells, restricted to the measured fixture tool schema.
+- `bounded-text-conversation`: five exact supported cells, no validated usage forecasts, at most four user turns and no tool history.
+
+These are development qualification floors, not production accuracy guarantees.
+Longer conversations remain outside the current installed context profile. Native
+transport and measured output allowance must still match the current inventory.
+No project is opted in by these data files, and lexical bypass, cache retention
+and TTL extensions remain disabled.
