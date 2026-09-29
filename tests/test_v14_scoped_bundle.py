@@ -1,5 +1,6 @@
 import copy
 import json
+import hashlib
 import pytest
 from routing.v7.calibration_scope import check_request_scope, valid_forecast
 from routing.v7.catalog import compile_uniform_catalog
@@ -116,6 +117,21 @@ def test_runtime_rechecks_mutated_forecast_certificate():
     variant=compile(candidate())['variants']['old']
     variant['calibration_contract']['usage_cohorts'][0]['validation_certificate']['wape']=.9
     assert support(variant,{'delivery':'text','demand':'standard'},1000)[1]=='MISSING_VALIDATED_USAGE_COHORT'
+
+
+def test_historical_spaced_json_hash_is_explicit_and_never_relabels_the_contract():
+    value=candidate();value['evidence_hash_format']='python-json-sorted-v1'
+    c=value['validated_usage_cohorts']['old'][0]
+    expected=hashlib.sha256(json.dumps({'wire':'fixture'},sort_keys=True,ensure_ascii=False).encode()).hexdigest()
+    for row in c['trajectories']:row['request_contract_sha256']=expected
+    c['validation_certificate']['cohort_sha256']=digest({k:v for k,v in c.items() if k!='validation_certificate'})
+    variant=compile(value)['variants']['old']
+    assert variant['calibration_contract']['request_contract_sha256']==expected
+    assert support(variant,{'delivery':'text','demand':'standard'},1000)[1] is None
+    value['variants']['old']['request_contract']['wire']='changed'
+    with pytest.raises(ValueError,match='prospective validation'):compile(value)
+    value['evidence_hash_format']='guess'
+    with pytest.raises(ValueError,match='Unknown evidence hash'):compile(value)
 
 
 def test_conflicting_cohorts_and_unbounded_scope_rejected_before_runtime():

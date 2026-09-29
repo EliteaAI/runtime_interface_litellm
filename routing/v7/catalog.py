@@ -144,7 +144,15 @@ def _apply_candidate(value, candidate):
         if candidate.get('forecast_validation_required'):
             from .calibration_scope import valid_forecast
             contract = value['variants'][vid]['calibration_contract']
-            request_hash = digest(identity['request_contract'])
+            hash_format = candidate.get('evidence_hash_format', 'canonical-json-v1')
+            if hash_format == 'canonical-json-v1':
+                request_hash = digest(identity['request_contract'])
+            elif hash_format == 'python-json-sorted-v1':
+                import hashlib
+                request_hash = hashlib.sha256(json.dumps(identity['request_contract'],
+                    sort_keys=True, ensure_ascii=False).encode()).hexdigest()
+            else:
+                raise ValueError('Unknown evidence hash format')
             cohorts = copy.deepcopy(candidate.get('validated_usage_cohorts', {}).get(vid, []))
             if any(not valid_forecast(c, request_hash) for c in cohorts):
                 raise ValueError('Usage cohort lacks matching prospective validation')
@@ -154,7 +162,7 @@ def _apply_candidate(value, candidate):
             for family in contract['families'].values():
                 family.pop('usage_profile', None)
             contract.update(forecast_validation_required=True, usage_cohorts=cohorts,
-                            request_contract_sha256=request_hash)
+                            request_contract_sha256=request_hash, evidence_hash_format=hash_format)
 
 
 class QualificationSnapshot:

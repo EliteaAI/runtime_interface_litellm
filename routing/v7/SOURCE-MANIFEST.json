@@ -19,7 +19,7 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "077d5485ddba2ea3d77ac9ae95dfeb2cb425f110c98c3d29732970578bed9a49"
+      "product_sha256": "acdb9bde13c545956aa3c0192638956189b361797ec8726a615764f0ccb7e33a"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
