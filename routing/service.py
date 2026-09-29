@@ -352,6 +352,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             config['routing_min_output_cap'] = contract['output_allowance']
         if 'reasoning_fields' in contract:
             config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
+            if 'reasoning_format' in contract:
+                config['routing_reasoning_format'] = contract['reasoning_format']
         trace['calibration_contract'] = {
             'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
             'status': 'provisional_local_beta', 'production_promotion_allowed': False,

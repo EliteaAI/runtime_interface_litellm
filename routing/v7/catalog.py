@@ -133,6 +133,8 @@ def _apply_candidate(value, candidate):
                 'production_promotion_allowed': False}}
         if 'requested_reasoning_fields' in identity:
             value['variants'][vid]['calibration_contract']['reasoning_fields'] = copy.deepcopy(identity['requested_reasoning_fields'])
+        if 'reasoning_format' in identity:
+            value['variants'][vid]['calibration_contract']['reasoning_format'] = identity['reasoning_format']
         if 'qualification_policy' in candidate:
             value['variants'][vid]['calibration_contract']['qualification_policy']=copy.deepcopy(candidate['qualification_policy'])
 
