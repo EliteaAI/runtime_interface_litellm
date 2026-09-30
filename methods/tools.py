@@ -82,11 +82,10 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         """ Method """
         system_user = context.rpc_manager.timeout(30).admin_get_project_system_user(project_id)
         #
-        token_list = auth.list_tokens(system_user["id"])
-        #
-        for token in token_list:
-            if token["name"] == name:
-                return auth.encode_token(token["id"])
+        # Newest matches the Vault auth_token, which rotation keeps alive for one more cycle
+        matching = [t for t in auth.list_tokens(system_user["id"]) if t["name"] == name]
+        if matching:
+            return auth.encode_token(max(matching, key=lambda t: t["id"])["id"])
         #
         if create_if_not_exists:
             token_id = auth.add_token(system_user["id"], name)
