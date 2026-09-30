@@ -89,6 +89,31 @@ done
 Legacy relay and client-tag tests install different import stubs, so run files
 in separate processes rather than combining their global stub environments.
 
+## Explicit fallback for missing V14 coverage
+
+An installed V14 profile remains strict unless its trusted deployment binding
+sets `coverage_fallback_variant` to one exact variant ID from that profile.
+The ID is an operator choice, independent of the catalog baseline and classifier;
+no model is automatically recommended or selected as the fallback. For example,
+the project entry under `auto_routing_calibration_profiles` can contain
+`profile`, `revision`, and `coverage_fallback_variant`. Omit the last field (or
+set it to null) for the existing strict behavior. Request bodies cannot opt in.
+
+When exact qualification leaves an empty pool, only this configured variant may
+serve a missing work profile, insufficient independent templates, or insufficient
+quality confidence. It must still pass live availability, authorization, price,
+native transport/output, operation, demand and reasoning-effort checks. Failed,
+disputed, unknown, incompatible or held exact evidence cannot use this path.
+An unavailable fallback never selects another model automatically. This is not
+provider-error retry or failover, and it does not broaden the installed envelope.
+
+The trace marks `UNMEASURED_CONFIGURED_FALLBACK`, grants no quality qualification,
+and provides no comparative forecast or savings claim. Economic reranking cannot
+replace the chosen fallback. Changing it changes policy/gate revisions and
+invalidates old signed pins; an unchanged same-invocation pin renews normally.
+The frozen calibration records and benchmark remain unchanged. A subsequent
+candidate still requires fresh quality/cost validation and application acceptance.
+
 Source tests cover ordering-independent union/override, unavailable shadows,
 actor-aware discovery, shared-only retention, configuration revocation/replacement,
 no-call greetings, same-run renewal, exact-owner relay and existing manual/Usage

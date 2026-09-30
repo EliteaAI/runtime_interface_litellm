@@ -80,11 +80,19 @@ class FamilyClassifier(AvailabilityClassifier):
 
 
 class CalibratedRouter(FixedV6Router):
-    def __init__(self,*args,policy=None,**kwargs):
+    def __init__(self,*args,policy=None,coverage_fallback_variant=None,**kwargs):
+        if coverage_fallback_variant is not None and (not isinstance(coverage_fallback_variant, str)
+                or not coverage_fallback_variant or len(coverage_fallback_variant) > 256):
+            raise ValueError('Invalid calibration coverage fallback')
         catalog = kwargs.get('catalog')
         if catalog and catalog.get('uniform_qualification') and 'classifier_variant' not in kwargs and len(args) < 2:
             kwargs['classifier_variant'] = catalog['classifier_variant']
         super().__init__(*args,**kwargs)
+        if coverage_fallback_variant is not None and not self.catalog.get('uniform_qualification'):
+            raise ValueError('Coverage fallback requires a uniform calibration catalog')
+        if coverage_fallback_variant is not None and coverage_fallback_variant not in self.catalog['variants']:
+            raise ValueError('Coverage fallback is not in the installed profile')
+        self.coverage_fallback_variant = coverage_fallback_variant
         if self.catalog.get('uniform_qualification'):
             if policy is not None:
                 raise ValueError('Uniform catalog owns its qualification policy')
@@ -96,6 +104,30 @@ class CalibratedRouter(FixedV6Router):
             self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
         self.classifier=FamilyClassifier(self.gateway,self.classifier.variant,self.catalog)
         self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT+CONTINUITY_PROMPT})[:12]
+        if coverage_fallback_variant is not None:
+            self.revision += '-coverage-fallback-1-' + sha(coverage_fallback_variant)[:12]
+
+    def _coverage_baseline(self, descriptor, permitted, assessments, previous, min_demand):
+        baseline = self.coverage_fallback_variant
+        assessment = assessments.get(baseline, {})
+        if (baseline is None or baseline not in permitted
+                or assessment.get('status') not in {
+                    'unmeasured_work_profile', 'insufficient_independent_templates',
+                    'insufficient_quality_confidence'}):
+            raise ValueError('No eligible configured model; do not silently escape the pool')
+        # Retain the ordinary operation, demand, effort and qualification-record
+        # guards. Only this explicit baseline can serve an evidence gap; never
+        # substitute an arbitrary survivor or manufacture a measured pass.
+        result = super().select(descriptor, [baseline], previous, min_demand)
+        result.update(reason='UNMEASURED_CONFIGURED_FALLBACK',
+            quality_status='Configured fallback; exact task quality and savings are unmeasured',
+            family_qualification={
+                'family': descriptor.get('task_family'), 'eligible': [],
+                'status': 'unmeasured_configured_fallback', 'qualification_granted': False,
+                'optimization_eligible': False, 'promotion': False,
+                'policy_revision': self.revision, 'fallback_variant': baseline,
+                'coverage_gap': assessment['status'], 'assessments': assessments})
+        return result
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
         # V9 defaults are admitted only by the original full-family calibration
@@ -107,6 +139,7 @@ class CalibratedRouter(FixedV6Router):
             if ctx.get('task_contract') != self.catalog['request_scope']['id']:
                 raise ValueError('Unmeasured execution envelope: no trusted runtime scope')
         permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
+        runtime_permitted = list(permitted)
         demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
         assessments = {}
         for vid in list(permitted):
@@ -118,6 +151,8 @@ class CalibratedRouter(FixedV6Router):
             if not assessment['eligible']:
                 permitted.remove(vid)
         evidence_trace = {'assessments': assessments} if assessments else {}
+        if not permitted:
+            return self._coverage_baseline(descriptor, runtime_permitted, assessments, previous, min_demand)
         allowed = permitted
         original=super().select(descriptor,allowed,previous,min_demand)
         family=descriptor.get('task_family','unknown')

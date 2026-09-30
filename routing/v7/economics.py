@@ -22,6 +22,13 @@ def forecast(variant, family, size, cap):
 
 
 def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, previous=None):
+    if selection['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK':
+        # A policy fallback is not an eligible optimization cohort. Preserve its
+        # identity and avoid deriving a savings claim from unrelated forecasts.
+        return {**selection, 'economics': {
+            'reason': 'UNMEASURED_CONFIGURED_FALLBACK', 'forecast_comparable': False,
+            'quotes': {}, 'switching_evidence': None,
+            'missing_support': {selection['variant']: selection['family_qualification']['coverage_gap']}}}
     if selection['reason'] == 'UNCERTAIN_TASK_BASELINE':
         return selection
     if catalog.get('uniform_qualification'):

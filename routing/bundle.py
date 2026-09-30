@@ -46,11 +46,18 @@ def runtime_settings(settings, deployment, project_id):
     selected = bindings.get(str(project_id))
     if selected is None:
         return result
-    if not isinstance(selected, dict) or set(selected) != {'profile', 'revision'}:
+    if (not isinstance(selected, dict) or not {'profile', 'revision'} <= set(selected)
+            or set(selected) - {'profile', 'revision', 'coverage_fallback_variant'}):
         raise ValueError('Invalid project calibration binding')
+    fallback = selected.get('coverage_fallback_variant')
+    if fallback is not None and (not isinstance(fallback, str) or not fallback or len(fallback) > 256):
+        raise ValueError('Invalid calibration coverage fallback')
     value, expected = snapshot(selected['profile'], selected['revision'])
+    if fallback is not None and fallback not in value['variants']:
+        raise ValueError('Coverage fallback is not in the installed profile')
     result.update(calibration_profile=selected['profile'], calibration_revision=selected['revision'],
-                  calibration_snapshot_sha256=expected, calibration_task_contract=value['request_scope']['id'])
+                  calibration_snapshot_sha256=expected, calibration_task_contract=value['request_scope']['id'],
+                  calibration_coverage_fallback_variant=fallback)
     result['revision'] = hashlib.sha256(json.dumps({'gate': settings['revision'], 'binding': selected,
         'snapshot_sha256':expected}, sort_keys=True).encode()).hexdigest()
     return result

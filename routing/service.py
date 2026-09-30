@@ -137,12 +137,13 @@ def compiled_router():
 
 
 @lru_cache(maxsize=8)
-def _calibrated_router(serialized_snapshot):
+def _calibrated_router(serialized_snapshot, coverage_fallback_variant=None):
     from .v7.catalog import compile_uniform_catalog
     value = json.loads(serialized_snapshot)
     catalog = compile_uniform_catalog(value, classifier_variant=value['classifier_variant'],
                                       baseline_variant=value['baseline_variant'])
-    return GenerationRouter(ClassifierTransport(), catalog=catalog, output_policy='measured')
+    return GenerationRouter(ClassifierTransport(), catalog=catalog, output_policy='measured',
+                            coverage_fallback_variant=coverage_fallback_variant)
 
 
 def configured_router(settings):
@@ -153,7 +154,8 @@ def configured_router(settings):
     if (expected != settings.get('calibration_snapshot_sha256')
             or value['request_scope']['id'] != settings.get('calibration_task_contract')):
         raise RoutingUnavailable('The trusted calibration binding changed')
-    return _calibrated_router(json.dumps(value, sort_keys=True))
+    return _calibrated_router(json.dumps(value, sort_keys=True),
+                              settings.get('calibration_coverage_fallback_variant'))
 
 
 def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, policy_revision):
@@ -375,11 +377,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
             if 'reasoning_format' in contract:
                 config['routing_reasoning_format'] = contract['reasoning_format']
+        unmeasured_fallback = selected['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK'
         trace['calibration_contract'] = {
             'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
-            'status': 'provisional_local_beta', 'production_promotion_allowed': False,
+            'status': 'unmeasured_configured_fallback' if unmeasured_fallback else 'provisional_local_beta',
+            'production_promotion_allowed': False,
             'family': decision['descriptor']['task_family'],
-            'cell': contract['families'][decision['descriptor']['task_family']]}
+            'cell': None if unmeasured_fallback else contract['families'][decision['descriptor']['task_family']]}
         trace['calibration_contract']['output_allowance'] = {
             'measured': contract['output_allowance'], 'execution_bound': cap, 'mode': output_mode,
             'transfer_requires_validation': output_mode == 'provider_default' or cap != contract['output_allowance']}
