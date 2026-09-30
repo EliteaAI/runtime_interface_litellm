@@ -130,8 +130,29 @@ missing or statistically sparse measurements remain visible without becoming
 universal execution bans. Configured eligibility does not create a measured
 pass, confidence certificate or production promotion.
 
-When every eligible candidate has compatible validated usage support, the
-selector can compare those forecasts. Otherwise it prices the same input proxy
+Configured permission alone never authorizes a cheapest-model decision. A
+`quality` policy supplies `minimum_groups` (at least four),
+`minimum_pass_rate`, `maximum_quality_gap`, and `cohorts` keyed by difficulty.
+Each cohort records its source/hash, unique independent `groups`, and one
+`pass`/`fail`/`unknown` outcome per group for every compared configured variant.
+The same groups and denominator are required across model/effort choices;
+lineage deduplication and semantic review belong to the offline evidence owner.
+Unknowns remain in the denominator. An optional quality tolerance is explicitly
+owned by the operator; zero permits only the best conservative score.
+
+The selector first checks the observed quality floor, then retains candidates
+within the configured tolerance of the best Wilson lower-bound score. Price
+ranks only those survivors. These are conservative selection statistics, not
+per-request guarantees or an independent noninferiority result. Sparse, missing
+or inadequate quality evidence invokes the explicit response fallback with its
+unmeasured status; it never silently authorizes the cheapest candidate. The
+`quality_screen` trace shows the counts, source, thresholds and exclusions.
+Rubrics generate offline votes; runtime does not need a matching rubric to
+consume this difficulty-level quality evidence. Existing exact adverse holds
+still apply. A policy without `quality` is therefore fallback-only.
+
+When every quality-screened candidate has compatible validated usage support,
+the selector can compare those forecasts. Otherwise it prices the same input proxy
 and configured output scenario for every eligible candidate, including cold
 cache-write costs. This is a price scenario, not expected usage, a cache-hit
 promise or measured savings. One missing forecast no longer sends the entire

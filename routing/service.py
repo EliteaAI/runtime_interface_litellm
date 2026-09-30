@@ -382,7 +382,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         _REQUEST.reset(context_token)
 
     trace = {k: copy.deepcopy(decision.get(k)) for k in ('descriptor', 'policy_revision', 'routing_ms', 'budget')}
-    trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in ('variant', 'reason', 'family_qualification', 'economics')}
+    trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in ('variant', 'reason', 'family_qualification', 'quality_screen', 'economics')}
     classifier_info = decision.get('classifier') or {}
     trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')

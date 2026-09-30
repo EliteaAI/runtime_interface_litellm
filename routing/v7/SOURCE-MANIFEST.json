@@ -59,7 +59,7 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "758971578ca844ce36c7f95ea1ee0f47d29aa02b56036cb278bd3b8eb1f39bfe"
+      "product_sha256": "8034964050335c567ca37a712c0be7b5f9e4f3c325f1215325735c280842b7b2"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",

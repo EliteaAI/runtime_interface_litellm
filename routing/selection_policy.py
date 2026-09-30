@@ -22,7 +22,7 @@ OPERATIONS = {'greeting', 'creative', 'transform', 'analysis', 'design', 'other'
 def validate(value):
     keys = {'revision', 'source', 'source_sha256', 'request_scope_ids',
             'maximum_user_turns', 'allow_tools', 'scenario_output_tokens', 'variants'}
-    if not isinstance(value, dict) or set(value) != keys:
+    if not isinstance(value, dict) or not keys <= set(value) or set(value) - keys - {'quality'}:
         raise ValueError('Invalid configured selection policy')
     if (not isinstance(value['revision'], str) or not 1 <= len(value['revision']) <= 128
             or not isinstance(value['source'], str) or not 1 <= len(value['source']) <= 1024
@@ -62,6 +62,8 @@ def validate(value):
         if ref is not None and (not isinstance(ref, dict) or set(ref) != {'profile', 'revision', 'variant', 'snapshot_sha256'}
                 or any(not isinstance(x, str) or not x or len(x) > 256 for x in ref.values())):
             raise ValueError('Invalid configured evidence reference')
+    from .quality import validate as validate_quality
+    validate_quality(value.get('quality'), variants)
     return copy.deepcopy(value)
 
 
@@ -152,7 +154,7 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
                       'price_revision': gateway.prices.revision}
     chosen = min(eligible, key=lambda v: (Decimal(quotes[v]['ranking_usd']), v != previous, v))
     return {**selection, **copy.deepcopy(catalog['variants'][chosen]), 'variant': chosen,
-        'reason': 'CONFIGURED_ELIGIBILITY_COMMON_PRICE_SCENARIO',
+        'reason': 'QUALITY_SCREENED_COMMON_PRICE_SCENARIO',
         'predicted_output_tokens': None, 'currency_cost_estimate': None,
         'economics': {'reason': 'COMMON_PRICE_SCENARIO', 'quotes': quotes,
             'forecast_comparable': False, 'missing_support': measured['economics']['missing_support'],

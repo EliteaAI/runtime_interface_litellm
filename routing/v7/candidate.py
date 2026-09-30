@@ -152,12 +152,23 @@ class CalibratedRouter(FixedV6Router):
                 exclusions[vid] = reasons
             else:
                 eligible.append(vid)
+        from ..quality import frontier
+        quality = frontier(self.catalog['configured_selection_policy'].get('quality'),
+            [v.removeprefix('configured-') for v in eligible], demand)
+        qualified_ids = {'configured-' + v for v in quality['eligible']}
+        for vid in eligible:
+            if vid not in qualified_ids:
+                exclusions[vid] = ['QUALITY_SCREEN_' + quality['assessments'].get(
+                    vid.removeprefix('configured-'), {}).get('status', quality['status']).upper()]
+        eligible = [v for v in eligible if v in qualified_ids]
         uncertain = descriptor['needs_context'] or descriptor['relation'] == 'ambiguous' or descriptor['operation'] == 'other'
         if not eligible or uncertain or not ctx.get('configured_scope'):
             result = self._coverage_baseline(descriptor, permitted, assessments, previous, min_demand)
             result['configured_policy_exclusions'] = exclusions
+            result['quality_screen'] = quality
             return result
         result = super().select(descriptor, eligible, previous, min_demand)
+        result['quality_screen'] = quality
         result['quality_status'] = 'Configured policy eligibility; exact measured status remains separate'
         result['economic_task'] = {'family': family, 'demand': demand,
             'work_profile': copy.deepcopy(descriptor.get('work_profile')),
