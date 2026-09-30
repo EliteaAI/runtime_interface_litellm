@@ -20,7 +20,7 @@
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
-from tools import context, this, auth, constants as c  # pylint: disable=E0401
+from tools import context, this, constants as c  # pylint: disable=E0401
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -78,20 +78,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return base_url
 
     @web.method()
-    def get_system_user_token(self, project_id, name="api", create_if_not_exists=True):
+    def get_system_user_token(self, project_id, create_if_not_exists=True):
         """ Method """
-        system_user = context.rpc_manager.timeout(30).admin_get_project_system_user(project_id)
-        #
-        # Newest matches the Vault auth_token, which rotation keeps alive for one more cycle
-        matching = [t for t in auth.list_tokens(system_user["id"]) if t["name"] == name]
-        if matching:
-            return auth.encode_token(max(matching, key=lambda t: t["id"])["id"])
-        #
-        if create_if_not_exists:
-            token_id = auth.add_token(system_user["id"], name)
-            return auth.encode_token(token_id)
-        #
-        return None
+        # admin owns the pick, so it cannot drift from what rotation keeps alive
+        return context.rpc_manager.timeout(30).admin_get_project_system_token(
+            project_id, create_if_not_exists=create_if_not_exists,
+        )
 
     @web.method()
     def is_llm_allowed_for_project(self, entity, **kwargs):
