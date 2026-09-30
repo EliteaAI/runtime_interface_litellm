@@ -44,7 +44,7 @@
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "3a4702faf0d48dea30a83dd12d76ae87a2105381d63b71b171b9cc0e8e6d7c9d"
+      "product_sha256": "9a3f77dc433254a3341d53a7510bc6d66b81e4a9a5dbaf7ea20c920d574bb7c1"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -59,7 +59,7 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "6bd2cbc97d0b46f8d514298122d3cc4120d2694c502f975f4745d526eefddb3c"
+      "product_sha256": "53f6951d652eb00c9a1625011c33c3b2254f289520e5f69f4551477a94291190"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",

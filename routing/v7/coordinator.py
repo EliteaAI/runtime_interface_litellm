@@ -109,9 +109,20 @@ class Router(Coordinator):
     def resolve(self,messages,*,mode='economic',binding=None,hint=None,previous=None,scope=None,allowed=None,
                 min_demand='simple',session=None,output_cap=None,tools=None,view_bytes=24000,
                 access_revision='local-authorized-v1',trusted_role=None,task_family=None,task_contract='text-tools-v1'):
+        scope_gap = None
         if self.catalog.get('request_scope'):
             from .calibration_scope import check_request_scope
-            check_request_scope(self.catalog['request_scope'], task_contract, messages, tools)
+            try:
+                check_request_scope(self.catalog['request_scope'], task_contract, messages, tools)
+            except ValueError as exc:
+                fallback = self.catalog['variants'].get(getattr(self, 'coverage_fallback_variant', None), {})
+                supported_gaps = {'native tool schema differs', 'conversation turn bound exceeded',
+                                  'prior tool history is not calibrated',
+                                  'isolated calibration does not cover conversation history'}
+                if (not fallback.get('configured_fallback_contract')
+                        or str(exc) not in {'Unmeasured execution envelope: '+reason for reason in supported_gaps}):
+                    raise
+                scope_gap = str(exc)
         hint=copy.deepcopy(hint or {'kind':'chat_turn'})
         cap=output_cap if output_cap is not None else hint.get('generation_output_cap',8000)
         if type(cap)is not int or cap<1:raise ValueError('Completion allowance must be a positive integer')
@@ -120,7 +131,8 @@ class Router(Coordinator):
         if scope is not None and not hasattr(scope,'routing_session'):scope.routing_session=session
         if not (scope and scope.decision) and (not binding or binding.get('mode')!='fixed'):
             session.prepare(messages,access_revision)
-        ctx={'session':session,'cap':cap,'tools':tools,'view_bytes':view_bytes,'trusted_role':trusted_role,'task_contract':task_contract}
+        ctx={'session':session,'cap':cap,'tools':tools,'view_bytes':view_bytes,'trusted_role':trusted_role,'task_contract':task_contract,
+             'unmeasured_scope':scope_gap}
         if task_family:ctx['task_family']=task_family
         token=self.local.set(ctx)
         try:

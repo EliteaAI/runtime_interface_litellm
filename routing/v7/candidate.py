@@ -98,7 +98,7 @@ class CalibratedRouter(FixedV6Router):
                 raise ValueError('Uniform catalog owns its qualification policy')
             self.policy = {'revision': self.catalog['revision'], 'eligible_by_family': {
                 family: [vid for vid, value in self.catalog['variants'].items()
-                         if family in value['calibration_contract']['families']]
+                         if family in value.get('calibration_contract', {}).get('families', {})]
                 for family in FAMILIES}}
         else:
             self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
@@ -109,6 +109,34 @@ class CalibratedRouter(FixedV6Router):
 
     def _coverage_baseline(self, descriptor, permitted, assessments, previous, min_demand):
         baseline = self.coverage_fallback_variant
+        value = self.catalog['variants'].get(baseline, {})
+        native = value.get('configured_fallback_contract')
+        if native:
+            ctx = self.local.get() or {}
+            if baseline not in permitted or not self.qualifications.allowed(
+                    [baseline], ctx.get('task_family', descriptor['operation']), ctx.get('task_contract', 'text-tools-v1')):
+                raise ValueError('No eligible configured model; do not silently escape the pool')
+            # Never hide adverse evidence for the same model AND native request
+            # contract behind a separately named administrative fallback.
+            blocked = {'adverse_exact_scope', 'provider_refusal', 'measured_failure',
+                       'disputed_assessment', 'unresolved_measurement', 'incomplete_delivery',
+                       'incompatible_measurement_contract', 'conflicting_evidence_cells'}
+            for vid, variant in self.catalog['variants'].items():
+                contract = variant.get('calibration_contract', {})
+                if (variant['model'] == value['model'] and variant['effort'] == value['effort']
+                        and contract.get('transport') == native['transport']
+                        and contract.get('reasoning_fields') == native['reasoning_fields']
+                        and contract.get('output_allowance') == native['output_allowance']
+                        and assessments.get(vid, {}).get('status') in blocked):
+                    raise ValueError('No eligible configured model; do not silently escape the pool')
+            return {**copy.deepcopy(value), 'variant': baseline, 'reason': 'UNMEASURED_CONFIGURED_FALLBACK',
+                    'quality_status': 'Administrator-selected native fallback; quality and savings unmeasured',
+                    'candidates': [], 'predicted_output_tokens': None, 'currency_cost_estimate': None,
+                    'family_qualification': {'family': descriptor.get('task_family'), 'eligible': [],
+                        'status': 'unmeasured_configured_fallback', 'qualification_granted': False,
+                        'optimization_eligible': False, 'promotion': False, 'policy_revision': self.revision,
+                        'fallback_variant': baseline, 'assessments': assessments,
+                        'coverage_gap': ctx.get('unmeasured_scope') or 'no_supported_optimized_selection'}}
         assessment = assessments.get(baseline, {})
         if (baseline is None or baseline not in permitted
                 or assessment.get('status') not in {
@@ -143,6 +171,9 @@ class CalibratedRouter(FixedV6Router):
         demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
         assessments = {}
         for vid in list(permitted):
+            if self.catalog['variants'][vid].get('configured_fallback_contract'):
+                permitted.remove(vid)
+                continue
             contract = self.catalog['variants'][vid].get('calibration_contract')
             if not contract:
                 continue
@@ -151,10 +182,16 @@ class CalibratedRouter(FixedV6Router):
             if not assessment['eligible']:
                 permitted.remove(vid)
         evidence_trace = {'assessments': assessments} if assessments else {}
-        if not permitted:
+        if not permitted or (self.local.get() or {}).get('unmeasured_scope'):
             return self._coverage_baseline(descriptor, runtime_permitted, assessments, previous, min_demand)
         allowed = permitted
-        original=super().select(descriptor,allowed,previous,min_demand)
+        try:
+            original=super().select(descriptor,allowed,previous,min_demand)
+        except ValueError as exc:
+            native = self.catalog['variants'].get(self.coverage_fallback_variant, {}).get('configured_fallback_contract')
+            if not native or str(exc) != 'No eligible configured model; do not silently escape the pool':
+                raise
+            return self._coverage_baseline(descriptor, runtime_permitted, assessments, previous, min_demand)
         family=descriptor.get('task_family','unknown')
         # Preserve pre-existing narrowly validated standalone rules. No label
         # from the held-out corpus or caller gold is accepted here.

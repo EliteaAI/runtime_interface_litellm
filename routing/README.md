@@ -1,5 +1,24 @@
 # Runtime inventory and calibrated policy
 
+Trusted deployment bindings may additionally supply `coverage_fallback_native`
+when the response model or reasoning contract is absent from an installed
+calibration profile. It is mutually exclusive with `coverage_fallback_variant`.
+The contract contains `model_binding` (name, owning project, configuration
+fingerprint), `effort`, `transport`, `reasoning_fields`, `reasoning_format`,
+`output_allowance`, and `cache_write_mode`. It accepts only the native mappings
+already supported by the SDK. There is no default model or request-body override.
+
+This administrative choice supplies an unmeasured response binding when an
+optimized choice is unsupported, including history/tools outside the measured
+envelope. It does not extend the calibrated envelope or add quality cells.
+Classifier uncertainty remains visible and the response model receives the
+original request. Access, current configuration identity, pricing, reasoning,
+output/context bounds, and explicit qualification holds still apply. Adverse
+evidence for the same measured model and native contract blocks fallback.
+Fallback is excluded from economic ranking and forecasts. It does not retry a
+provider error. Policy/configuration changes revoke old pins. UI editing remains
+a separate increment; no deployment is enabled by this implementation.
+
 The EL-6722 candidate adds [restart-safe advisory cache observations](V13-CACHE-OBSERVATIONS.md)
 with a matching SDK timing/usage envelope. It does not promote new calibration cells.
 
