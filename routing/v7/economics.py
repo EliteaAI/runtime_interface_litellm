@@ -31,6 +31,10 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
             'missing_support': {selection['variant']: selection['family_qualification']['coverage_gap']}}}
     if selection['reason'] == 'UNCERTAIN_TASK_BASELINE':
         return selection
+    if catalog.get('configured_selection_policy'):
+        from ..selection_policy import rank as configured_rank
+        return configured_rank(selection, messages, catalog, session=session,
+                               gateway=gateway, cap=cap, tools=tools, previous=previous)
     if catalog.get('uniform_qualification'):
         from .measured_economics import rank as measured_rank
         return measured_rank(selection, messages, catalog, session=session,

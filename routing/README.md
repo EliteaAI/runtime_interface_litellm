@@ -110,6 +110,45 @@ in separate processes rather than combining their global stub environments.
 
 ## Explicit fallback for missing V14 coverage
 
+### Configured selection policy
+
+A trusted project/profile binding may additionally supply `selection_policy`.
+This separates administrator-authorized deployment eligibility from exact
+measured qualification. Without this field, the existing strict calibration
+behavior is unchanged. Request bodies and classifier replies cannot introduce
+the policy.
+
+The policy has a revision, source/hash, allowed request-scope IDs, bounded
+history/tool permissions, and named variants. Each variant supplies a native
+deployment binding (owner and fingerprint), operations, explicit family/demand
+eligibility, and an optional installed evidence reference. The latter includes
+the profile revision, variant and snapshot hash. An explicit alias can map to
+that evidence without inferring equivalence from a display name. Changed
+sources, native contracts, revoked deployments and stale pins are rejected.
+Exact adverse or unresolved evidence and qualification holds remain exclusions;
+missing or statistically sparse measurements remain visible without becoming
+universal execution bans. Configured eligibility does not create a measured
+pass, confidence certificate or production promotion.
+
+When every eligible candidate has compatible validated usage support, the
+selector can compare those forecasts. Otherwise it prices the same input proxy
+and configured output scenario for every eligible candidate, including cold
+cache-write costs. This is a price scenario, not expected usage, a cache-hit
+promise or measured savings. One missing forecast no longer sends the entire
+eligible pool to catalog-order fallback. Uncertain tasks or an empty permitted
+pool still use the separately configured response fallback.
+
+Configured selection uses **provider-default generation output**. Optional
+output-limit fields are omitted; APIs requiring a maximum use the current
+deployment's configured maximum. Explicit caller limits remain respected. The
+price-comparison scenario never imposes a generation limit or substitutes a
+model's maximum capacity for its expected output. This includes the configured
+response fallback; there is no fixed 8,000-token generation limit in this mode.
+
+Policy storage remains deployment-managed in this increment. The planned
+UI-managed classifier, fallback, evidence import and alias editor are separate
+work. The new mode is opt-in and must be evaluated on the deployment's workload.
+
 An installed V14 profile remains strict unless its trusted deployment binding
 sets `coverage_fallback_variant` to one exact variant ID from that profile.
 The ID is an operator choice, independent of the catalog baseline and classifier;

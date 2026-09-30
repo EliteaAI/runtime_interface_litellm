@@ -137,11 +137,15 @@ def compiled_router():
 
 
 @lru_cache(maxsize=8)
-def _calibrated_router(serialized_snapshot, coverage_fallback_variant=None, serialized_fallback='null'):
+def _calibrated_router(serialized_snapshot, coverage_fallback_variant=None, serialized_fallback='null', serialized_policy='null'):
     from .v7.catalog import compile_uniform_catalog
     value = json.loads(serialized_snapshot)
     catalog = compile_uniform_catalog(value, classifier_variant=value['classifier_variant'],
                                       baseline_variant=value['baseline_variant'])
+    policy = json.loads(serialized_policy)
+    if policy is not None:
+        from .selection_policy import install
+        catalog = install(catalog, policy)
     native = json.loads(serialized_fallback)
     if native is not None:
         from .fallback_config import install, VARIANT
@@ -149,7 +153,8 @@ def _calibrated_router(serialized_snapshot, coverage_fallback_variant=None, seri
             raise ValueError('Only one coverage fallback may be configured')
         catalog = install(catalog, native)
         coverage_fallback_variant = VARIANT
-    return GenerationRouter(ClassifierTransport(), catalog=catalog, output_policy='measured',
+    return GenerationRouter(ClassifierTransport(), catalog=catalog,
+                            output_policy='provider_default' if policy is not None else 'measured',
                             coverage_fallback_variant=coverage_fallback_variant)
 
 
@@ -161,9 +166,18 @@ def configured_router(settings):
     if (expected != settings.get('calibration_snapshot_sha256')
             or value['request_scope']['id'] != settings.get('calibration_task_contract')):
         raise RoutingUnavailable('The trusted calibration binding changed')
+    policy = settings.get('calibration_selection_policy')
+    if policy is not None:
+        from .selection_policy import validate
+        refs = {tuple(entry['evidence_ref'][k] for k in ('profile', 'revision', 'snapshot_sha256'))
+                for entry in validate(policy)['variants'].values() if entry['evidence_ref']}
+        for profile, revision, expected_source in refs:
+            if snapshot(profile, revision)[1] != expected_source:
+                raise RoutingUnavailable('Configured evidence snapshot changed')
     return _calibrated_router(json.dumps(value, sort_keys=True),
                               settings.get('calibration_coverage_fallback_variant'),
-                              json.dumps(settings.get('calibration_coverage_fallback_native'), sort_keys=True))
+                              json.dumps(settings.get('calibration_coverage_fallback_native'), sort_keys=True),
+                              json.dumps(settings.get('calibration_selection_policy'), sort_keys=True))
 
 
 def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, policy_revision):
@@ -256,20 +270,23 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     for vid, model in runtime_variants.items():
         variant = catalog['variants'][vid]
         native_fallback = variant.get('configured_fallback_contract')
-        if native_fallback:
+        native_policy = variant.get('configured_routing_contract')
+        configured_native = native_policy or native_fallback
+        if configured_native:
             try:
-                validate_binding(native_fallback['model_binding'], models, project_id)
+                validate_binding(configured_native['model_binding'], models, project_id)
             except ValueError:
                 contract_exclusions[vid] = {'reasons': ['CONFIGURED_FALLBACK_BINDING_CHANGED']}
                 continue
-        contract = variant.get('calibration_contract') or native_fallback
+        contract = configured_native or variant.get('calibration_contract')
         variant_cap = cap if cap is not None else ((contract['output_allowance'] if contract else 8000)
                                                   if measured_output else model.get('max_output_tokens'))
         if type(variant_cap) is not int or variant_cap < 1:
             continue
         if contract:
             native = not model.get('openai_compatible', False) and any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
-            transport = 'anthropic_messages' if native else 'chat_completions'
+            transport = (configured_native['transport'] if configured_native and not model.get('openai_compatible')
+                         else 'anthropic_messages' if native else 'chat_completions')
             reasons = []
             if transport != contract['transport']:
                 reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
@@ -385,9 +402,12 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
               'routing_output_required': native_anthropic(model)}
     variant = catalog['variants'][selected['variant']]
     native_fallback = variant.get('configured_fallback_contract')
-    contract = variant.get('calibration_contract') or native_fallback
+    native_policy = variant.get('configured_routing_contract')
+    contract = native_policy or native_fallback or variant.get('calibration_contract')
     if contract:
         config['routing_transport'] = contract['transport']
+        if native_policy:
+            config['routing_output_required'] = contract['transport'] == 'anthropic_messages'
         if measured_output:
             config['routing_min_output_cap'] = contract['output_allowance']
         if 'reasoning_fields' in contract:
@@ -397,15 +417,17 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         unmeasured_fallback = selected['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK'
         trace['calibration_contract'] = {
             'revision': contract.get('revision'), 'source_sha256': contract.get('source_sha256'),
-            'status': 'unmeasured_configured_fallback' if unmeasured_fallback else 'provisional_local_beta',
+            'status': 'configured_eligibility' if native_policy else 'unmeasured_configured_fallback' if unmeasured_fallback else 'provisional_local_beta',
             'production_promotion_allowed': False,
             'family': decision['descriptor'].get('task_family', 'unknown'),
-            'cell': None if unmeasured_fallback else contract['families'][decision['descriptor']['task_family']]}
+            'cell': None if unmeasured_fallback or native_policy else contract['families'][decision['descriptor']['task_family']]}
         trace['calibration_contract']['output_allowance'] = {
-            'measured': None if native_fallback else contract['output_allowance'], 'execution_bound': cap, 'mode': output_mode,
+            'measured': None if native_fallback or native_policy else contract['output_allowance'], 'execution_bound': cap, 'mode': output_mode,
             'transfer_requires_validation': output_mode == 'provider_default' or cap != contract['output_allowance']}
         if native_fallback:
             trace['configured_fallback_contract'] = copy.deepcopy(native_fallback)
+        if native_policy:
+            trace['configured_routing_contract'] = copy.deepcopy(native_policy)
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
            'model_binding': model_binding(model), 'policy_revision': router.revision,

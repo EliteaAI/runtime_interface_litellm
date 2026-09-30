@@ -106,6 +106,70 @@ class CalibratedRouter(FixedV6Router):
         self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT+CONTINUITY_PROMPT})[:12]
         if coverage_fallback_variant is not None:
             self.revision += '-coverage-fallback-1-' + sha(coverage_fallback_variant)[:12]
+        if self.catalog.get('configured_selection_policy'):
+            self.revision += '-configured-selection-1-' + sha(self.catalog['configured_selection_policy'])[:16]
+
+    def _configured_select(self, descriptor, permitted, previous, min_demand):
+        from ..selection_policy import BLOCKED
+        from .routing import DEMAND
+        ctx = self.local.get() or {}
+        demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
+        family = descriptor.get('task_family', 'unknown')
+        eligible, assessments, exclusions = [], {}, {}
+        for vid in permitted:
+            variant = self.catalog['variants'][vid]
+            entry = variant.get('configured_eligibility')
+            if not entry:
+                continue
+            contract = variant.get('calibration_contract')
+            assessment = (assess(contract, descriptor, demand) if contract else
+                          {'eligible': False, 'status': 'unmeasured_configured_deployment'})
+            assessments[vid] = assessment
+            reasons = []
+            if demand not in entry['families'].get(family, []):
+                reasons.append('OUTSIDE_CONFIGURED_FAMILY_DEMAND')
+            if descriptor['operation'] not in entry['operations']:
+                reasons.append('OUTSIDE_CONFIGURED_OPERATION')
+            if assessment['status'] in BLOCKED:
+                reasons.append('ADVERSE_OR_UNRESOLVED_EXACT_EVIDENCE')
+            native = entry['native']
+            identities = {variant['model'], entry.get('evidence_binding', {}).get('original_model')}
+            # Omitting an evidence reference cannot hide an already installed
+            # negative for this same deployment and native request contract.
+            for known in self.catalog['variants'].values():
+                known_contract = known.get('calibration_contract')
+                if (known_contract and known['model'] in identities and known['effort'] == variant['effort']
+                        and all(known_contract.get(k) == native[k] for k in ('transport', 'reasoning_fields', 'output_allowance'))
+                        and assess(known_contract, descriptor, demand)['status'] in BLOCKED):
+                    reasons.append('EXISTING_EXACT_EVIDENCE_HOLD')
+                    break
+            ref = entry.get('evidence_ref')
+            held_ids = [vid] + ([ref['variant']] if ref else [])
+            if len(self.qualifications.allowed(held_ids, ctx.get('task_family', descriptor['operation']),
+                    ctx.get('task_contract', 'text-tools-v1'))) != len(held_ids):
+                reasons.append('QUALIFICATION_HOLD')
+            if reasons:
+                exclusions[vid] = reasons
+            else:
+                eligible.append(vid)
+        uncertain = descriptor['needs_context'] or descriptor['relation'] == 'ambiguous' or descriptor['operation'] == 'other'
+        if not eligible or uncertain or not ctx.get('configured_scope'):
+            result = self._coverage_baseline(descriptor, permitted, assessments, previous, min_demand)
+            result['configured_policy_exclusions'] = exclusions
+            return result
+        result = super().select(descriptor, eligible, previous, min_demand)
+        result['quality_status'] = 'Configured policy eligibility; exact measured status remains separate'
+        result['economic_task'] = {'family': family, 'demand': demand,
+            'work_profile': copy.deepcopy(descriptor.get('work_profile')),
+            'delivery': self.catalog.get('request_scope', {}).get('delivery')}
+        result['family_qualification'] = {'status': 'configured_eligibility', 'family': family,
+            'eligible': eligible, 'qualification_granted': False, 'promotion': False,
+            'assessments': assessments, 'exclusions': exclusions,
+            'policy_revision': self.catalog['configured_selection_policy']['revision'],
+            'policy_source': self.catalog['configured_selection_policy']['source'],
+            'policy_source_sha256': self.catalog['configured_selection_policy']['source_sha256'],
+            'measurement_scope_gap': ctx.get('unmeasured_scope')}
+        return result
 
     def _coverage_baseline(self, descriptor, permitted, assessments, previous, min_demand):
         baseline = self.coverage_fallback_variant
@@ -167,6 +231,8 @@ class CalibratedRouter(FixedV6Router):
             if ctx.get('task_contract') != self.catalog['request_scope']['id']:
                 raise ValueError('Unmeasured execution envelope: no trusted runtime scope')
         permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
+        if self.catalog.get('configured_selection_policy'):
+            return self._configured_select(descriptor, permitted, previous, min_demand)
         runtime_permitted = list(permitted)
         demand = max(descriptor['demand'], min_demand, key=DEMAND.get)
         assessments = {}

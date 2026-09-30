@@ -110,6 +110,10 @@ class Router(Coordinator):
                 min_demand='simple',session=None,output_cap=None,tools=None,view_bytes=24000,
                 access_revision='local-authorized-v1',trusted_role=None,task_family=None,task_contract='text-tools-v1'):
         scope_gap = None
+        configured_scope = False
+        if self.catalog.get('configured_selection_policy'):
+            from ..selection_policy import covers
+            configured_scope = covers(self.catalog['configured_selection_policy'], task_contract, messages, tools)
         if self.catalog.get('request_scope'):
             from .calibration_scope import check_request_scope
             try:
@@ -119,7 +123,7 @@ class Router(Coordinator):
                 supported_gaps = {'native tool schema differs', 'conversation turn bound exceeded',
                                   'prior tool history is not calibrated',
                                   'isolated calibration does not cover conversation history'}
-                if (not fallback.get('configured_fallback_contract')
+                if (not (fallback.get('configured_fallback_contract') or configured_scope)
                         or str(exc) not in {'Unmeasured execution envelope: '+reason for reason in supported_gaps}):
                     raise
                 scope_gap = str(exc)
@@ -132,7 +136,7 @@ class Router(Coordinator):
         if not (scope and scope.decision) and (not binding or binding.get('mode')!='fixed'):
             session.prepare(messages,access_revision)
         ctx={'session':session,'cap':cap,'tools':tools,'view_bytes':view_bytes,'trusted_role':trusted_role,'task_contract':task_contract,
-             'unmeasured_scope':scope_gap}
+             'unmeasured_scope':scope_gap, 'configured_scope':configured_scope}
         if task_family:ctx['task_family']=task_family
         token=self.local.set(ctx)
         try:

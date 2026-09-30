@@ -44,7 +44,7 @@
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "9a3f77dc433254a3341d53a7510bc6d66b81e4a9a5dbaf7ea20c920d574bb7c1"
+      "product_sha256": "27f7ff5e977a98747405a0e8db4262e115cd03198594ff5eba01e0447946b10b"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -59,7 +59,7 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "53f6951d652eb00c9a1625011c33c3b2254f289520e5f69f4551477a94291190"
+      "product_sha256": "758971578ca844ce36c7f95ea1ee0f47d29aa02b56036cb278bd3b8eb1f39bfe"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
@@ -97,7 +97,7 @@
     "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
     "calibration-v12.json": "f1638c2af9a9033a822f98d973ec43261261e8b017d50f16209bbe5257b36f65",
     "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
-    "economics.py": "5ce184ae5f808359fec2818451638cf94214f04e35a20b20dc91437abc38e27e",
+    "economics.py": "a347f8311f383f77012ac16676b0d37c05a8fdc15d0e18d3af6cab0349953370",
     "learned_lexical.py": "65d8569fb0e4a24cc390689834566044024ddaf98f410b4922c915cfdd41c5a1",
     "measured_economics.py": "711bf624f425c398497e0af2705bb1190f9a6620ec87a22e427d9c286fa8bf69",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
@@ -131,6 +131,7 @@
     "Source anchors survive group pruning or are explicitly unavailable; generation receives full unchanged history.",
     "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium.",
     "V13 refresh candidates may restrict admission to exact observed work profiles; disputed assessments and incomplete delivery remain separate from measured quality failures. Existing profiles retain their previous behavior.",
-    "V14 replaces legacy grants only on the explicit uniform-catalog path; validated profile pooling preserves narrow failures and unknowns. Measured call trajectories separate expected spend from output capacity. Learned lexical proposals and continuation/cache policies require explicit evidence-based enablement. Original source and calibration evidence hashes remain unchanged."
+    "V14 replaces legacy grants only on the explicit uniform-catalog path; validated profile pooling preserves narrow failures and unknowns. Measured call trajectories separate expected spend from output capacity. Learned lexical proposals and continuation/cache policies require explicit evidence-based enablement. Original source and calibration evidence hashes remain unchanged.",
+    "Optional trusted configured selection separates deployment eligibility from exact measured qualification, retains adverse evidence, and uses a common price scenario when comparable forecasts are absent. Provider-default output semantics remain independent of the price scenario. No production activation."
   ]
 }
