@@ -3,6 +3,38 @@
 These are classifier assertions, not calibrated model capabilities. They can
 raise a conservative demand floor; they never lower it or grant eligibility.
 """
+PROFILE_SEMANTICS = '''
+Classify the CURRENT requested deliverable, including active instructions, on five
+independent axes. These describe task demand, not a model's quality or capability.
+work: lookup retrieves a fact; explain gives an account or interpretation; transform
+computes or converts supplied values; create produces new content; design proposes
+a plan or structure; implement supplies executable behavior; debug diagnoses or
+repairs a defect; verify assesses an existing claim or artifact. A calculation is
+not verify merely because its result can be checked. For mixed work, describe the
+main deliverable and retain any harder required reasoning or justification.
+reasoning: bounded uses explicit local rules or a small finite search; multi_step
+requires dependent steps with bounded uncertainty; interacting_constraints requires
+reconciling coupled/nonlocal invariants or substantial unresolved uncertainty.
+Several explicit rules in a small finite problem do not alone imply deep reasoning.
+evidence: ordinary needs stable general knowledge and the task instructions;
+supplied requires particular data, facts, code or other material already provided;
+retrieve requires material that must still be fetched; conflicting requires resolving
+inconsistent evidence. Output instructions alone are not supplied evidence. Evidence
+describes sources, not confidence; it does not authorize retrieval or invent access.
+creativity: none has a determined result or behavior; constrained requires choosing
+among substantively different valid solutions under stated constraints; open allows
+broad invention. Incidental wording, variable names or equivalent implementations
+do not alone imply creative work.
+verification describes the justification requested as part of the deliverable:
+none means no separate check or justification is requested; check means an audit,
+test, worked validation or explanatory justification; prove means establishing a
+claim for its stated scope or disproving it with a counterexample. Internal care in
+getting an answer right, an output format, or validation performed by generated code
+does not itself request verification. Requested tests are check, not a universal
+proof. A finite witness or local proof can have bounded reasoning; a protocol safety
+argument can involve interacting constraints. Classify scope, not the word "prove".
+'''
+
 PROFILE_PROMPT = '''
 Also return work_profile with exactly these fields:
 work: lookup|explain|transform|create|design|implement|debug|verify;
@@ -10,6 +42,7 @@ reasoning: bounded|multi_step|interacting_constraints;
 evidence: ordinary|supplied|retrieve|conflicting;
 creativity: none|constrained|open;
 verification: none|check|prove.
+''' + PROFILE_SEMANTICS + '''
 Describe the CURRENT deliverable using its required sources and active instructions.
 An explanation and an implementation of the same architecture differ. Crash/race
 correctness proofs have interacting constraints; technical names alone do not.
