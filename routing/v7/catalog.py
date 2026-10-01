@@ -156,7 +156,7 @@ def _apply_candidate(value, candidate):
             cohorts = copy.deepcopy(candidate.get('validated_usage_cohorts', {}).get(vid, []))
             if any(not valid_forecast(c, request_hash) for c in cohorts):
                 raise ValueError('Usage cohort lacks matching prospective validation')
-            scopes = [(c['delivery'], c['demand']) for c in cohorts]
+            scopes = [(c['delivery'], c['demand'], digest(c.get('work_profile'))) for c in cohorts]
             if len(scopes) != len(set(scopes)):
                 raise ValueError('Ambiguous usage cohorts')
             for family in contract['families'].values():

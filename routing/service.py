@@ -288,6 +288,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             transport = (configured_native['transport'] if configured_native and not model.get('openai_compatible')
                          else 'anthropic_messages' if native else 'chat_completions')
             reasons = []
+            if (native_policy and (catalog.get('configured_selection_policy', {}).get('quality') or {}).get('version') == 3
+                    and output_mode != 'provider_default'):
+                reasons.append('QUALITY_OUTPUT_CONTRACT_UNMEASURED')
             if transport != contract['transport']:
                 reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
             if measured_output and variant_cap != contract['output_allowance']:

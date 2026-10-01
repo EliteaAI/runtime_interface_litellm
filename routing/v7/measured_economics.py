@@ -13,18 +13,23 @@ from ..pricing import Tokens
 from .state import cache_quote
 
 
-def support(variant, task, size):
+def support(variant, task, size, *, require_work_profile=False):
     contract = variant.get('calibration_contract') or {}
     if contract.get('forecast_validation_required'):
         from .calibration_scope import valid_forecast
         matches = [c for c in contract.get('usage_cohorts', [])
-                   if c['delivery'] == task.get('delivery') and c['demand'] == task.get('demand')]
+                   if c['delivery'] == task.get('delivery') and c['demand'] == task.get('demand')
+                   and (not require_work_profile or isinstance(task.get('work_profile'), dict)
+                        and c.get('work_profile') == task['work_profile']
+                        and c.get('output_mode') == 'provider_default')]
         if len(matches) != 1 or not valid_forecast(matches[0], contract.get('request_contract_sha256')):
             return None, 'MISSING_VALIDATED_USAGE_COHORT'
         profile = matches[0]
         if not profile['input_bytes']['min'] <= size <= profile['input_bytes']['max']:
             return None, 'OUTSIDE_MEASURED_INPUT_RANGE'
         return profile, None
+    if require_work_profile:
+        return None, 'MISSING_VALIDATED_USAGE_COHORT'
     usage = (variant.get('calibration_contract') or {}).get('families', {}).get(task.get('family'), {}).get('usage_profile')
     if not usage or usage.get('revision') != 'v14-usage-trajectories-1':
         return None, 'MISSING_USAGE_PROFILE'
@@ -93,10 +98,11 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
             len(json.dumps({'messages':messages,'tools':tools or [],
                 'output_schema':getattr(gateway,'output_schema',None)},ensure_ascii=False).encode())+64*len(messages))
     task = selection.get('economic_task', {})
+    strict = (catalog.get('configured_selection_policy', {}).get('quality') or {}).get('version') == 3
     quotes, missing = {}, {}
     for vid in eligible:
         variant = catalog['variants'][vid]
-        profile, reason = support(variant, task, size)
+        profile, reason = support(variant, task, size, require_work_profile=strict)
         if reason:
             missing[vid] = reason
             continue
@@ -120,7 +126,7 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
         chosen = next((v for v in priorities if v in eligible), selection['variant'])
         reason = 'UNPRICED_QUALIFIED_FALLBACK'
     switching = None
-    if comparable:
+    if comparable and not strict:
         from .cache_switching import retained_variant
         chosen,switching = retained_variant(catalog.get('switching_policies',[]),task=task,
             previous=previous,chosen=chosen,eligible=eligible,quotes=quotes,size=size,price_revision=gateway.prices.revision)

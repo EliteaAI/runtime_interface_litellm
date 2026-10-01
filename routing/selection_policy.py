@@ -96,6 +96,10 @@ def install(catalog, policy):
             if (measured['effort'] != native['effort'] or any(evidence.get(k) != native[k]
                     for k in ('transport', 'reasoning_fields', 'output_allowance'))):
                 raise ValueError('Configured evidence native contract differs')
+            if ((policy.get('quality') or {}).get('version') == 3
+                    and (measured['cache_write_mode'] != native['cache_write_mode']
+                         or evidence.get('reasoning_format') != native['reasoning_format'])):
+                raise ValueError('Configured evidence native contract differs')
             # An explicit alias mapping is an owner assertion, never a name
             # heuristic. Evidence labels and original source remain unchanged.
             entry['evidence_binding'] = {**ref, 'snapshot_sha256': source_hash,
@@ -136,6 +140,10 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
     measured = measured_rank(selection, messages, measured_catalog, session=session,
                              gateway=gateway, cap=cap, tools=tools, previous=previous)
     if measured['economics']['forecast_comparable']:
+        return measured
+    if (catalog['configured_selection_policy'].get('quality') or {}).get('version') == 3:
+        # The router applies the ordinary authorization/adverse-evidence guards
+        # to the owner's fallback. A common output scenario is not a forecast.
         return measured
     eligible = [r['variant'] for r in selection['candidates'] if r['eligible']]
     size = measured['economics']['input_size_proxy']

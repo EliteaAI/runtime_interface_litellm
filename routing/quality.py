@@ -1,10 +1,12 @@
 """Quality before price, using owner-approved independent-group evidence.
 
-Rubrics belong to the offline judgments. Runtime consumes difficulty-level
-outcomes and provenance, never a requirement to match an evaluation rubric.
+Rubrics belong to the offline judgments. Runtime consumes reviewed outcomes
+and typed workload support, never a requirement to match an evaluation rubric.
 """
 import math
 from statistics import NormalDist
+from .v7.retrieval import digest
+from .v7.task_profile import ENUMS
 
 DEMANDS = {'simple', 'standard', 'deep'}
 
@@ -14,10 +16,13 @@ def validate(value, variants):
         return
     if not isinstance(value, dict):
         raise ValueError('Invalid configured quality policy')
-    paired = value.get('version') == 2 and type(value.get('version')) is int
+    scoped = value.get('version') == 3 and type(value.get('version')) is int
+    paired = scoped or value.get('version') == 2 and type(value.get('version')) is int
     thresholds = (('minimum_success_lower_bound', 'maximum_paired_loss_upper_bound') if paired
                   else ('minimum_pass_rate', 'maximum_quality_gap'))
     expected = {'minimum_groups', 'cohorts', *thresholds} | ({'version'} if paired else set())
+    if scoped:
+        expected.add('native_contract_sha256')
     if set(value) != expected:
         raise ValueError('Invalid configured quality policy')
     if type(value['minimum_groups']) is not int or not 4 <= value['minimum_groups'] <= 100000:
@@ -27,17 +32,28 @@ def validate(value, variants):
         if type(number) not in (int, float) or not math.isfinite(number) or not 0 <= number <= 1:
             raise ValueError('Invalid configured quality threshold')
     cohorts = value['cohorts']
-    if not isinstance(cohorts, dict) or set(cohorts) - DEMANDS:
+    if (not isinstance(cohorts, dict) or len(cohorts) > 256
+            or (not scoped and set(cohorts) - DEMANDS)
+            or any(not isinstance(k, str) or not 1 <= len(k) <= 128 for k in cohorts)):
         raise ValueError('Invalid quality difficulty cohorts')
     for cohort in cohorts.values():
         fields = {'source', 'source_sha256', 'groups', 'outcomes'}
         if paired:
             fields |= {'reference_variant', 'evaluation_scope'}
+        if scoped:
+            fields |= {'demand', 'work_profile'}
         if (not isinstance(cohort, dict) or set(cohort) != fields
                 or not isinstance(cohort['source'], str) or not 1 <= len(cohort['source']) <= 1024
                 or not isinstance(cohort['source_sha256'], str) or len(cohort['source_sha256']) != 64
                 or any(c not in '0123456789abcdef' for c in cohort['source_sha256'])):
             raise ValueError('Invalid quality evidence provenance')
+        if scoped:
+            profile = cohort['work_profile']
+            if (cohort['demand'] not in DEMANDS or not isinstance(profile, dict)
+                    or set(profile) != set(ENUMS)
+                    or any(not isinstance(profile[k], str) or profile[k] not in choices
+                           for k, choices in ENUMS.items())):
+                raise ValueError('Invalid quality workload scope')
         groups = cohort['groups']
         if (not isinstance(groups, list) or not 1 <= len(groups) <= 100000
                 or any(not isinstance(g, str) or not 1 <= len(g) <= 256 for g in groups)
@@ -67,17 +83,24 @@ def validate(value, variants):
             if (not isinstance(votes, list) or len(votes) != len(groups)
                     or any(v not in ('pass', 'fail', 'unknown') for v in votes)):
                 raise ValueError('Quality evidence must preserve every matched group')
+    if scoped:
+        identities = value['native_contract_sha256']
+        measured = {v for c in cohorts.values() for v in c['outcomes']}
+        if (not isinstance(variants, dict) or not isinstance(identities, dict)
+                or set(identities) != measured
+                or any(identities[v] != digest(variants[v]['native']) for v in measured)):
+            raise ValueError('Quality evidence native deployment/effort contract changed')
 
 
-def frontier(policy, variants, demand, *, request_scope=None):
+def frontier(policy, variants, demand, *, request_scope=None, work_profile=None):
     """Screen quality on identical independent groups, then let price rank ties.
 
 Unknown groups remain in the denominator, never promoted into successes.
 Bounds are a conservative ranking statistic, not per-request guarantees or a
 paired noninferiority certificate. The operator owns the declared thresholds.
 """
-    if (policy or {}).get('version') == 2:
-        return _paired_frontier(policy, variants, demand, request_scope)
+    if (policy or {}).get('version') in (2, 3):
+        return _paired_frontier(policy, variants, demand, request_scope, work_profile)
     cohort = (policy or {}).get('cohorts', {}).get(demand)
     result = {'demand': demand, 'status': 'quality_evidence_unavailable',
               'eligible': [], 'assessments': {}, 'quality_guaranteed': False}
@@ -124,7 +147,14 @@ def _score_bounds(successes, total, z):
     return max(0, center-radius), min(1, center+radius)
 
 
-def _paired_frontier(policy, variants, demand, request_scope):
+def _within_scope(scope, request):
+    return bool(request and request['id'] in scope['request_scope_ids']
+        and request['user_turns'] <= scope['maximum_user_turns']
+        and (not request['has_tools'] or scope['allow_tools'])
+        and (not request['has_history'] or scope['allow_history']))
+
+
+def _paired_frontier(policy, variants, demand, request_scope, work_profile):
     """An absolute quality target plus a conservative paired-loss screen.
 
     Loss is candidate-not-pass against reference-not-fail on the same group.
@@ -134,16 +164,25 @@ def _paired_frontier(policy, variants, demand, request_scope):
     cohorts/variants, not the live surviving pool. Bounds are approximate,
     conditional on independent representative groups, never a quality promise.
     """
-    result = {'version': 2, 'demand': demand, 'status': 'quality_evidence_unavailable',
+    result = {'version': policy['version'], 'demand': demand, 'status': 'quality_evidence_unavailable',
               'eligible': [], 'assessments': {}, 'quality_guaranteed': False}
-    cohort = policy['cohorts'].get(demand)
+    if policy['version'] == 3:
+        matches = [(key, c) for key, c in policy['cohorts'].items()
+                   if c['demand'] == demand and c['work_profile'] == work_profile
+                   and _within_scope(c['evaluation_scope'], request_scope)]
+        result['work_profile'] = work_profile
+        if len(matches) != 1:
+            result['status'] = ('ambiguous_quality_workload_scope' if matches
+                                else 'missing_quality_workload_scope')
+            return result
+        key, cohort = matches[0]
+        result['cohort_id'] = key
+    else:
+        cohort = policy['cohorts'].get(demand)
     if cohort is None:
         return result
     scope = cohort['evaluation_scope']
-    if (not request_scope or request_scope['id'] not in scope['request_scope_ids']
-            or request_scope['user_turns'] > scope['maximum_user_turns']
-            or request_scope['has_tools'] and not scope['allow_tools']
-            or request_scope['has_history'] and not scope['allow_history']):
+    if not _within_scope(scope, request_scope):
         result['status'] = 'outside_quality_evaluation_scope'
         return result
     n = len(cohort['groups'])

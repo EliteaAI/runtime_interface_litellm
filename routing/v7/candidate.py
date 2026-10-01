@@ -156,7 +156,7 @@ class CalibratedRouter(FixedV6Router):
         from ..quality import frontier
         quality = frontier(self.catalog['configured_selection_policy'].get('quality'),
             [v.removeprefix('configured-') for v in eligible], demand,
-            request_scope=ctx.get('quality_request_scope'))
+            request_scope=ctx.get('quality_request_scope'), work_profile=descriptor.get('work_profile'))
         qualified_ids = {'configured-' + v for v in quality['eligible']}
         for vid in eligible:
             if vid not in qualified_ids:
@@ -183,6 +183,22 @@ class CalibratedRouter(FixedV6Router):
             'policy_source_sha256': self.catalog['configured_selection_policy']['source_sha256'],
             'measurement_scope_gap': ctx.get('unmeasured_scope')}
         return result
+
+    def _rank_selection(self, decision, messages, previous, allowed, min_demand):
+        result = super()._rank_selection(decision, messages, previous, allowed, min_demand)
+        policy = self.catalog.get('configured_selection_policy', {}).get('quality') or {}
+        if (policy.get('version') != 3 or result['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK'
+                or result.get('economics', {}).get('forecast_comparable')):
+            return result
+        permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
+        fallback = self._coverage_baseline(decision['descriptor'], permitted,
+            result.get('family_qualification', {}).get('assessments', {}), previous, min_demand)
+        fallback['quality_screen'] = result['quality_screen']
+        fallback['family_qualification']['coverage_gap'] = 'comparable_workload_cost_forecast_unavailable'
+        fallback['economics'] = {**result['economics'],
+            'reason': 'UNMEASURED_CONFIGURED_FALLBACK', 'expected_cost': None,
+            'savings_claim': False, 'cache_ranking_enabled': False, 'switching_evidence': None}
+        return fallback
 
     def _coverage_baseline(self, descriptor, permitted, assessments, previous, min_demand):
         baseline = self.coverage_fallback_variant

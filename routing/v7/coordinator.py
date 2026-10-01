@@ -188,8 +188,7 @@ class Router(Coordinator):
         decision=super()._resolve(messages,effective_mode,binding,hint,previous,allowed,min_demand)
         decision['budget']={'completion_cap':ctx['cap'],'classifier_view_bytes':ctx['view_bytes']}
         if decision.get('action')!='clarify' and mode=='economic':
-            decision['selection']=rank(decision['selection'],messages,self.catalog,session=session,gateway=self.gateway,
-                cap=ctx['cap'],tools=ctx['tools'],previous=previous)
+            decision['selection']=self._rank_selection(decision,messages,previous,allowed,min_demand)
         if pending and 'intent' in pending and decision.get('action')!='clarify':
             if not session.claim_pending(pending['intent']['id']):raise ValueError('Pending task is already claimed')
             decision['pending_intent_id']=pending['intent']['id']
@@ -199,3 +198,8 @@ class Router(Coordinator):
                 if not session.claim_pending(link['task_id']):raise ValueError('Pending task is already claimed')
                 decision['pending_intent_id']=link['task_id']
         return decision
+
+    def _rank_selection(self, decision, messages, previous, allowed, min_demand):
+        ctx = self.local.get()
+        return rank(decision['selection'], messages, self.catalog, session=ctx['session'],
+                    gateway=self.gateway, cap=ctx['cap'], tools=ctx['tools'], previous=previous)
