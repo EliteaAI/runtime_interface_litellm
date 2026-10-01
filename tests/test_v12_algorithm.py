@@ -22,7 +22,7 @@ DESC = dict(operation='creative', task_family='content_creation', demand='simple
 
 
 @pytest.mark.parametrize('change,expected', [({}, 'simple'), ({'reasoning':'multi_step'}, 'standard'),
-    ({'reasoning':'interacting_constraints'}, 'deep'), ({'verification':'prove'}, 'deep'),
+    ({'reasoning':'interacting_constraints'}, 'deep'), ({'verification':'prove'}, 'simple'),
     ({'evidence':'conflicting'}, 'standard')])
 def test_properties_raise_only_the_required_floor(change, expected):
     assert apply_profile(DESC, {**PROFILE, **change})['demand'] == expected

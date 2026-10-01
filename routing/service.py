@@ -387,6 +387,14 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
     trace['classifier']['called'] = classifier_info.get('called', bool(classifier_info))
+    descriptor = decision.get('descriptor') or {}
+    trace['difficulty'] = {
+        'raw_classifier_demand': classifier_info.get('raw_demand'),
+        'policy_floor': descriptor.get('profile_demand_floor'),
+        'policy_adjustment': copy.deepcopy(descriptor.get('profile_demand_adjustment')),
+        'final_demand': descriptor.get('demand'),
+        'source': ('classifier' if classifier_info.get('schema_valid') else
+                   'conservative_default' if classifier_info.get('schema_valid') is False else 'local_policy')}
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),

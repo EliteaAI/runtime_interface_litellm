@@ -60,6 +60,7 @@ class FamilyClassifier(AvailabilityClassifier):
             return unknown('Active instructions exceed the qualified classifier view; conservative baseline required'), {'schema_valid':False,'called':False,'error':'ACTIVE_INSTRUCTIONS_TRUNCATED'}
         descriptor,info=super().classify(view)
         if info.get('schema_valid'):
+            info['raw_demand'] = descriptor['demand']
             raw=info['response']['message'].get('content') or ''
             raw=re.sub(r'^```(?:json)?\s*|\s*```$', '',raw.strip())
             parsed=json.loads(raw)
@@ -154,7 +155,8 @@ class CalibratedRouter(FixedV6Router):
                 eligible.append(vid)
         from ..quality import frontier
         quality = frontier(self.catalog['configured_selection_policy'].get('quality'),
-            [v.removeprefix('configured-') for v in eligible], demand)
+            [v.removeprefix('configured-') for v in eligible], demand,
+            request_scope=ctx.get('quality_request_scope'))
         qualified_ids = {'configured-' + v for v in quality['eligible']}
         for vid in eligible:
             if vid not in qualified_ids:

@@ -4,6 +4,7 @@ Rubrics belong to the offline judgments. Runtime consumes difficulty-level
 outcomes and provenance, never a requirement to match an evaluation rubric.
 """
 import math
+from statistics import NormalDist
 
 DEMANDS = {'simple', 'standard', 'deep'}
 
@@ -11,12 +12,17 @@ DEMANDS = {'simple', 'standard', 'deep'}
 def validate(value, variants):
     if value is None:
         return
-    if (not isinstance(value, dict) or set(value) != {
-            'minimum_groups', 'minimum_pass_rate', 'maximum_quality_gap', 'cohorts'}):
+    if not isinstance(value, dict):
+        raise ValueError('Invalid configured quality policy')
+    paired = value.get('version') == 2 and type(value.get('version')) is int
+    thresholds = (('minimum_success_lower_bound', 'maximum_paired_loss_upper_bound') if paired
+                  else ('minimum_pass_rate', 'maximum_quality_gap'))
+    expected = {'minimum_groups', 'cohorts', *thresholds} | ({'version'} if paired else set())
+    if set(value) != expected:
         raise ValueError('Invalid configured quality policy')
     if type(value['minimum_groups']) is not int or not 4 <= value['minimum_groups'] <= 100000:
         raise ValueError('Quality evidence needs independent groups')
-    for name in ('minimum_pass_rate', 'maximum_quality_gap'):
+    for name in thresholds:
         number = value[name]
         if type(number) not in (int, float) or not math.isfinite(number) or not 0 <= number <= 1:
             raise ValueError('Invalid configured quality threshold')
@@ -24,7 +30,10 @@ def validate(value, variants):
     if not isinstance(cohorts, dict) or set(cohorts) - DEMANDS:
         raise ValueError('Invalid quality difficulty cohorts')
     for cohort in cohorts.values():
-        if (not isinstance(cohort, dict) or set(cohort) != {'source', 'source_sha256', 'groups', 'outcomes'}
+        fields = {'source', 'source_sha256', 'groups', 'outcomes'}
+        if paired:
+            fields |= {'reference_variant', 'evaluation_scope'}
+        if (not isinstance(cohort, dict) or set(cohort) != fields
                 or not isinstance(cohort['source'], str) or not 1 <= len(cohort['source']) <= 1024
                 or not isinstance(cohort['source_sha256'], str) or len(cohort['source_sha256']) != 64
                 or any(c not in '0123456789abcdef' for c in cohort['source_sha256'])):
@@ -37,19 +46,38 @@ def validate(value, variants):
         outcomes = cohort['outcomes']
         if not isinstance(outcomes, dict) or not outcomes or set(outcomes) - set(variants):
             raise ValueError('Quality evidence references an unknown configured variant')
+        if paired:
+            if (not isinstance(cohort['reference_variant'], str)
+                    or cohort['reference_variant'] not in outcomes):
+                raise ValueError('Paired quality evidence needs a matched reference variant')
+            scope = cohort['evaluation_scope']
+            if (not isinstance(scope, dict)
+                    or set(scope) != {'request_scope_ids', 'maximum_user_turns', 'allow_tools', 'allow_history'}
+                    or type(scope['maximum_user_turns']) is not int
+                    or not 1 <= scope['maximum_user_turns'] <= 128
+                    or type(scope['allow_tools']) is not bool
+                    or type(scope['allow_history']) is not bool):
+                raise ValueError('Invalid quality evaluation scope')
+            ids = scope['request_scope_ids']
+            if (not isinstance(ids, list) or not 1 <= len(ids) <= 32
+                    or any(not isinstance(s, str) or not 1 <= len(s) <= 256 for s in ids)
+                    or len(set(ids)) != len(ids)):
+                raise ValueError('Invalid quality evaluation scope IDs')
         for votes in outcomes.values():
             if (not isinstance(votes, list) or len(votes) != len(groups)
                     or any(v not in ('pass', 'fail', 'unknown') for v in votes)):
                 raise ValueError('Quality evidence must preserve every matched group')
 
 
-def frontier(policy, variants, demand):
+def frontier(policy, variants, demand, *, request_scope=None):
     """Screen quality on identical independent groups, then let price rank ties.
 
 Unknown groups remain in the denominator, never promoted into successes.
 Bounds are a conservative ranking statistic, not per-request guarantees or a
 paired noninferiority certificate. The operator owns the declared thresholds.
 """
+    if (policy or {}).get('version') == 2:
+        return _paired_frontier(policy, variants, demand, request_scope)
     cohort = (policy or {}).get('cohorts', {}).get(demand)
     result = {'demand': demand, 'status': 'quality_evidence_unavailable',
               'eligible': [], 'assessments': {}, 'quality_guaranteed': False}
@@ -86,4 +114,74 @@ paired noninferiority certificate. The operator owns the declared thresholds.
     for vid, row in result['assessments'].items():
         if row['status'] == 'meets_quality_floor' and vid not in result['eligible']:
             row['status'] = 'outside_quality_tolerance'
+    return result
+
+
+def _score_bounds(successes, total, z):
+    rate = successes / total
+    center = (rate + z*z/(2*total)) / (1+z*z/total)
+    radius = z*math.sqrt(rate*(1-rate)/total + z*z/(4*total*total)) / (1+z*z/total)
+    return max(0, center-radius), min(1, center+radius)
+
+
+def _paired_frontier(policy, variants, demand, request_scope):
+    """An absolute quality target plus a conservative paired-loss screen.
+
+    Loss is candidate-not-pass against reference-not-fail on the same group.
+    Unknowns take their adverse interpretation; candidate wins do not cancel
+    losses. This bounds a stricter quantity than the mean quality difference.
+    One-sided Wilson bounds use a Bonferroni adjustment over the declared
+    cohorts/variants, not the live surviving pool. Bounds are approximate,
+    conditional on independent representative groups, never a quality promise.
+    """
+    result = {'version': 2, 'demand': demand, 'status': 'quality_evidence_unavailable',
+              'eligible': [], 'assessments': {}, 'quality_guaranteed': False}
+    cohort = policy['cohorts'].get(demand)
+    if cohort is None:
+        return result
+    scope = cohort['evaluation_scope']
+    if (not request_scope or request_scope['id'] not in scope['request_scope_ids']
+            or request_scope['user_turns'] > scope['maximum_user_turns']
+            or request_scope['has_tools'] and not scope['allow_tools']
+            or request_scope['has_history'] and not scope['allow_history']):
+        result['status'] = 'outside_quality_evaluation_scope'
+        return result
+    n = len(cohort['groups'])
+    reference = cohort['reference_variant']
+    comparisons = sum(2*len(c['outcomes'])-1 for c in policy['cohorts'].values())
+    z = NormalDist().inv_cdf(1-.05/comparisons)
+    result.update(source=cohort['source'], source_sha256=cohort['source_sha256'],
+                  evaluation_scope=scope, independent_groups=n, reference_variant=reference,
+                  minimum_success_lower_bound=policy['minimum_success_lower_bound'],
+                  maximum_paired_loss_upper_bound=policy['maximum_paired_loss_upper_bound'],
+                  bound_method='one_sided_wilson_bonferroni', nominal_confidence=.95,
+                  adjusted_comparisons=comparisons, approximate_bounds=True)
+    if n < policy['minimum_groups']:
+        result['status'] = 'insufficient_independent_quality_groups'
+        return result
+    reference_votes = cohort['outcomes'][reference]
+    for variant in variants:
+        votes = cohort['outcomes'].get(variant)
+        if votes is None:
+            result['assessments'][variant] = {'status': 'quality_evidence_unavailable'}
+            continue
+        passed, failed, unknown = (votes.count(x) for x in ('pass', 'fail', 'unknown'))
+        lower, _ = _score_bounds(passed, n, z)
+        losses = sum(v != 'pass' and r != 'fail' for v, r in zip(votes, reference_votes))
+        # The reference compared with its own identical outcomes has zero loss;
+        # its absolute quality still has to pass the same evidence requirement.
+        upper = 0 if variant == reference else _score_bounds(losses, n, z)[1]
+        if lower < policy['minimum_success_lower_bound']:
+            status = 'below_absolute_quality_bound'
+        elif upper > policy['maximum_paired_loss_upper_bound']:
+            status = 'paired_quality_loss_not_supported'
+        else:
+            status = 'meets_quality_contract'
+            result['eligible'].append(variant)
+        result['assessments'][variant] = {
+            'pass': passed, 'fail': failed, 'unknown': unknown, 'independent_groups': n,
+            'pass_rate': passed/n, 'success_lower_bound': lower,
+            'paired_adverse_groups': 0 if variant == reference else losses,
+            'paired_loss_upper_bound': upper, 'status': status}
+    result['status'] = 'quality_screened' if result['eligible'] else 'no_model_meets_quality_contract'
     return result

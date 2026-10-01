@@ -136,7 +136,12 @@ class Router(Coordinator):
         if not (scope and scope.decision) and (not binding or binding.get('mode')!='fixed'):
             session.prepare(messages,access_revision)
         ctx={'session':session,'cap':cap,'tools':tools,'view_bytes':view_bytes,'trusted_role':trusted_role,'task_contract':task_contract,
-             'unmeasured_scope':scope_gap, 'configured_scope':configured_scope}
+             'unmeasured_scope':scope_gap, 'configured_scope':configured_scope,
+             'quality_request_scope': {'id': task_contract,
+                 'user_turns': sum(m.get('role') == 'user' for m in messages),
+                 'has_history': (sum(m.get('role') == 'user' for m in messages) > 1
+                     or any(m.get('role') in ('assistant', 'tool') for m in messages)),
+                 'has_tools': bool(tools or any(m.get('role') == 'tool' for m in messages))}}
         if task_family:ctx['task_family']=task_family
         token=self.local.set(ctx)
         try:

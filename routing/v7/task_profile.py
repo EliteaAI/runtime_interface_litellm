@@ -17,7 +17,11 @@ Open creativity alone is not deep reasoning. Effort is separate from these prope
 Ground demand in the requested work: simple means a bounded lookup, filter, rewrite,
 calculation or local explanation with explicit rules; standard means dependent steps,
 integration or evidence reconciliation with bounded uncertainty; deep means interacting
-invariants, race/crash recovery, nonlocal changes, proof or substantial unresolved uncertainty.
+invariants, race/crash recovery, nonlocal changes or substantial unresolved uncertainty.
+verification=prove describes the required justification, not its difficulty. A small
+finite witness, local identity or exhaustive check can have bounded reasoning. Use
+interacting_constraints for coupled/nonlocal invariants, not merely several explicit
+rules in a small finite calculation. Distinguish proof scope from the word "prove".
 Reading a source or running a test does not by itself raise the reasoning demand. Do not
 infer deep work from code, architecture, security, detailed wording or answer length alone.
 Conversely, a short request to implement durable recovery can be deep. Unknown file
@@ -44,11 +48,17 @@ def apply_profile(descriptor, value):
         raise ValueError('WORK_PROFILE_FIELDS')
     if any(not isinstance(value[k], str) or value[k] not in allowed for k, allowed in ENUMS.items()):
         raise ValueError('WORK_PROFILE_ENUM')
-    floor = ('deep' if value['reasoning'] == 'interacting_constraints' or value['verification'] == 'prove'
+    floor = ('deep' if value['reasoning'] == 'interacting_constraints'
              else 'standard' if value['reasoning'] == 'multi_step' or value['evidence'] == 'conflicting'
              else 'simple')
     order = {'simple': 0, 'standard': 1, 'deep': 2}
-    result = {**descriptor, 'work_profile': dict(value), 'profile_demand_floor': floor}
+    reasons = (["interacting_constraints"] if floor == 'deep' else
+               [key for key, present in [('multi_step', value['reasoning'] == 'multi_step'),
+                                         ('conflicting_evidence', value['evidence'] == 'conflicting')] if present])
+    result = {**descriptor, 'work_profile': dict(value), 'profile_demand_floor': floor,
+              'profile_demand_adjustment': {'revision': 'reasoning-evidence-2',
+                  'input_demand': descriptor['demand'], 'floor_reasons': reasons,
+                  'raised': order[floor] > order[descriptor['demand']]}}
     result['demand'] = max(descriptor['demand'], floor, key=order.get)
     return result
 

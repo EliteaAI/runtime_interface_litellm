@@ -151,6 +151,53 @@ Rubrics generate offline votes; runtime does not need a matching rubric to
 consume this difficulty-level quality evidence. Existing exact adverse holds
 still apply. A policy without `quality` is therefore fallback-only.
 
+#### Prospective quality contract (version 2)
+
+The unversioned contract above is retained for reproducibility. New bindings may
+explicitly set `quality.version: 2` with `minimum_groups`,
+`minimum_success_lower_bound`, `maximum_paired_loss_upper_bound` and `cohorts`.
+Each cohort retains the source/hash, independent group IDs and matched outcome
+arrays, and adds `reference_variant` plus `evaluation_scope` containing
+`request_scope_ids`, `maximum_user_turns`, `allow_history` and `allow_tools`.
+The scope is checked against the actual messages and tools, not classifier
+assertions. First-turn evidence must set both history and tools to false; an
+assistant-only history is also history. Authorize and measure broader scopes
+separately. Scope membership does not prove representativeness of the sample.
+
+Version 2 tests an absolute success lower bound and a paired adverse-outcome
+upper bound. An adverse pair is a candidate non-pass against a reference
+non-fail; unknowns take their worst-case interpretation. Candidate wins do not
+offset losses. This is a **stricter sufficient screen** than a net difference
+in average success rates. The reference compared to itself has zero paired loss
+but still must meet the absolute requirement. One-sided Wilson bounds use a
+Bonferroni adjustment over all declared cohort/variant comparisons, fixed
+independently of the available deployment pool. They are approximate bounds
+conditional on independent, representative groups and reliable judgments;
+they are not a per-request quality guarantee or a release certificate.
+
+All choices meeting both requirements can enter price comparison. A slightly
+higher quality statistic no longer excludes every cheaper acceptable choice.
+The trace records the reference, thresholds, pass/fail/unknown counts, paired
+adverse groups, bounds, comparison count and every exclusion. Unknown prices
+still exclude a model from cost ranking. There are no provider quotas or
+implicit model-name aliases. Native bindings, permissions and adverse exact
+evidence remain authoritative.
+
+Choose targets and sample size before collecting fresh evidence. For example,
+0.95 success and 0.02 paired loss are targets, not conclusions established by
+100 observed requests. Sparse evidence must stay unsupported; do not lower the
+requirements after seeing results. The older exposed diagnostic must not become
+the fresh validation set. Deploying this code does not install a version 2
+policy or replace the existing evidence.
+
+Difficulty is the reasoning and coordination needed for the current action.
+`verification=prove` alone no longer forces deep demand: a small finite witness
+can be bounded, while coupled invariants still impose a deep floor. Existing
+raw deep judgments are not lowered. The `difficulty` trace separates the raw
+classifier demand, policy floor and reason, final demand, and conservative
+defaults for invalid classifier responses. The source/prompt revision changes
+invalidate old active pins; drain active Auto work before installing.
+
 When every quality-screened candidate has compatible validated usage support,
 the selector can compare those forecasts. Otherwise it prices the same input proxy
 and configured output scenario for every eligible candidate, including cold
