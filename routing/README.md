@@ -245,3 +245,12 @@ actor-aware discovery, shared-only retention, configuration revocation/replaceme
 no-call greetings, same-run renewal, exact-owner relay and existing manual/Usage
 behavior. Live acceptance is separate from these tests and from model-quality
 calibration.
+
+The classifier prompt includes four compact contrasts for specifications versus
+supplied artifacts, bounded implementation, requested checks and nonlocal
+constraints. They describe task properties and do not prescribe model shares.
+The guide adds 196 words (1,632 UTF-8 bytes) to the system prompt; classifier
+usage remains part of task cost. It uses the existing classifier call, JSON
+schema and conservative demand floors. Prompt changes alter the policy revision.
+Focused tests verify that both classifier lanes receive it and preserve typed
+fields; measured classification improvement requires separate request diagnostics.

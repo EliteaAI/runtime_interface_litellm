@@ -1,7 +1,7 @@
 """Current action difficulty must not be inferred from the word prove."""
 import json
 from routing.service import resolve
-from routing.v7.task_profile import apply_profile, PROFILE_SEMANTICS
+from routing.v7.task_profile import apply_profile, PROFILE_SEMANTICS, PROFILE_REVIEW_GUIDE
 import pytest
 from test_auto_routing_service import fixture,request
 from test_v12_algorithm import DESC,PROFILE
@@ -51,7 +51,39 @@ def test_actual_classifier_receives_shared_semantics_and_preserves_independent_a
     assert len(calls)==1
     assert calls[0][0]['role']=='system'
     assert calls[0][0]['content'].count(PROFILE_SEMANTICS)==1
+    assert calls[0][0]['content'].count(PROFILE_REVIEW_GUIDE)==1
     descriptor=result['trace']['descriptor']
     assert descriptor['work_profile']==profile
     assert descriptor['demand']=='simple'
     assert not descriptor['profile_demand_adjustment']['raised']
+
+
+@pytest.mark.parametrize('evidence', ['ordinary', 'supplied'])
+@pytest.mark.parametrize('verification', ['none', 'check'])
+def test_provided_availability_does_not_overwrite_profile_or_inflate_local_work(evidence, verification):
+    profile={**PROFILE,'work':'implement','evidence':evidence,'verification':verification,
+             'reasoning':'bounded','creativity':'none'}
+    response={**DESC,'operation':'design','task_family':'code','input_status':'provided',
+              'work_profile':profile,'demand':'simple'}
+    result=resolve(request('Supply the requested local function.'),
+        complete=lambda *a,**k:{'message':{'content':json.dumps(response)},'finish_reason':'stop'},**fixture())
+    assert result['trace']['descriptor']['work_profile']==profile
+    assert result['trace']['descriptor']['demand']=='simple'
+    assert result['trace']['descriptor']['input_status']=='provided'
+
+
+def test_both_classifier_lanes_receive_same_review_guide():
+    from routing.v7.candidate import FamilyClassifier
+    from routing.v7.catalog import calibration_candidate
+    classifier=FamilyClassifier(object(), 'm09-default', calibration_candidate())
+    for lane in (classifier.text,classifier.tools):
+        assert lane.system_prompt.count(PROFILE_REVIEW_GUIDE)==1
+        assert lane.system_prompt.count(PROFILE_SEMANTICS)==1
+
+
+def test_prompt_revision_changes_router_identity(monkeypatch):
+    from routing.v7 import candidate
+    before=candidate.CalibratedRouter(object()).revision
+    monkeypatch.setattr(candidate, 'PROFILE_PROMPT', candidate.PROFILE_PROMPT+'\nChanged guide.')
+    after=candidate.CalibratedRouter(object()).revision
+    assert after != before

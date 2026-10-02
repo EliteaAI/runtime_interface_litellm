@@ -35,6 +35,32 @@ proof. A finite witness or local proof can have bounded reasoning; a protocol sa
 argument can involve interacting constraints. Classify scope, not the word "prove".
 '''
 
+PROFILE_REVIEW_GUIDE = '''
+Before returning JSON, separate the deliverable, required sources, reasoning
+constraints and requested justification. input_status=provided does not imply
+evidence=supplied: ordinary knowledge can be available too. Specifications of new
+behavior are instructions; particular data/code/system facts are supplied evidence.
+Equivalent implementations are not creative choices. Preserve genuine ambiguity.
+
+Compact contrasts (axis order: work/reasoning/evidence/creativity/verification):
+- "Write a function converting centimeters to meters":
+  implement/bounded/ordinary/none/none, simple.
+  "Convert these lengths: 12, 25 centimeters":
+  transform/bounded/supplied/none/none, simple.
+- "Repair this supplied conversion function" uses supplied evidence. "Inspect the
+  conversion file" needs an actual authorized source/tool; never invent access.
+- "Implement a local alphabetic validator" requests behavior, not proof. Adding
+  "give tests and explain complexity" changes verification to check, not automatically
+  demand. Equivalent algorithms do not make creativity constrained.
+- "Design a resumable cross-service commit with lost acknowledgments and independent
+  stores; justify recovery safety" has interacting constraints and deep demand
+  despite being short. Keep these nonlocal requirements when identifying its work.
+A bounded implementation can be simple; a small finite proof can also be simple.
+Use dependencies, not technical vocabulary or length. Explain the decisive property
+in the existing reason field; add no fields. These examples illustrate distinctions,
+not keyword rules, model choices or capability grants.
+'''
+
 PROFILE_PROMPT = '''
 Also return work_profile with exactly these fields:
 work: lookup|explain|transform|create|design|implement|debug|verify;
@@ -63,7 +89,7 @@ deliverable again at the next user task boundary; do not inherit the previous st
 The legacy operation is a broad dispatch category: implement/design maps to design,
 debug/verify/explain/lookup to analysis, transform to transform and create to creative.
 Do not use operation=other merely because the exact work verb is absent from that enum.
-'''
+''' + PROFILE_REVIEW_GUIDE
 
 ENUMS = {
     'work': {'lookup', 'explain', 'transform', 'create', 'design', 'implement', 'debug', 'verify'},
