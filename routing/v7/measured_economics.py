@@ -98,7 +98,7 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
             len(json.dumps({'messages':messages,'tools':tools or [],
                 'output_schema':getattr(gateway,'output_schema',None)},ensure_ascii=False).encode())+64*len(messages))
     task = selection.get('economic_task', {})
-    strict = (catalog.get('configured_selection_policy', {}).get('quality') or {}).get('version') == 3
+    strict = (catalog.get('configured_selection_policy', {}).get('quality') or {}).get('version') in (3, 4)
     quotes, missing = {}, {}
     for vid in eligible:
         variant = catalog['variants'][vid]

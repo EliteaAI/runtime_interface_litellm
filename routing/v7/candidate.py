@@ -187,7 +187,7 @@ class CalibratedRouter(FixedV6Router):
     def _rank_selection(self, decision, messages, previous, allowed, min_demand):
         result = super()._rank_selection(decision, messages, previous, allowed, min_demand)
         policy = self.catalog.get('configured_selection_policy', {}).get('quality') or {}
-        if (policy.get('version') != 3 or result['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK'
+        if (policy.get('version') not in (3, 4) or result['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK'
                 or result.get('economics', {}).get('forecast_comparable')):
             return result
         permitted = list(self.catalog['variants']) if allowed is None else list(allowed)
@@ -206,6 +206,14 @@ class CalibratedRouter(FixedV6Router):
         native = value.get('configured_fallback_contract')
         if native:
             ctx = self.local.get() or {}
+            from ..quality import development_adverse_contracts
+            from .retrieval import digest
+            policy = self.catalog.get('configured_selection_policy', {}).get('quality')
+            if (policy or {}).get('version') == 4:
+                demand = max((descriptor['demand'], min_demand), key={'simple':0, 'standard':1, 'deep':2}.get)
+                if digest(native) in development_adverse_contracts(policy, demand,
+                        request_scope=ctx.get('quality_request_scope'), work_profile=descriptor.get('work_profile')):
+                    raise ValueError('Configured fallback has adverse or unknown exact development evidence')
             if baseline not in permitted or not self.qualifications.allowed(
                     [baseline], ctx.get('task_family', descriptor['operation']), ctx.get('task_contract', 'text-tools-v1')):
                 raise ValueError('No eligible configured model; do not silently escape the pool')

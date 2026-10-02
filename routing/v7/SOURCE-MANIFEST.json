@@ -59,7 +59,7 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "f13911021885aec799e5234995a3a132ea5dcdc2905aa2710a33191867e809df"
+      "product_sha256": "383378ff27440dd015da0895f9c9e9431cfd5dff9ca5dede6e2b54fe581cb46a"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
@@ -99,7 +99,7 @@
     "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
     "economics.py": "a347f8311f383f77012ac16676b0d37c05a8fdc15d0e18d3af6cab0349953370",
     "learned_lexical.py": "65d8569fb0e4a24cc390689834566044024ddaf98f410b4922c915cfdd41c5a1",
-    "measured_economics.py": "3004e3401412275f29dd3ace0cd94ecf76408c88865b186b969a7938719817a5",
+    "measured_economics.py": "09b53921b46ba62f20f8072c39521d2b584709e48994ee0d8d2c01957cd81e37",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
     "qualification.py": "2f08ba272f4d9f714eaabdcc034bac4cd93ed17e9fd1e2c41d7146926364776f",
     "task_continuity.py": "06ff50d04b0b8ef338bd1cfabbb2faa4ae031e0eedff7ec01b9e9fa43b0c4626",

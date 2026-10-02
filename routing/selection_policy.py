@@ -96,7 +96,7 @@ def install(catalog, policy):
             if (measured['effort'] != native['effort'] or any(evidence.get(k) != native[k]
                     for k in ('transport', 'reasoning_fields', 'output_allowance'))):
                 raise ValueError('Configured evidence native contract differs')
-            if ((policy.get('quality') or {}).get('version') == 3
+            if ((policy.get('quality') or {}).get('version') in (3, 4)
                     and (measured['cache_write_mode'] != native['cache_write_mode']
                          or evidence.get('reasoning_format') != native['reasoning_format'])):
                 raise ValueError('Configured evidence native contract differs')
@@ -141,7 +141,7 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
                              gateway=gateway, cap=cap, tools=tools, previous=previous)
     if measured['economics']['forecast_comparable']:
         return measured
-    if (catalog['configured_selection_policy'].get('quality') or {}).get('version') == 3:
+    if (catalog['configured_selection_policy'].get('quality') or {}).get('version') in (3, 4):
         # The router applies the ordinary authorization/adverse-evidence guards
         # to the owner's fallback. A common output scenario is not a forecast.
         return measured

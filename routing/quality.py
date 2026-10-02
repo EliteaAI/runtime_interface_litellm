@@ -16,16 +16,18 @@ def validate(value, variants):
         return
     if not isinstance(value, dict):
         raise ValueError('Invalid configured quality policy')
-    scoped = value.get('version') == 3 and type(value.get('version')) is int
+    development = value.get('version') == 4 and type(value.get('version')) is int
+    scoped = value.get('version') in (3, 4) and type(value.get('version')) is int
     paired = scoped or value.get('version') == 2 and type(value.get('version')) is int
-    thresholds = (('minimum_success_lower_bound', 'maximum_paired_loss_upper_bound') if paired
+    thresholds = (('minimum_observed_success', 'maximum_observed_paired_adverse_fraction') if development
+                  else ('minimum_success_lower_bound', 'maximum_paired_loss_upper_bound') if paired
                   else ('minimum_pass_rate', 'maximum_quality_gap'))
     expected = {'minimum_groups', 'cohorts', *thresholds} | ({'version'} if paired else set())
     if scoped:
         expected.add('native_contract_sha256')
     if set(value) != expected:
         raise ValueError('Invalid configured quality policy')
-    if type(value['minimum_groups']) is not int or not 4 <= value['minimum_groups'] <= 100000:
+    if type(value['minimum_groups']) is not int or not (8 if development else 4) <= value['minimum_groups'] <= 100000:
         raise ValueError('Quality evidence needs independent groups')
     for name in thresholds:
         number = value[name]
@@ -42,6 +44,8 @@ def validate(value, variants):
             fields |= {'reference_variant', 'evaluation_scope'}
         if scoped:
             fields |= {'demand', 'work_profile'}
+        if development:
+            fields.add('training_groups')
         if (not isinstance(cohort, dict) or set(cohort) != fields
                 or not isinstance(cohort['source'], str) or not 1 <= len(cohort['source']) <= 1024
                 or not isinstance(cohort['source_sha256'], str) or len(cohort['source_sha256']) != 64
@@ -59,6 +63,12 @@ def validate(value, variants):
                 or any(not isinstance(g, str) or not 1 <= len(g) <= 256 for g in groups)
                 or len(groups) != len(set(groups))):
             raise ValueError('Duplicate or invalid quality evidence group')
+        if development:
+            training = cohort['training_groups']
+            if (not isinstance(training, list) or not training
+                    or any(not isinstance(g, str) for g in training)
+                    or len(set(training)) != len(training) or not set(training) <= set(groups)):
+                raise ValueError('Development quality needs explicit training-group provenance')
         outcomes = cohort['outcomes']
         if not isinstance(outcomes, dict) or not outcomes or set(outcomes) - set(variants):
             raise ValueError('Quality evidence references an unknown configured variant')
@@ -99,6 +109,8 @@ Unknown groups remain in the denominator, never promoted into successes.
 Bounds are a conservative ranking statistic, not per-request guarantees or a
 paired noninferiority certificate. The operator owns the declared thresholds.
 """
+    if (policy or {}).get('version') == 4:
+        return _development_frontier(policy, variants, demand, request_scope, work_profile)
     if (policy or {}).get('version') in (2, 3):
         return _paired_frontier(policy, variants, demand, request_scope, work_profile)
     cohort = (policy or {}).get('cohorts', {}).get(demand)
@@ -152,6 +164,75 @@ def _within_scope(scope, request):
         and request['user_turns'] <= scope['maximum_user_turns']
         and (not request['has_tools'] or scope['allow_tools'])
         and (not request['has_history'] or scope['allow_history']))
+
+
+def _development_matches(policy, demand, request_scope, work_profile):
+    return [(key, c) for key, c in policy['cohorts'].items()
+            if c['demand'] == demand and c['work_profile'] == work_profile
+            and _within_scope(c['evaluation_scope'], request_scope)]
+
+
+def development_adverse_contracts(policy, demand, *, request_scope=None, work_profile=None):
+    """An administrative fallback cannot bypass a known exact-scope negative."""
+    if (policy or {}).get('version') != 4:
+        return set()
+    return {policy['native_contract_sha256'][v]
+            for _, c in _development_matches(policy, demand, request_scope, work_profile)
+            for v, votes in c['outcomes'].items() if any(x != 'pass' for x in votes)}
+
+
+def _development_frontier(policy, variants, demand, request_scope, work_profile):
+    """Observed development support, explicitly not release qualification.
+
+    Rates use only declared connected training groups. Any known failure or
+    unknown in the entire exact cohort vetoes selection, including later
+    validation/review evidence. No wins offset negatives, no bounds are claimed.
+    """
+    result = {'version':4, 'demand':demand, 'work_profile':work_profile,
+              'status':'missing_quality_workload_scope', 'eligible':[], 'assessments':{},
+              'evidence_stage':'development', 'release_qualified':False, 'quality_guaranteed':False}
+    matches = _development_matches(policy, demand, request_scope, work_profile)
+    if len(matches) != 1:
+        if matches:
+            result['status'] = 'ambiguous_quality_workload_scope'
+        return result
+    key, cohort = matches[0]
+    training = set(cohort['training_groups'])
+    indexes = [i for i, g in enumerate(cohort['groups']) if g in training]
+    n = len(indexes)
+    reference = cohort['reference_variant']
+    result.update(cohort_id=key, source=cohort['source'], source_sha256=cohort['source_sha256'],
+                  evaluation_scope=cohort['evaluation_scope'], training_groups=n,
+                  observed_groups=len(cohort['groups']), reference_variant=reference,
+                  minimum_observed_success=policy['minimum_observed_success'],
+                  maximum_observed_paired_adverse_fraction=policy['maximum_observed_paired_adverse_fraction'])
+    for variant in variants:
+        all_votes = cohort['outcomes'].get(variant)
+        if all_votes is None:
+            result['assessments'][variant] = {'status':'quality_evidence_unavailable'}
+            continue
+        votes = [all_votes[i] for i in indexes]
+        reference_votes = [cohort['outcomes'][reference][i] for i in indexes]
+        passed = votes.count('pass')
+        losses = 0 if variant == reference else sum(v != 'pass' and r != 'fail' for v, r in zip(votes, reference_votes))
+        failed, unknown = all_votes.count('fail'), all_votes.count('unknown')
+        if failed or unknown:
+            status = 'adverse_or_unknown_exact_evidence'
+        elif n < policy['minimum_groups']:
+            status = 'insufficient_connected_training_groups'
+        elif passed/n < policy['minimum_observed_success']:
+            status = 'below_observed_development_success'
+        elif losses/n > policy['maximum_observed_paired_adverse_fraction']:
+            status = 'observed_development_loss_exceeded'
+        else:
+            status = 'meets_development_screen'
+            result['eligible'].append(variant)
+        result['assessments'][variant] = {'status':status, 'training_groups':n,
+            'training_passes':passed, 'observed_success':passed/n, 'paired_adverse_groups':losses,
+            'observed_paired_adverse_fraction':losses/n, 'all_observed_failures':failed,
+            'all_observed_unknowns':unknown}
+    result['status'] = 'development_screened' if result['eligible'] else 'no_model_meets_development_screen'
+    return result
 
 
 def _paired_frontier(policy, variants, demand, request_scope, work_profile):
