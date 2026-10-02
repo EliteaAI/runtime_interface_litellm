@@ -49,12 +49,12 @@ Compact contrasts (axis order: work/reasoning/evidence/creativity/verification):
   transform/bounded/supplied/none/none, simple.
 - "Repair this supplied conversion function" uses supplied evidence. "Inspect the
   conversion file" needs an actual authorized source/tool; never invent access.
-- "Implement a local alphabetic validator" requests behavior, not proof. Adding
-  "give tests and explain complexity" changes verification to check, not automatically
-  demand. Equivalent algorithms do not make creativity constrained.
-- "Design a resumable cross-service commit with lost acknowledgments and independent
-  stores; justify recovery safety" has interacting constraints and deep demand
-  despite being short. Keep these nonlocal requirements when identifying its work.
+- "Total these receipt amounts" requests a result. Adding "show the calculation"
+  changes verification to check, not automatically demand. Likewise, tests and a
+  complexity explanation for bounded code need not make its reasoning harder.
+- "Plan shared stock allocation across disconnected warehouses with delayed duplicate
+  orders; justify no overselling after failures" has interacting constraints and deep
+  demand despite being short. The topic alone does not determine difficulty.
 A bounded implementation can be simple; a small finite proof can also be simple.
 Use dependencies, not technical vocabulary or length. Explain the decisive property
 in the existing reason field; add no fields. These examples illustrate distinctions,
