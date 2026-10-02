@@ -40,7 +40,7 @@ def test_uncertainty_keeps_original_request_and_normal_signed_binding(status, re
                      settings=args['settings'], now=101)
     assert pin['config'] == result['config']
     state = restore_state(result['state_token'], args['signing_key'], project_id=7, user_id=2,
-        scope_id=req['scope_id'], gate_revision='g1', policy_revision=compiled_router().revision)
+        scope_id=req['scope_id'], gate_revision='g1', policy_revision=args['router'].revision)
     assert state['decision']['action'] == 'generate'
     assert state['decision']['descriptor']['needs_context'] is True
     # Sync, async and streaming SDK paths all consume this same generate binding.
@@ -110,4 +110,4 @@ def test_uncertainty_cannot_escape_explicit_effort_or_available_pool():
 def test_product_revision_changes_without_mutating_ancestor_behavior():
     ancestor = CalibratedRouter(object())
     router = GenerationRouter(object())
-    assert router.revision == ancestor.revision + '-model-owned-clarification-1'
+    assert router.revision == ancestor.revision + '-model-owned-clarification-1-output-provider_default'

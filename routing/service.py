@@ -18,6 +18,7 @@ from .v7.candidate import CalibratedRouter
 from .v7.routing import GatewayError
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
+from .output import native_anthropic
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
@@ -107,9 +108,12 @@ class ClassifierTransport:
 class GenerationRouter(CalibratedRouter):
     """Product Auto chooses a model; only that model responds to the user."""
 
-    def __init__(self, *args, **kwargs):
+    def __init__(self, *args, output_policy='provider_default', **kwargs):
+        if output_policy not in {'provider_default', 'measured'}:
+            raise ValueError('Unknown output policy')
+        self.output_policy = output_policy
         super().__init__(*args, **kwargs)
-        self.revision += '-model-owned-clarification-1'
+        self.revision += '-model-owned-clarification-1-output-' + output_policy
 
     def _resolve(self, messages, mode, binding, hint, previous, allowed, min_demand):
         decision = super()._resolve(messages, mode, binding, hint, previous, allowed, min_demand)
@@ -130,6 +134,50 @@ def compiled_router():
     # Immutable source/profile is compiled once per process. Invocation data is
     # isolated in ContextVars; authority/prices remain current request snapshots.
     return GenerationRouter(ClassifierTransport(), catalog=compile_catalog())
+
+
+@lru_cache(maxsize=8)
+def _calibrated_router(serialized_snapshot, coverage_fallback_variant=None, serialized_fallback='null', serialized_policy='null'):
+    from .v7.catalog import compile_uniform_catalog
+    value = json.loads(serialized_snapshot)
+    catalog = compile_uniform_catalog(value, classifier_variant=value['classifier_variant'],
+                                      baseline_variant=value['baseline_variant'])
+    policy = json.loads(serialized_policy)
+    if policy is not None:
+        from .selection_policy import install
+        catalog = install(catalog, policy)
+    native = json.loads(serialized_fallback)
+    if native is not None:
+        from .fallback_config import install, VARIANT
+        if coverage_fallback_variant is not None:
+            raise ValueError('Only one coverage fallback may be configured')
+        catalog = install(catalog, native)
+        coverage_fallback_variant = VARIANT
+    return GenerationRouter(ClassifierTransport(), catalog=catalog,
+                            output_policy='provider_default' if policy is not None else 'measured',
+                            coverage_fallback_variant=coverage_fallback_variant)
+
+
+def configured_router(settings):
+    if 'calibration_profile' not in settings:
+        return compiled_router()
+    from .bundle import snapshot
+    value, expected = snapshot(settings.get('calibration_profile'), settings.get('calibration_revision'))
+    if (expected != settings.get('calibration_snapshot_sha256')
+            or value['request_scope']['id'] != settings.get('calibration_task_contract')):
+        raise RoutingUnavailable('The trusted calibration binding changed')
+    policy = settings.get('calibration_selection_policy')
+    if policy is not None:
+        from .selection_policy import validate
+        refs = {tuple(entry['evidence_ref'][k] for k in ('profile', 'revision', 'snapshot_sha256'))
+                for entry in validate(policy)['variants'].values() if entry['evidence_ref']}
+        for profile, revision, expected_source in refs:
+            if snapshot(profile, revision)[1] != expected_source:
+                raise RoutingUnavailable('Configured evidence snapshot changed')
+    return _calibrated_router(json.dumps(value, sort_keys=True),
+                              settings.get('calibration_coverage_fallback_variant'),
+                              json.dumps(settings.get('calibration_coverage_fallback_native'), sort_keys=True),
+                              json.dumps(settings.get('calibration_selection_policy'), sort_keys=True))
 
 
 def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, policy_revision):
@@ -155,7 +203,7 @@ def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, p
         raise RoutingUnavailable('Invalid or foreign routing checkpoint') from exc
 
 
-def resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None):
+def resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None, router=None):
     if not settings.get('enabled'):
         raise RoutingUnavailable('Auto model selection is disabled for this project')
     if not isinstance(request, dict) or len(json.dumps(request).encode()) > MAX_REQUEST_BYTES:
@@ -172,8 +220,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if request.get('surface') not in {'chat', 'agent'}:
         raise RoutingUnavailable('Auto is unavailable for this execution surface')
     cap = request.get('output_cap')
-    if 'output_cap' in request and (type(cap) is not int or not 256 <= cap <= 32000):
-        raise RoutingUnavailable('Auto output allowance must be between 256 and 32000 tokens')
+    if 'output_cap' in request and (type(cap) is not int or cap < 1):
+        raise RoutingUnavailable('Auto output allowance must be a positive integer')
     messages = request.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 4096:
         raise RoutingUnavailable('Auto requires a bounded task history')
@@ -184,7 +232,11 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if not isinstance(tools, list) or len(tools) > 256:
         raise RoutingUnavailable('Unsupported tool inventory')
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
-    router = compiled_router()
+    # Trusted in-process injection supports frozen candidate comparisons. No
+    # request field can supply a router, catalog, or output policy.
+    router = router if router is not None else configured_router(settings)
+    measured_output = router.output_policy == 'measured'
+    output_mode = 'explicit' if cap is not None else ('measured' if measured_output else 'provider_default')
     catalog = router.catalog
     visible = effective_models(models, project_id)
     runtime_variants, exclusions = qualified_inventory(visible, catalog)
@@ -208,6 +260,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         # default. A user-specified cap can narrow it but cannot enlarge it.
         if cap is None:
             cap = restored['config']['max_tokens']
+            output_mode = restored['config'].get('routing_output_mode', 'measured')
     allowed = []
     output_caps = {}
     contract_exclusions = {}
@@ -216,15 +269,31 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Invalid Auto reasoning selection')
     for vid, model in runtime_variants.items():
         variant = catalog['variants'][vid]
-        contract = variant.get('calibration_contract')
-        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
+        native_fallback = variant.get('configured_fallback_contract')
+        native_policy = variant.get('configured_routing_contract')
+        configured_native = native_policy or native_fallback
+        if configured_native:
+            try:
+                validate_binding(configured_native['model_binding'], models, project_id)
+            except ValueError:
+                contract_exclusions[vid] = {'reasons': ['CONFIGURED_FALLBACK_BINDING_CHANGED']}
+                continue
+        contract = configured_native or variant.get('calibration_contract')
+        variant_cap = cap if cap is not None else ((contract['output_allowance'] if contract else 8000)
+                                                  if measured_output else model.get('max_output_tokens'))
+        if type(variant_cap) is not int or variant_cap < 1:
+            continue
         if contract:
             native = not model.get('openai_compatible', False) and any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
-            transport = 'anthropic_messages' if native else 'chat_completions'
+            transport = (configured_native['transport'] if configured_native and not model.get('openai_compatible')
+                         else 'anthropic_messages' if native else 'chat_completions')
             reasons = []
+            if (native_policy and (catalog.get('configured_selection_policy', {}).get('quality') or {}).get('version') in (3, 4)
+                    and output_mode != 'provider_default'):
+                reasons.append('QUALITY_OUTPUT_CONTRACT_UNMEASURED')
             if transport != contract['transport']:
                 reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
-            if variant_cap != contract['output_allowance']:
+            if measured_output and variant_cap != contract['output_allowance']:
                 reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
             if output_schema is not None:
                 reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
@@ -247,7 +316,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
                 continue
-        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
+        # Optional output defaults let the provider use the remaining context.
+        # Native required limits and explicit limits must fit in full.
+        reserve = variant_cap if output_mode != 'provider_default' or native_anthropic(model) else 0
+        if type(model.get('context_window')) is not int or size+reserve >= model['context_window']:
             continue
         if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
             continue
@@ -281,6 +353,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             if cap > restored['config']['max_tokens']:
                 raise RoutingUnavailable('The checkpoint output allowance cannot be enlarged')
             restored['config']['max_tokens'] = cap
+            restored['config']['routing_output_mode'] = output_mode
             restored['expires_at'] = int(time.time() if now is None else now)+3600
             return {'action': 'generate', 'config': restored['config'], 'pin': encode_pin(restored, signing_key),
                     'invocation_id': invocation_id, 'expires_at': restored['expires_at'],
@@ -300,6 +373,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
             decision = router.resolve(messages, output_cap=cap if cap is not None else 8000, tools=tools, allowed=allowed,
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
+                task_contract=settings.get('calibration_task_contract', 'text-tools-v1'),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
             cap = output_caps[decision['selection']['variant']]
             decision['budget']['completion_cap'] = cap
@@ -311,11 +385,19 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         _REQUEST.reset(context_token)
 
     trace = {k: copy.deepcopy(decision.get(k)) for k in ('descriptor', 'policy_revision', 'routing_ms', 'budget')}
-    trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in ('variant', 'reason', 'family_qualification', 'economics')}
+    trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in ('variant', 'reason', 'family_qualification', 'quality_screen', 'economics')}
     classifier_info = decision.get('classifier') or {}
     trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
     trace['classifier']['called'] = classifier_info.get('called', bool(classifier_info))
+    descriptor = decision.get('descriptor') or {}
+    trace['difficulty'] = {
+        'raw_classifier_demand': classifier_info.get('raw_demand'),
+        'policy_floor': descriptor.get('profile_demand_floor'),
+        'policy_adjustment': copy.deepcopy(descriptor.get('profile_demand_adjustment')),
+        'final_demand': descriptor.get('demand'),
+        'source': ('classifier' if classifier_info.get('schema_valid') else
+                   'conservative_default' if classifier_info.get('schema_valid') is False else 'local_policy')}
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
@@ -327,18 +409,36 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     config = {'model_name': selected['model'], 'model_project_id': model['project_id'],
               'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
               'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'], 'max_tokens': cap,
-              'routing_total_output_cap': True}
-    contract = catalog['variants'][selected['variant']].get('calibration_contract')
+              'routing_total_output_cap': True, 'routing_output_mode': output_mode,
+              'routing_output_required': native_anthropic(model)}
+    variant = catalog['variants'][selected['variant']]
+    native_fallback = variant.get('configured_fallback_contract')
+    native_policy = variant.get('configured_routing_contract')
+    contract = native_policy or native_fallback or variant.get('calibration_contract')
     if contract:
         config['routing_transport'] = contract['transport']
-        config['routing_min_output_cap'] = contract['output_allowance']
+        if native_policy:
+            config['routing_output_required'] = contract['transport'] == 'anthropic_messages'
+        if measured_output:
+            config['routing_min_output_cap'] = contract['output_allowance']
         if 'reasoning_fields' in contract:
             config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
+            if 'reasoning_format' in contract:
+                config['routing_reasoning_format'] = contract['reasoning_format']
+        unmeasured_fallback = selected['reason'] == 'UNMEASURED_CONFIGURED_FALLBACK'
         trace['calibration_contract'] = {
-            'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
-            'status': 'provisional_local_beta', 'production_promotion_allowed': False,
-            'family': decision['descriptor']['task_family'],
-            'cell': contract['families'][decision['descriptor']['task_family']]}
+            'revision': contract.get('revision'), 'source_sha256': contract.get('source_sha256'),
+            'status': 'configured_eligibility' if native_policy else 'unmeasured_configured_fallback' if unmeasured_fallback else 'provisional_local_beta',
+            'production_promotion_allowed': False,
+            'family': decision['descriptor'].get('task_family', 'unknown'),
+            'cell': None if unmeasured_fallback or native_policy else contract['families'][decision['descriptor']['task_family']]}
+        trace['calibration_contract']['output_allowance'] = {
+            'measured': None if native_fallback or native_policy else contract['output_allowance'], 'execution_bound': cap, 'mode': output_mode,
+            'transfer_requires_validation': output_mode == 'provider_default' or cap != contract['output_allowance']}
+        if native_fallback:
+            trace['configured_fallback_contract'] = copy.deepcopy(native_fallback)
+        if native_policy:
+            trace['configured_routing_contract'] = copy.deepcopy(native_policy)
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
            'model_binding': model_binding(model), 'policy_revision': router.revision,

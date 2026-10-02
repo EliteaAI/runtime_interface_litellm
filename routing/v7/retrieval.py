@@ -83,10 +83,17 @@ def bounded(view,max_bytes):
     required=set((out.get('reference_resolution') or {}).get('selected_ids',[]))
     required.update((out.get('pending_task') or {}).get('source_ids',[]))
     required.update((out.get('required_source_coverage') or {}).get('omitted_ids',[]))
+    # Selected user contracts are indivisible; ID presence is not content coverage.
+    if not required:
+        required.update(x['id'] for lane in ['recent','earlier_index'] for x in out[lane] if x['role']=='user')
     def update():
         out['allowed_reference_ids']=[x['id'] for lane in ['recent','earlier_index','instruction_context'] for x in out.get(lane,[])]
         visible=set(out['allowed_reference_ids'])
-        missing=required-visible
+        incomplete={x['id'] for lane in ['recent','earlier_index','instruction_context'] for x in out.get(lane,[])
+                    if x['id'] in required and x.get('content_truncated')}
+        missing=(required-visible)|incomplete
+        out['required_source_coverage']={'status':'unavailable' if missing else 'complete',
+                                         'required_ids':sorted(required),'omitted_ids':sorted(missing)}
         if missing:
             out['required_source_coverage']={'status':'unavailable','omitted_ids':sorted(missing)}
             resolution=out.setdefault('reference_resolution',{})
@@ -101,7 +108,8 @@ def bounded(view,max_bytes):
         if len(json.dumps(out,ensure_ascii=False).encode())<=max_bytes:break
         for lane in ['recent','earlier_index']:
             for item in out[lane]:
-                if len(item['text'])>cap:item['text']=clip(item['text'],cap);item['content_truncated']=True
+                if item['id'] not in required and len(item['text'])>cap:
+                    item['text']=clip(item['text'],cap);item['content_truncated']=True
     while len(json.dumps(out,ensure_ascii=False).encode())>max_bytes and out['earlier_index']:
         removable=[i for i,x in enumerate(out['earlier_index'])
                    if x['id'] not in required and x.get('source_group') not in protected_groups]
@@ -114,6 +122,13 @@ def bounded(view,max_bytes):
         out['earlier_index'] = [x for x in out['earlier_index'] if x not in removed]
         out['history_omitted'] += len(removed)
         update()
+    while len(json.dumps(out,ensure_ascii=False).encode())>max_bytes and out['recent']:
+        group=out['recent'][0].get('source_group')
+        removed=[x for x in out['recent'] if group is None or x.get('source_group')==group]
+        out['recent']=[x for x in out['recent'] if x not in removed]
+        out['history_omitted']+=len(removed)
+        update()
+    update()
     if original_size>max_bytes:out['context_truncated']=True
     if 'evidence_coverage' in out:
         out['evidence_coverage']['tool_entries_visible']=sum(x.get('role')=='tool' for x in out['recent']+out['earlier_index'])
@@ -123,7 +138,7 @@ def bounded(view,max_bytes):
     return out
 
 
-def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sources=()):
+def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sources=(),active_instructions=None):
     if not messages or messages[-1].get('role')!='user':raise ValueError('New scope needs a user task')
     if any(m.get('role')not in {'user','assistant','tool','system'} for m in messages):raise ValueError('Unsupported message role')
     has_tools=any(m['role']=='tool' or m.get('tool_calls') for m in messages)
@@ -156,8 +171,9 @@ def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sou
     recent_group=len(groups)-1 if groups and not anchors else None
     if recent_group is not None and recent_group not in picked:picked.append(recent_group)
     def entry(i,cap=900):
-        text=records[i].project(q)[0] if cap==900 else excerpt(records[i].text,q,cap)
-        row={'id':f'm{i}','role':messages[i]['role'],'text':text,'content_truncated':len(records[i].text)>cap}
+        complete=messages[i]['role'] in {'user','system'} or i in anchors
+        text=records[i].text if complete else records[i].project(q)[0] if cap==900 else excerpt(records[i].text,q,cap)
+        row={'id':f'm{i}','role':messages[i]['role'],'text':text,'content_truncated':text!=records[i].text}
         if messages[i]['role']=='tool':row['tool_call_id']=messages[i].get('tool_call_id')
         return row
     recent=[];earlier=[]
@@ -177,17 +193,28 @@ def build(messages,hint,index,*,epoch=0,older_cap=None,max_bytes=24000,force_sou
             'tool_entries_visible':0,'older_cap':older_cap,'full_history_chars':sum(len(r.text) for r in records),
             'ranking':'BM25 over complete task groups and matching passages; full generation history unchanged'}
     if force_sources:
+        # A linked source anchors the entire user/tool trajectory. Keeping only
+        # its first/last message would strand tool results or later evidence.
+        required_indices={int(rid[1:]) for rid in force_sources}
+        expanded={i for group in groups if required_indices.intersection(group) for i in group}
+        force_sources=[f'm{i}' for i in sorted(required_indices|expanded)]
         source_entries=[]
         for rid in force_sources:
             i=int(rid[1:])
             if i>=len(messages)-1:raise ValueError('Pending source outside current history')
-            source_entries.append({'id':rid,'role':messages[i]['role'],'text':excerpt(content(messages[i]),content(messages[-1]),1800),
+            source_entries.append({'id':rid,'role':messages[i]['role'],'text':content(messages[i]),
                                    'source_group':next((f'turn-{g[0]}' for g in groups if i in g),None),
-                                   'content_truncated':len(content(messages[i]))>1800})
+                                   'content_truncated':False})
         v['recent']=[];v['earlier_index']=source_entries
         v['history_omitted']=total-sum(x['role']!='system' for x in source_entries)
         v['context_truncated']=v['history_omitted']>0 or len(q)>5000 or any(x['content_truncated'] for x in source_entries+instructions)
         resolution={'status':'ranked','selected_ids':list(force_sources),'candidates':[],'method':'Validated pending-task sources'}
         v['reference_resolution']=resolution
+    # Typed application instructions replace scaffolding before the first
+    # budget pass. Replacing it later cannot recover from an earlier overflow.
+    # Original messages and their source IDs remain unchanged for generation.
+    if active_instructions is not None:
+        v['instruction_context']=[]
+        v['active_instructions']=copy.deepcopy(active_instructions)
     view=bounded(v,max_bytes)
     return view,view['reference_resolution']

@@ -1,0 +1,21 @@
+{
+  "revision": "v14-application-r35",
+  "profiles": {
+    "isolated-text": {
+      "file": "isolated-text.json",
+      "sha256": "47946307a9e956b7134fb940aefc83b771b2442972e230b5564f78692c8c9d00"
+    },
+    "repository-fixture": {
+      "file": "repository-fixture.json",
+      "sha256": "4b050b658766f70892761972be8eb0968080711057e51e6b29cf5342a7842470"
+    },
+    "bounded-text-conversation": {
+      "file": "bounded-text-conversation.json",
+      "sha256": "103b1cafe78c9e4b1d11195e0497cdcda2b51eb340f46c15427aa70216d79e66"
+    },
+    "long-text-conversation": {
+      "file": "long-text-conversation.json",
+      "sha256": "67c1cde700c42c7ed9773720d79324da14948e3c09b6beca9ad01b1aca47fc8c"
+    }
+  }
+}

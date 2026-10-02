@@ -28,8 +28,9 @@ Schema: {"operation":"greeting|creative|transform|analysis|design|other",
 "demand":"simple|standard|deep", "relation":"independent|followup|return|ambiguous",
 "reference_ids":["mN"], "needs_context":false, "reason":"short evidence-based description"}.
 Greeting alone is simple. A short standalone joke is creative/simple even after deep engineering.
-Creating a distributed architecture, recovery design, or evaluating complex safety tradeoffs is
-design/deep or analysis/deep. Converting an EXISTING design into acceptance criteria is
+An architecture outline with stated components and bounded tradeoffs can be design/standard.
+Reconciling interacting failure guarantees, recovery correctness, or complex safety tradeoffs
+is design/deep or analysis/deep. Converting an EXISTING design into acceptance criteria is
 transform/standard unless the ask adds new design, exhaustive verification, or complex reasoning.
 Operation and domain are distinct: using an architecture as source does not itself mean redesign.
 Correcting a race, repairing a commit protocol, or changing failure guarantees is design/deep
@@ -126,7 +127,9 @@ def validate_descriptor(value, view):
         raise ValueError("needs_context must be boolean")
     ids = {x["id"] for x in view["recent"] + view["earlier_index"] + view.get('instruction_context',[])}
     refs = value.get("reference_ids")
-    if not isinstance(refs, list) or len(refs) > 8 or any(not isinstance(x, str) or x not in ids for x in refs):
+    if (not isinstance(refs, list) or len(refs) > len(ids)
+            or any(not isinstance(x, str) or x not in ids for x in refs)
+            or len(set(refs)) != len(refs)):
         raise ValueError("Unknown or excessive context references")
     if not isinstance(value.get("reason"), str):
         raise ValueError("Missing reason")
@@ -149,7 +152,7 @@ class Classifier:
         config = self.catalog["variants"][self.variant]
         payload = [{"role": "system", "content": self.system_prompt},
                    {"role": "user", "content": json.dumps(view, ensure_ascii=False)}]
-        result = self.gateway.complete(config["model"], payload, effort=config["effort"], max_tokens=900)
+        result = self.gateway.complete(config["model"], payload, effort=config["effort"], max_tokens=1800)
         info = {"classifier_variant": self.variant, "request": payload, "response": result, "schema_valid": True}
         try:
             if result["finish_reason"] != "stop":

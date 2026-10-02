@@ -1,5 +1,5 @@
 {
-  "policy": "Retained V7 plus provisional V12 model-effort contracts from original V11 observations",
+  "policy": "Retained origin hashes; V14 scoped candidate with complete selected sources, explicit wire contracts, conservative cache state and prospective forecast certificates. No production activation.",
   "sources": {
     "context_resolution.py": {
       "source": "autorouting_impl/poc/context_resolution.py",
@@ -9,7 +9,7 @@
     "routing.py": {
       "source": "autorouting_impl/poc/routing.py",
       "sha256": "5fe57360f055e4ba2cea83baa85d3824442a9f842c50875b037802a5093a914c",
-      "product_sha256": "bdbb58c25dfb31fb0ea15bbda3ef632658d274e021d8fff3d2ddb5b749eadf85"
+      "product_sha256": "03fa135de1f2f1f1fac1fa0c501a887699b07f8e61fae4800fe24a27e6a6eb20"
     },
     "catalog.json": {
       "source": "autorouting_impl/poc/catalog.json",
@@ -19,7 +19,7 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "cbed959cf79338c088280c806067ea736f0cc8367dbff6c79f9fb20f81e7cc26"
+      "product_sha256": "59e48fd898638a423503872c5cfbaf5ede11ba2c244f94354c5080efce24d555"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
@@ -34,17 +34,17 @@
     "retrieval.py": {
       "source": "autorouting_impl/poc/router_v6/retrieval.py",
       "sha256": "f562101aeeba4248d37a3167dcc7e6669be98e48f7e57436625fe2dad49d77bd",
-      "product_sha256": "6d029609e4a64a44a006bf661ef4b6df56e0ad1576f77771a2e54aecc6eeb130"
+      "product_sha256": "9f779c9484f59757f856a9396f95d6f584f9806c0590c872c77fa513aabf34db"
     },
     "state.py": {
       "source": "autorouting_impl/poc/router_v6/state.py",
       "sha256": "267f9b3fe48d9d5c70c5d90bf0c52e7e6132e99d81de284a60154e7d307ec514",
-      "product_sha256": "f5067da6a7676ac8b43cc433d5c568bdd60c385da1e78e9bd8b817734552d0d6"
+      "product_sha256": "1232cdb2770b32afe0761d9af59e61c2a6de8d2b16e890888921dd6a7c360f1e"
     },
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "0dc8f2cec8dfd14e0e77f90e7cac97b1dce1a33c47e9b6a22d675b134f7e0fc0"
+      "product_sha256": "6b19fd9ef7e8148dda7d056a037cecf72884aad8b529ee9a9da678dda380afe4"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -54,12 +54,12 @@
     "availability.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/tool_availability_candidate.py",
       "sha256": "b4129fdcf69a769cda12f52a5cfc8c8d22604a3254b0cb610e0a402bee48b5b0",
-      "product_sha256": "784a3677f02b401c5bb60dfb5d37affdfb1b606cf845698eda332577e64189fb"
+      "product_sha256": "3f97b39a71076ecb2f62db03086210b7d477c32a7fa7be8701ad4db96c861a7b"
     },
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "bdf2af3792fdfb683c10400bded1c645c20f4c010d82edb8acbae51e67e4add7"
+      "product_sha256": "383378ff27440dd015da0895f9c9e9431cfd5dff9ca5dede6e2b54fe581cb46a"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
@@ -69,7 +69,7 @@
     "social.py": {
       "source": "autorouting_impl/experiments/phase1-social-v9/social.py",
       "sha256": "897cf9c4c43a0b3d624a16d7070cdfeeb257b5229b5650c2319c8e3fc701ce84",
-      "product_sha256": "897cf9c4c43a0b3d624a16d7070cdfeeb257b5229b5650c2319c8e3fc701ce84"
+      "product_sha256": "f796e9bbef589eeb55e830a674b47dfb0ff5363bdbabf0202a1235066d392ee0"
     }
   },
   "product_changes": [
@@ -88,18 +88,25 @@
     "V9 generated original calibration-only contracts retain all100cells;54full-family successes admitted for exact observed demand at provider default",
     "Per-variant measured output allowance and exact transport participate in live inventory admission, pricing and signed run binding",
     "Internal policy revision changes; old active pins reject and require a drained rollout while the public saved profile handle stays stable",
-    "V10 availability contract candidate: explicit source/status coherence, strict reason-coded rejection and bounded factual/current-information prompt clarification; no extra classifier call or lexical shortcut"
+    "V10 availability contract candidate: explicit source/status coherence, strict reason-coded rejection and bounded factual/current-information prompt clarification; no extra classifier call or lexical shortcut",
+    "V13 prompt distinguishes bounded local work, dependent integration and interacting invariants; technical nouns and test execution alone do not set deep demand. Stage calibration A/B retained separately."
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
-    "economics.py": "c6b0ce8ea28765e58b1e45d7a36b06290613826727ff903b577a1350d3b589dd",
-    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
+    "cache_switching.py": "34043451017ccb48559b6b74db790a560baf11e984f3dfab6f50488ad4d9e706",
     "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
     "calibration-v12.json": "f1638c2af9a9033a822f98d973ec43261261e8b017d50f16209bbe5257b36f65",
-    "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
-    "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d"
+    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
+    "economics.py": "a347f8311f383f77012ac16676b0d37c05a8fdc15d0e18d3af6cab0349953370",
+    "learned_lexical.py": "65d8569fb0e4a24cc390689834566044024ddaf98f410b4922c915cfdd41c5a1",
+    "measured_economics.py": "09b53921b46ba62f20f8072c39521d2b584709e48994ee0d8d2c01957cd81e37",
+    "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
+    "qualification.py": "2f08ba272f4d9f714eaabdcc034bac4cd93ed17e9fd1e2c41d7146926364776f",
+    "task_continuity.py": "06ff50d04b0b8ef338bd1cfabbb2faa4ae031e0eedff7ec01b9e9fa43b0c4626",
+    "task_profile.py": "6fbc8e3ccc37199c29e0dddeb8f849d72ce0180c4d676980041ad2e3151432cc",
+    "calibration_scope.py": "b14292b9b522c52f7c6bcdf9f803ea3fc46eb15795d2fb4bc83590b94d745795"
   },
-  "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion",
+  "product_revision": "V14 development implementation; no calibrated snapshot activation or production promotion",
   "calibration_compiler": {
     "path": "scripts/compile_v9_candidate.py",
     "sha256": "ff37a90f6872f248c7dcfff85c8cf79366f25e2b0d160b2eb77fa607aba5a346",
@@ -122,6 +129,9 @@
     "V12 retains original failures and unknowns;248 full-family model/effort cells provisionally admitted with exact transport/demand/32000 total output allowance.",
     "Classifier adds bounded work/reasoning/evidence/creativity/verification fields in the same call; conservative floors do not create new model capability claims.",
     "Source anchors survive group pruning or are explicitly unavailable; generation receives full unchanged history.",
-    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium."
+    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium.",
+    "V13 refresh candidates may restrict admission to exact observed work profiles; disputed assessments and incomplete delivery remain separate from measured quality failures. Existing profiles retain their previous behavior.",
+    "V14 replaces legacy grants only on the explicit uniform-catalog path; validated profile pooling preserves narrow failures and unknowns. Measured call trajectories separate expected spend from output capacity. Learned lexical proposals and continuation/cache policies require explicit evidence-based enablement. Original source and calibration evidence hashes remain unchanged.",
+    "Optional trusted configured selection separates deployment eligibility from exact measured qualification, retains adverse evidence, and uses a common price scenario when comparable forecasts are absent. Provider-default output semantics remain independent of the price scenario. No production activation."
   ]
 }
