@@ -16,8 +16,8 @@ prior assistant to restate source facts. evidence_coverage counts bounded-view
 omissions, not missing material in the complete generation history. Classify
 an operation when its source and purpose are clear despite unrelated omissions.
 If the view cannot resolve a relevant version or referent, report uncertainty.
-Reading fixture facts or formatting checks from explicit rules is normally
-standard work; evaluating a new distributed failure protocol requires deep work.
+Reading facts or formatting checks from explicit local rules can be simple; resolving
+coupled distributed failure guarantees can require deep work. Tool use alone sets no floor.
 '''
 
 

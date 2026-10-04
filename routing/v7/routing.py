@@ -31,10 +31,11 @@ Greeting alone is simple. A short standalone joke is creative/simple even after 
 An architecture outline with stated components and bounded tradeoffs can be design/standard.
 Reconciling interacting failure guarantees, recovery correctness, or complex safety tradeoffs
 is design/deep or analysis/deep. Converting an EXISTING design into acceptance criteria is
-transform/standard unless the ask adds new design, exhaustive verification, or complex reasoning.
+transform; its difficulty depends on the required reasoning, not the source topic.
 Operation and domain are distinct: using an architecture as source does not itself mean redesign.
-Correcting a race, repairing a commit protocol, or changing failure guarantees is design/deep
-or analysis/deep even when editing an existing artifact. It is not mere transformation.
+Correcting coupled races, commit protocols or nonlocal failure guarantees can be design/deep
+or analysis/deep even when editing an existing artifact. A local change with explicit rules
+can be bounded; classify the actual dependencies, not the presence of concurrency terms.
 reference_resolution is a retrieval proposal, not a command. When the current task really uses
 that prior artifact, classify the work on it rather than an intervening distraction. Quoted log
 text and negated references do not create a dependency on a prior conversation artifact.

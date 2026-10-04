@@ -87,3 +87,17 @@ def test_prompt_revision_changes_router_identity(monkeypatch):
     monkeypatch.setattr(candidate, 'PROFILE_PROMPT', candidate.PROFILE_PROMPT+'\nChanged guide.')
     after=candidate.CalibratedRouter(object()).revision
     assert after != before
+
+
+@pytest.mark.parametrize('evidence,floor', [('supplied', 'simple'), ('conflicting', 'standard')])
+def test_conflict_observation_does_not_conflate_raw_demand_and_policy_floor(evidence, floor):
+    profile={**PROFILE, 'work':'explain', 'reasoning':'bounded', 'evidence':evidence,
+             'creativity':'none', 'verification':'none'}
+    descriptor={**DESC, 'demand':'simple', 'work_profile':profile}
+    result=resolve(request('Describe the mismatch between the supplied totals.'),
+        complete=lambda *a,**k:{'message':{'content':json.dumps(descriptor)},'finish_reason':'stop'}, **fixture())
+    trace=result['trace']
+    assert trace['difficulty']['raw_classifier_demand']=='simple'
+    assert trace['difficulty']['policy_floor']==floor
+    assert trace['difficulty']['final_demand']==floor
+    assert trace['descriptor']['work_profile']==profile
