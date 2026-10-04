@@ -6,7 +6,7 @@ and typed workload support, never a requirement to match an evaluation rubric.
 import math
 from statistics import NormalDist
 from .v7.retrieval import digest
-from .v7.task_profile import ENUMS
+from .v7.task_profile import ENUMS, PROFILE_SEMANTICS_VERSION
 
 DEMANDS = {'simple', 'standard', 'deep'}
 
@@ -25,6 +25,10 @@ def validate(value, variants):
     expected = {'minimum_groups', 'cohorts', *thresholds} | ({'version'} if paired else set())
     if scoped:
         expected.add('native_contract_sha256')
+        if 'profile_semantics' in value:
+            expected.add('profile_semantics')
+            if value['profile_semantics'] != PROFILE_SEMANTICS_VERSION:
+                raise ValueError('Quality evidence profile semantics differ from the classifier')
     if set(value) != expected:
         raise ValueError('Invalid configured quality policy')
     if type(value['minimum_groups']) is not int or not (8 if development else 4) <= value['minimum_groups'] <= 100000:
@@ -109,6 +113,12 @@ Unknown groups remain in the denominator, never promoted into successes.
 Bounds are a conservative ranking statistic, not per-request guarantees or a
 paired noninferiority certificate. The operator owns the declared thresholds.
 """
+    if ('profile_semantics' in (policy or {})
+            and policy['profile_semantics'] != PROFILE_SEMANTICS_VERSION):
+        return {'demand': demand, 'status': 'quality_profile_semantics_mismatch',
+                'eligible': [], 'assessments': {}, 'quality_guaranteed': False,
+                'evidence_profile_semantics': policy['profile_semantics'],
+                'classifier_profile_semantics': PROFILE_SEMANTICS_VERSION}
     if (policy or {}).get('version') == 4:
         return _development_frontier(policy, variants, demand, request_scope, work_profile)
     if (policy or {}).get('version') in (2, 3):
@@ -191,6 +201,8 @@ def _development_frontier(policy, variants, demand, request_scope, work_profile)
     result = {'version':4, 'demand':demand, 'work_profile':work_profile,
               'status':'missing_quality_workload_scope', 'eligible':[], 'assessments':{},
               'evidence_stage':'development', 'release_qualified':False, 'quality_guaranteed':False}
+    if 'profile_semantics' in policy:
+        result['profile_semantics'] = policy['profile_semantics']
     matches = _development_matches(policy, demand, request_scope, work_profile)
     if len(matches) != 1:
         if matches:
@@ -247,6 +259,8 @@ def _paired_frontier(policy, variants, demand, request_scope, work_profile):
     """
     result = {'version': policy['version'], 'demand': demand, 'status': 'quality_evidence_unavailable',
               'eligible': [], 'assessments': {}, 'quality_guaranteed': False}
+    if 'profile_semantics' in policy:
+        result['profile_semantics'] = policy['profile_semantics']
     if policy['version'] == 3:
         matches = [(key, c) for key, c in policy['cohorts'].items()
                    if c['demand'] == demand and c['work_profile'] == work_profile

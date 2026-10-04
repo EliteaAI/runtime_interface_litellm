@@ -254,3 +254,23 @@ usage remains part of task cost. It uses the existing classifier call, JSON
 schema and conservative demand floors. Prompt changes alter the policy revision.
 Focused tests verify that both classifier lanes receive it and preserve typed
 fields; measured classification improvement requires separate request diagnostics.
+
+#### Exact development evidence (versions 3 and 4)
+
+Versions 3 and 4 require exact workload profiles and execution envelopes. Version
+4 uses at least eight connected training groups for its observed development
+screen; any known failure or unknown in the entire exact cohort vetoes that
+variant, including later reviews. These counts do not establish release confidence.
+Both versions require validated total-usage forecasts for every eligible
+competitor before cost ranking. Missing forecasts use the explicit unmeasured
+fallback; the earlier common-token scenario described above does not apply.
+
+New reviewed evidence can bind its meaning with
+`quality.profile_semantics: current-deliverable-3.2`. The Gateway rejects a
+different revision before classifier inference or fallback. Identical profile
+enum values across prompt revisions do not establish compatible evidence.
+Importers must review request membership, preserve negative outcomes and verify
+forecast provenance before setting this field; adding the tag is not a review.
+Existing untagged policies remain compatible for historical replay and make no
+claim of reviewed semantic compatibility. The quality trace exposes the tag
+when present. No policy or evidence bundle is installed by this code change.
