@@ -139,7 +139,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return configurations[0] if configurations else None
 
     @web.method()
-    def reapply_configuration_entities(self, configuration, previous_data, skip_if_unchanged=True):
+    def reapply_configuration_entities(self, configuration, previous_data):
         """ Method """
         previous_configuration = {**configuration, "data": previous_data}
         #
@@ -180,9 +180,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             self.set_configuration_status(current_configuration, status)
             return False
         #
-        if skip_if_unchanged and entity["kind"] == "model" and \
-                self.build_configuration_entity(previous_configuration) == entity and \
-                self.is_model_registered(current_configuration, entity["payload"]["model_name"]):
+        if entity["kind"] == "model" and self.is_model_deployed_as(current_configuration, entity["payload"]):
             return True
         #
         self.delete_configuration_entities(previous_configuration)
@@ -204,17 +202,26 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return True
 
     @web.method()
-    def is_model_registered(self, configuration, model_name):
+    def is_model_deployed_as(self, configuration, payload):
         """ Method """
         project_prefix = f'{configuration["project_id"]}_'
-        registered_names = [
-            model["model_name"]
+        deployments = [
+            model
             for model in self.service_node.call.litellm_api_call("model_info")
             if model["model_info"].get("centry_configuration_uuid") == configuration["uuid"] and
             model["model_name"].startswith(project_prefix)
         ]
         #
-        return registered_names == [model_name]
+        if len(deployments) != 1:
+            return False
+        #
+        deployment = deployments[0]
+        #
+        return deployment["model_name"] == payload["model_name"] and all(
+            deployment["litellm_params"].get(key) == value for key, value in payload["litellm_params"].items()
+        ) and all(
+            deployment["model_info"].get(key) == value for key, value in payload["model_info"].items()
+        )
 
     @web.method()
     def delete_configuration_models(self, configuration):
@@ -249,9 +256,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     continue
                 #
                 with self.configuration_entity_locks[f'{project_id}:{model_configuration["id"]}']:
-                    self.reapply_configuration_entities(
-                        model_configuration, model_configuration["data"], skip_if_unchanged=False,
-                    )
+                    self.reapply_configuration_entities(model_configuration, model_configuration["data"])
             except:  # pylint: disable=W0702
                 log.exception("Failed to re-apply model %s in project %s", configuration_uuid, project_id)
 

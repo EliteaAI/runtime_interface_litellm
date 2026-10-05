@@ -1,5 +1,6 @@
 import collections
 import importlib.util
+import itertools
 import pathlib
 import sys
 import threading
@@ -16,6 +17,7 @@ class FakeGateway:
         self.credentials = {}
         self.models = {}
         self.calls = []
+        self.model_ids = itertools.count()
 
     def __call__(self, method, *args, **kwargs):
         self.calls.append(method)
@@ -32,7 +34,7 @@ class FakeGateway:
         del self.credentials[credential_name]
 
     def model_new(self, model_name, litellm_params, model_info):
-        model_id = f"id-{len(self.calls)}"
+        model_id = f"id-{next(self.model_ids)}"
         self.models[model_id] = {"model_name": model_name, "litellm_params": litellm_params,
                                  "model_info": {**model_info, "id": model_id}}
 
@@ -275,6 +277,21 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self._fire(self._save(_model("gpt-5"), _model("gpt-5")))
         self.assertNotIn("model_delete", self.gateway.calls)
         self.assertNotIn("model_new", self.gateway.calls)
+
+    def test_model_resave_repairs_an_api_base_that_went_stale_before(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude"))
+        self.configurations.save(_credential("key", "https://dial-b"))
+        self._fire(self._save(_model("claude"), _model("claude")))
+        [model] = self.gateway.models.values()
+        self.assertEqual(model["litellm_params"]["api_base"], "https://dial-b/anthropic")
+
+    def test_model_resave_drops_a_leftover_deployment_under_another_name(self):
+        self._create(_credential("key"))
+        self._create(_model("gpt-5"))
+        self.gateway.model_new("2_gpt-4o", {"model": "gpt-4o"}, {"centry_configuration_uuid": "model-uuid"})
+        self._fire(self._save(_model("gpt-5"), _model("gpt-5")))
+        self.assertEqual(self.gateway.model_names(), ["2_gpt-5"])
 
     def test_credential_resave_pushes_a_secret_changed_in_the_vault(self):
         self.module.vault["{{secret.openai_key}}"] = "old-key"
