@@ -21,9 +21,11 @@ import re
 import time
 from urllib.parse import urlsplit
 
-PROVIDER_TIMEOUT_SECONDS = 25
-GATEWAY_HTTP_TIMEOUT_SECONDS = 28
-SERVICE_CALL_TIMEOUT_SECONDS = 30
+TEST_DEADLINE_SECONDS = 30
+CREDENTIAL_LOOKUP_SERVICE_SECONDS = 5
+CREDENTIAL_LOOKUP_HTTP_SECONDS = 4
+GATEWAY_HTTP_MARGIN_SECONDS = 2
+PROVIDER_MARGIN_SECONDS = 3
 
 REASONING_PARAMS = ("reasoning_effort", "thinking", "reasoning")
 MAX_MESSAGE_LENGTH = 300
@@ -75,21 +77,23 @@ def run_connection_test(mapped_model, gateway, secrets=()):
         return failure(CONNECTION_FAILED, UNMAPPABLE_SETTINGS_MESSAGE)
     #
     litellm_params = mapped_model.get("litellm_params") or {}
+    started = time.monotonic()
     try:
-        registered = registered_credential_names(gateway)
+        is_registered = is_credential_registered(gateway, litellm_params.get("litellm_credential_name"))
     except Exception as error:  # pylint: disable=W0718
         return failure(*classify_failure(str(error), secrets))
     #
-    if litellm_params.get("litellm_credential_name") not in registered:
+    if not is_registered:
         return failure(CONNECTION_FAILED, UNREGISTERED_CREDENTIAL_MESSAGE)
     #
-    started = time.monotonic()
+    service_timeout = TEST_DEADLINE_SECONDS - (time.monotonic() - started)
+    gateway_http_timeout = service_timeout - GATEWAY_HTTP_MARGIN_SECONDS
     try:
-        result = gateway(timeout=SERVICE_CALL_TIMEOUT_SECONDS).litellm_api_call(
+        result = gateway(timeout=service_timeout).litellm_api_call(
             "health_test_connection",
-            litellm_params=build_test_params(litellm_params),
+            litellm_params=build_test_params(litellm_params, gateway_http_timeout - PROVIDER_MARGIN_SECONDS),
             mode="chat",
-            timeout=GATEWAY_HTTP_TIMEOUT_SECONDS,
+            timeout=gateway_http_timeout,
         )
     except Exception as error:  # pylint: disable=W0718
         return failure(*classify_failure(str(error), secrets))
@@ -105,17 +109,20 @@ def credential_secrets(credentials):
     return sorted({secret for secret in candidates if len(secret) > 3}, key=len, reverse=True)
 
 
-def registered_credential_names(gateway):
-    credentials = gateway(timeout=SERVICE_CALL_TIMEOUT_SECONDS).litellm_api_call("credential_list") or []
-    return {credential.get("credential_name") for credential in credentials}
+def is_credential_registered(gateway, credential_name):
+    if not credential_name:
+        return False
+    return gateway(timeout=CREDENTIAL_LOOKUP_SERVICE_SECONDS).litellm_api_call(
+        "credential_exists", credential_name=credential_name, timeout=CREDENTIAL_LOOKUP_HTTP_SECONDS,
+    )
 
 
-def build_test_params(litellm_params):
+def build_test_params(litellm_params, provider_timeout):
     params = {
         key: value for key, value in litellm_params.items() if key not in REASONING_PARAMS
     }
     params["model"] = provider_qualified_model(params.get("model", ""), params.get("custom_llm_provider"))
-    params["timeout"] = PROVIDER_TIMEOUT_SECONDS
+    params["timeout"] = provider_timeout
     params["max_retries"] = 0
     return params
 

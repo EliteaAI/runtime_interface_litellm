@@ -10,6 +10,7 @@ import os
 import sys
 import types
 import unittest
+from unittest import mock
 
 try:
     import litellm
@@ -58,6 +59,7 @@ azure_open_ai = importlib.import_module("plugins.runtime_interface_litellm.tools
 ai_dial = importlib.import_module("plugins.runtime_interface_litellm.tools.mappers.configuration.ai_dial")
 
 CREDENTIAL_NAME = "7_cred-uuid"
+PROVIDER_TIMEOUT = 25
 
 AUTH_ERROR = (
     "litellm.AuthenticationError: AuthenticationError: OpenAIException - Authentication Error, Invalid proxy "
@@ -130,8 +132,8 @@ class FakeGatewayCall:
         self._gateway.calls.append((endpoint, self._timeout, kwargs))
         if endpoint in self._gateway.raises:
             raise self._gateway.raises[endpoint]
-        if endpoint == "credential_list":
-            return [{"credential_name": name} for name in self._gateway.credentials]
+        if endpoint == "credential_exists":
+            return kwargs["credential_name"] in self._gateway.credentials
         return self._gateway.health_result
 
 
@@ -157,17 +159,17 @@ def _mapped(name="gpt-4o", api_protocol=None, mapper=open_ai):
 class TestBuildTestParams(unittest.TestCase):
 
     def test_open_ai_model_is_provider_qualified_and_keeps_the_named_credential(self):
-        params = connection.build_test_params(_mapped()["litellm_params"])
+        params = connection.build_test_params(_mapped()["litellm_params"], PROVIDER_TIMEOUT)
         self.assertEqual(params["model"], "openai/gpt-4o")
         self.assertEqual(params["litellm_credential_name"], CREDENTIAL_NAME)
         self.assertNotIn("api_key", params)
 
     def test_azure_model_is_provider_qualified_once(self):
         self.assertEqual(
-            connection.build_test_params(_mapped(mapper=azure_open_ai)["litellm_params"])["model"], "azure/gpt-4o",
+            connection.build_test_params(_mapped(mapper=azure_open_ai)["litellm_params"], PROVIDER_TIMEOUT)["model"], "azure/gpt-4o",
         )
         self.assertEqual(
-            connection.build_test_params(_mapped("whisper-1", mapper=azure_open_ai)["litellm_params"])["model"],
+            connection.build_test_params(_mapped("whisper-1", mapper=azure_open_ai)["litellm_params"], PROVIDER_TIMEOUT)["model"],
             "azure/whisper-1",
         )
 
@@ -180,7 +182,7 @@ class TestBuildTestParams(unittest.TestCase):
         }
         for protocol, (model, provider, api_base) in cases.items():
             with self.subTest(protocol=protocol):
-                params = connection.build_test_params(_mapped("claude", protocol, ai_dial)["litellm_params"])
+                params = connection.build_test_params(_mapped("claude", protocol, ai_dial)["litellm_params"], PROVIDER_TIMEOUT)
                 self.assertEqual(params["model"], model)
                 self.assertEqual(params["custom_llm_provider"], provider)
                 self.assertEqual(params.get("api_base"), api_base)
@@ -190,22 +192,20 @@ class TestBuildTestParams(unittest.TestCase):
         for mapper in (open_ai, azure_open_ai, ai_dial):
             with self.subTest(mapper=mapper.__name__):
                 registered = _mapped(mapper=mapper)["litellm_params"]
-                self.assertNotEqual(connection.build_test_params(registered)["model"], registered["model"])
+                self.assertNotEqual(connection.build_test_params(registered, PROVIDER_TIMEOUT)["model"], registered["model"])
 
     def test_reasoning_params_are_never_sent(self):
         params = connection.build_test_params({
             "model": "gpt-5", "custom_llm_provider": "openai", "litellm_credential_name": CREDENTIAL_NAME,
             "reasoning_effort": "high", "thinking": {"type": "enabled"}, "reasoning": {"effort": "high"},
-        })
+        }, PROVIDER_TIMEOUT)
         for key in ("reasoning_effort", "thinking", "reasoning"):
             self.assertNotIn(key, params)
 
     def test_the_provider_call_is_bounded_without_retries(self):
-        params = connection.build_test_params(_mapped()["litellm_params"])
-        self.assertEqual(params["timeout"], connection.PROVIDER_TIMEOUT_SECONDS)
+        params = connection.build_test_params(_mapped()["litellm_params"], PROVIDER_TIMEOUT)
+        self.assertEqual(params["timeout"], PROVIDER_TIMEOUT)
         self.assertEqual(params["max_retries"], 0)
-        self.assertLess(connection.PROVIDER_TIMEOUT_SECONDS, connection.GATEWAY_HTTP_TIMEOUT_SECONDS)
-        self.assertLess(connection.GATEWAY_HTTP_TIMEOUT_SECONDS, connection.SERVICE_CALL_TIMEOUT_SECONDS)
 
     @unittest.skipUnless(litellm, "litellm is installed only in the LiteLLM runtime")
     def test_the_qualified_model_reaches_the_same_provider_and_deployment(self):
@@ -310,14 +310,32 @@ class TestRunConnectionTest(unittest.TestCase):
         self.assertIn("latency_ms", result)
         self.assertNotIn("success", result)
 
-    def test_the_health_call_uses_the_timeout_budget_and_the_test_params(self):
+    def test_the_health_call_uses_the_test_params(self):
         gateway = FakeGateway()
         connection.run_connection_test(_mapped(), gateway)
-        [(_, service_timeout, kwargs)] = gateway.health_calls()
-        self.assertEqual(service_timeout, connection.SERVICE_CALL_TIMEOUT_SECONDS)
-        self.assertEqual(kwargs["timeout"], connection.GATEWAY_HTTP_TIMEOUT_SECONDS)
+        [(_, _, kwargs)] = gateway.health_calls()
         self.assertEqual(kwargs["mode"], "chat")
         self.assertEqual(kwargs["litellm_params"]["model"], "openai/gpt-4o")
+
+    def test_the_credential_is_looked_up_by_name_with_a_short_timeout(self):
+        gateway = FakeGateway()
+        connection.run_connection_test(_mapped(), gateway)
+        [(endpoint, service_timeout, kwargs)] = [call for call in gateway.calls if call[0] != "health_test_connection"]
+        self.assertEqual(endpoint, "credential_exists")
+        self.assertEqual(kwargs["credential_name"], CREDENTIAL_NAME)
+        self.assertLess(kwargs["timeout"], service_timeout)
+        self.assertLessEqual(service_timeout, 5)
+
+    def test_both_calls_share_one_deadline_and_each_hop_gives_up_before_the_one_above(self):
+        clock = iter([100.0, 104.0])
+        gateway = FakeGateway()
+        with mock.patch.object(connection.time, "monotonic", lambda: next(clock, 104.0)):
+            connection.run_connection_test(_mapped(), gateway)
+        [(_, service_timeout, kwargs)] = gateway.health_calls()
+        provider_timeout = kwargs["litellm_params"]["timeout"]
+        self.assertEqual(service_timeout, connection.TEST_DEADLINE_SECONDS - 4)
+        self.assertLess(provider_timeout, kwargs["timeout"])
+        self.assertLess(kwargs["timeout"], service_timeout)
 
     def test_an_unregistered_credential_never_reaches_the_provider(self):
         gateway = FakeGateway(credentials=["7_other"])
@@ -358,8 +376,8 @@ class TestRunConnectionTest(unittest.TestCase):
             ["https://dial.corp.example/v1", "dial.corp.example", "k-123456"],
         )
 
-    def test_a_failing_credential_list_is_classified_not_leaked(self):
-        gateway = FakeGateway(raises={"credential_list": RuntimeError("Traceback ...\nConnectionError: http://x")})
+    def test_a_failing_credential_lookup_is_classified_not_leaked(self):
+        gateway = FakeGateway(raises={"credential_exists": RuntimeError("Traceback ...\nConnectionError: http://x")})
         result = connection.run_connection_test(_mapped(), gateway)
         self.assertEqual(gateway.health_calls(), [])
         self.assertNotIn("http://x", result["message"])
