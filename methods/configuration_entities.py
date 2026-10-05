@@ -188,10 +188,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         try:
             if entity["kind"] == "model":
                 superseded_model_ids = self.superseded_model_ids(previous_configuration, current_configuration)
+                self.register_configuration_entity(current_configuration, entity)
+            elif self.update_credential_in_place(previous_configuration, entity):
+                self.set_configuration_status(current_configuration, {"status_ok": True})
             else:
                 self.delete_configuration_entities(previous_configuration)
                 self.delete_configuration_entities(current_configuration)
-            self.register_configuration_entity(current_configuration, entity)
+                self.register_configuration_entity(current_configuration, entity)
         except:  # pylint: disable=W0702
             log.exception("Failed to register configuration %s", current_configuration["id"])
             if entity["kind"] == "credential":
@@ -206,6 +209,31 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             self.delete_models(superseded_model_ids)
         #
         return True
+
+    @web.method()
+    def update_credential_in_place(self, previous_configuration, entity):
+        """ Method """
+        payload = entity["payload"]
+        #
+        try:
+            previous_entity = self.build_configuration_entity(previous_configuration)
+            #
+            if previous_entity is None:
+                return False
+            #
+            removed_values = set(previous_entity["payload"]["credential_values"]) - set(payload["credential_values"])
+            if removed_values:
+                return False
+            #
+            updated = self.service_node.call.litellm_api_call("credential_update", **payload)
+        except:  # pylint: disable=W0702
+            log.exception("Failed to update credential %s in place", payload["credential_name"])
+            return False
+        #
+        if updated:
+            log.info("Updated credential: %s", payload["credential_name"])
+        #
+        return updated
 
     @web.method()
     def superseded_model_ids(self, previous_configuration, current_configuration):

@@ -30,6 +30,12 @@ class FakeGateway:
     def credential_list(self):
         return [{"credential_name": name} for name in self.credentials]
 
+    def credential_update(self, credential_name, credential_values, credential_info):
+        if credential_name not in self.credentials:
+            return False
+        self.credentials[credential_name] = {**self.credentials[credential_name], **credential_values}
+        return True
+
     def credential_delete(self, credential_name):
         del self.credentials[credential_name]
 
@@ -330,6 +336,7 @@ class ConfigurationUpdatedTest(unittest.TestCase):
             credential_new(credential_name, credential_values, credential_info)
 
         self.gateway.credential_new = reject_new_key
+        self.gateway.credential_update = _reject
         self._fire(self._save(_credential("old-key"), _credential("new-key")))
         self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "old-key")
         self.assertIs(self.configurations.status_updates[-1][2]["status_ok"], False)
@@ -343,9 +350,43 @@ class ConfigurationUpdatedTest(unittest.TestCase):
             return FakeModule.configuration_to_credential(self.module, configuration)
 
         self.gateway.credential_new = _reject
+        self.gateway.credential_update = _reject
         self.module.configuration_to_credential = vault_unavailable_for_old_key
         self._fire(self._save(_credential("old-key"), _credential("new-key")))
         self.assertIs(self.configurations.status_updates[-1][2]["status_ok"], False)
+
+    def test_credential_edit_updates_in_place_without_a_gap(self):
+        self._create(_credential("old-key"))
+        self.gateway.calls.clear()
+        self._fire(self._save(_credential("old-key"), _credential("new-key")))
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
+        self.assertNotIn("credential_delete", self.gateway.calls)
+        self.assertIs(self.configurations.status_ok(2, "cred-uuid"), True)
+
+    def test_credential_edit_that_drops_a_value_recreates_the_credential(self):
+        self._create(_credential("key"))
+        self.gateway.calls.clear()
+        self.module.configuration_to_credential = lambda configuration: {
+            "credential_name": "2_cred-uuid",
+            "credential_values": {"api_key": configuration["data"]["api_key"],
+                                  **({"api_version": "v1"} if configuration["data"]["api_key"] == "key" else {})},
+            "credential_info": {},
+        }
+        self._fire(self._save(_credential("key"), _credential("new-key")))
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"], {"api_key": "new-key"})
+
+    def test_credential_missing_from_the_gateway_is_created(self):
+        self._create(_credential("old-key"))
+        del self.gateway.credentials["2_cred-uuid"]
+        self._fire(self._save(_credential("old-key"), _credential("new-key")))
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
+
+    def test_gateway_without_in_place_update_still_takes_the_new_key(self):
+        self._create(_credential("old-key"))
+        self.gateway.credential_update = _reject
+        self._fire(self._save(_credential("old-key"), _credential("new-key")))
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
+        self.assertIs(self.configurations.status_ok(2, "cred-uuid"), True)
 
     def test_each_own_status_write_swallows_one_status_event(self):
         status_event = {**_credential("key"), "status_ok": True}
