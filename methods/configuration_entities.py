@@ -197,12 +197,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 self.register_configuration_entity(current_configuration, entity)
         except:  # pylint: disable=W0702
             log.exception("Failed to register configuration %s", current_configuration["id"])
+            status = {"status_logs": "The LLM gateway rejected the saved settings; save again to retry"}
             if entity["kind"] == "credential":
                 self.restore_credential(previous_configuration)
-            self.set_configuration_status(current_configuration, {
-                "status_ok": False,
-                "status_logs": "The LLM gateway rejected the saved settings; save again to retry",
-            })
+                status["status_ok"] = False
+            elif previous_data.get("name") != current_configuration["data"].get("name"):
+                status["status_ok"] = False
+            self.set_configuration_status(current_configuration, status)
             return False
         #
         if entity["kind"] == "model":

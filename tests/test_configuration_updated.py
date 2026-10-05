@@ -421,6 +421,24 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self._fire(self._save(_model("claude"), _model("claude")))
         self.assertEqual(self.gateway.model_names(), ["2_claude"])
 
+    def test_rejected_same_name_edit_keeps_the_serving_model_listed(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude"))
+        self.configurations.save(_credential("key", "https://dial-b"))
+        self.gateway.model_new = _reject
+        self._fire(self._save(_model("claude"), _model("claude")))
+        self.assertIs(self.configurations.status_ok(2, "model-uuid"), True)
+        self.assertIn("rejected", self.configurations.status_updates[-1][2]["status_logs"])
+
+    def test_rejected_api_base_fan_out_keeps_dependent_models_listed(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude", project_id=2))
+        self._create(_model("claude", project_id=3, uuid="other-model", config_id=5))
+        self.gateway.model_new = _reject
+        self._fire(self._save(_credential("key", "https://dial-a"), _credential("key", "https://dial-b")))
+        statuses = (self.configurations.status_ok(2, "model-uuid"), self.configurations.status_ok(3, "other-model"))
+        self.assertEqual(statuses, (True, True))
+
     def test_rejected_credential_api_base_edit_keeps_every_dependent_model(self):
         self._create(_credential("key", "https://dial-a"))
         self._create(_model("claude", project_id=2))
