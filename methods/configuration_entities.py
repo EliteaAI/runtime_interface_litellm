@@ -17,10 +17,14 @@
 
 """ Method """
 
+import copy
+
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 from pylon.core.tools import web  # pylint: disable=E0611,E0401,W0611
 
 from tools import context  # pylint: disable=E0401
+
+from ..utils.utils import MODEL_CONFIGURATION_SECTIONS
 
 
 class Method:  # pylint: disable=E1101,R0903,W0201
@@ -36,96 +40,190 @@ class Method:  # pylint: disable=E1101,R0903,W0201
     @web.method()
     def make_configuration_entities(self, configuration):
         """ Method """
-        configuration_section = configuration["section"]
-        #
-        if configuration_section == "ai_credentials":
-            #
-            # Credential
-            #
-            configuration_credential = self.configuration_to_credential(configuration)
-            #
-            if configuration_credential is not None:
-                self.service_node.call.litellm_api_call(
-                    "credential_new",
-                    **configuration_credential,
-                )
-                #
-                credential_name = configuration_credential["credential_name"]
-                #
-                log.info("Added credential: %s", credential_name)
-                #
-                with self.configurations_lock:
-                    lock_key = f'{configuration["project_id"]}:{configuration["id"]}'
-                    self.configurations_blocklist.add(lock_key)
-                #
-                try:
-                    context.rpc_manager.timeout(5).configurations_update(
-                        project_id=configuration["project_id"],
-                        config_id=configuration["id"],
-                        payload={
-                            "status_ok": True,
-                        },
-                    )
-                    #
-                    log.info("Set status_ok for configuration: %s", configuration["id"])
-                except:  # pylint: disable=W0702
-                    pass
-        #
-        elif configuration_section in ["llm", "embedding", "image_generation", "tts", "asr"]:
-            #
-            # Skip LiteLLM provisioning for imported models (no credentials = externally managed)
-            #
-            if not configuration.get("data", {}).get("ai_credentials"):
+        if not self.is_gateway_managed(configuration):
+            if configuration["section"] in MODEL_CONFIGURATION_SECTIONS:
                 log.info(
                     "Skipping LiteLLM provisioning for imported config %s (externally managed)",
                     configuration.get("id"),
                 )
-                return
+            return
+        #
+        entity = self.build_configuration_entity(configuration)
+        #
+        if entity is not None:
+            self.register_configuration_entity(configuration, entity)
+
+    @web.method()
+    def is_gateway_managed(self, configuration):
+        """ Method """
+        configuration_section = configuration["section"]
+        #
+        if configuration_section == "ai_credentials":
+            return True
+        #
+        return configuration_section in MODEL_CONFIGURATION_SECTIONS and \
+            bool(configuration.get("data", {}).get("ai_credentials"))
+
+    @web.method()
+    def build_configuration_entity(self, configuration):
+        """ Method """
+        if configuration["section"] == "ai_credentials":
+            configuration_credential = self.configuration_to_credential(configuration)
             #
-            # Model
+            if configuration_credential is None:
+                return None
             #
-            from plugins.configurations.utils import expand_configuration  # pylint: disable=E0401,C0415
+            return {"kind": "credential", "payload": configuration_credential}
+        #
+        from plugins.configurations.utils import expand_configuration  # pylint: disable=E0401,C0415
+        #
+        expanded_configuration = {**configuration, "data": copy.deepcopy(configuration["data"])}
+        #
+        try:
+            expand_configuration(
+                expanded_configuration["data"],
+                current_project_id=configuration["project_id"],
+                user_id=configuration["author_id"],
+            )
+        except:  # pylint: disable=W0702
+            log.exception("Failed to expand configuration, skipping")
+            return None
+        #
+        configuration_model = self.configuration_to_model(expanded_configuration)
+        #
+        if configuration_model is None:
+            return None
+        #
+        return {"kind": "model", "payload": configuration_model}
+
+    @web.method()
+    def register_configuration_entity(self, configuration, entity):
+        """ Method """
+        payload = entity["payload"]
+        #
+        if entity["kind"] == "credential":
+            self.service_node.call.litellm_api_call("credential_new", **payload)
+            log.info("Added credential: %s", payload["credential_name"])
+        else:
+            self.service_node.call.litellm_api_call("model_new", **payload)
+            log.info("Added model: %s", payload["model_name"])
+        #
+        self.set_configuration_status(configuration, {"status_ok": True})
+        log.info("Set status_ok for configuration: %s", configuration["id"])
+
+    @web.method()
+    def set_configuration_status(self, configuration, payload):
+        """ Method """
+        with self.configurations_lock:
+            lock_key = f'{configuration["project_id"]}:{configuration["id"]}'
+            self.configurations_blocklist.add(lock_key)
+        #
+        try:
+            context.rpc_manager.timeout(5).configurations_update(
+                project_id=configuration["project_id"],
+                config_id=configuration["id"],
+                payload=payload,
+            )
+        except:  # pylint: disable=W0702
+            log.exception("Failed to set configuration status")
+
+    @web.method()
+    def load_configuration(self, project_id, configuration_uuid):
+        """ Method """
+        configurations = context.rpc_manager.timeout(5).configurations_get_filtered_project(
+            project_id=project_id,
+            include_shared=False,
+            filter_fields={"uuid": configuration_uuid},
+        )
+        #
+        return configurations[0] if configurations else None
+
+    @web.method()
+    def reapply_configuration_entities(self, configuration, previous_data):
+        """ Method """
+        previous_configuration = {**configuration, "data": previous_data}
+        #
+        try:
+            current_configuration = self.load_configuration(configuration["project_id"], configuration["uuid"])
+        except:  # pylint: disable=W0702
+            log.exception("Failed to load configuration %s, using the event payload", configuration["id"])
+            current_configuration = configuration
+        #
+        if current_configuration is None:
+            self.delete_configuration_entities(previous_configuration)
+            return
+        #
+        if not self.is_llm_allowed_for_project(current_configuration):
+            log.info("Skipping: allow_project_own_llms is disabled for project %s",
+                     current_configuration.get("project_id"))
+            self.delete_configuration_entities(previous_configuration)
+            self.delete_configuration_entities(current_configuration)
+            return
+        #
+        if not self.is_gateway_managed(current_configuration):
+            self.delete_configuration_entities(previous_configuration)
+            return
+        #
+        entity = self.build_configuration_entity(current_configuration)
+        #
+        if entity is None:
+            log.warning("Configuration %s could not be applied, keeping the registered one",
+                        current_configuration["id"])
+            status = {
+                "status_logs": "The saved settings could not be applied to the LLM gateway; "
+                               "the previous settings stay in use",
+            }
+            renamed_model_unknown_to_gateway = \
+                previous_data.get("name") != current_configuration["data"].get("name")
+            if renamed_model_unknown_to_gateway:
+                status["status_ok"] = False
+            self.set_configuration_status(current_configuration, status)
+            return
+        #
+        self.delete_configuration_entities(previous_configuration)
+        self.delete_configuration_entities(current_configuration)
+        #
+        if entity["kind"] == "model":
+            self.delete_configuration_models(current_configuration)
+        #
+        self.register_configuration_entity(current_configuration, entity)
+
+    @web.method()
+    def delete_configuration_models(self, configuration):
+        """ Method """
+        project_prefix = f'{configuration["project_id"]}_'
+        #
+        for model in self.service_node.call.litellm_api_call("model_info"):
+            if model["model_info"].get("centry_configuration_uuid") == configuration["uuid"] and \
+                    model["model_name"].startswith(project_prefix):
+                log.info("Deleting model: %s", model["model_name"])
+                self.service_node.call.litellm_api_call("model_delete", model["model_info"]["id"])
+
+    @web.method()
+    def reapply_credential_models(self, credential_configuration):
+        """ Method """
+        credential_name = self.configuration_to_credential_info(credential_configuration)["credential_name"]
+        dependent_models = set()
+        #
+        for model in self.service_node.call.litellm_api_call("model_info"):
+            configuration_uuid = model["model_info"].get("centry_configuration_uuid")
             #
-            expanded_configuration = configuration.copy()
-            #
+            if configuration_uuid and \
+                    model["litellm_params"].get("litellm_credential_name") == credential_name:
+                project_id = int(model["model_name"].split("_", 1)[0])
+                dependent_models.add((project_id, configuration_uuid))
+        #
+        for project_id, configuration_uuid in dependent_models:
             try:
-                expand_configuration(
-                    expanded_configuration["data"],
-                    current_project_id=configuration["project_id"],
-                    user_id=configuration["author_id"],
-                )
+                model_configuration = self.load_configuration(project_id, configuration_uuid)
+                #
+                if model_configuration is None:
+                    continue
+                #
+                with self.configuration_entity_locks[f'{project_id}:{model_configuration["id"]}']:
+                    self.reapply_configuration_entities(model_configuration, model_configuration["data"])
             except:  # pylint: disable=W0702
-                log.exception("Failed to expand configuration, skipping")
-                return
-            #
-            configuration_model = self.configuration_to_model(expanded_configuration)
-            #
-            if configuration_model is not None:
-                self.service_node.call.litellm_api_call(
-                    "model_new",
-                    **configuration_model,
-                )
-                #
-                model_name = configuration_model["model_name"]
-                #
-                log.info("Added model: %s", model_name)
-                #
-                with self.configurations_lock:
-                    lock_key = f'{configuration["project_id"]}:{configuration["id"]}'
-                    self.configurations_blocklist.add(lock_key)
-                #
-                try:
-                    context.rpc_manager.timeout(5).configurations_update(
-                        project_id=configuration["project_id"],
-                        config_id=configuration["id"],
-                        payload={
-                            "status_ok": True,
-                        },
-                    )
-                    #
-                    log.info("Set status_ok for configuration: %s", configuration["id"])
-                except:  # pylint: disable=W0702
-                    log.exception("Failed to set configuration status_ok")
+                log.exception("Failed to re-apply model %s in project %s", configuration_uuid, project_id)
 
     @web.method()
     def delete_configuration_entities(self, configuration):
@@ -160,7 +258,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         credential["credential_name"],
                     )
         #
-        elif configuration_section in ["llm", "embedding", "image_generation", "tts", "asr"]:
+        elif configuration_section in MODEL_CONFIGURATION_SECTIONS:
             #
             # Skip LiteLLM deletion for imported models (no credentials = externally managed)
             #
