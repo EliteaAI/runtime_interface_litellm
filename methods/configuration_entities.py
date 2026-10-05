@@ -181,6 +181,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return False
         #
         if entity["kind"] == "model" and self.is_model_deployed_as(current_configuration, entity["payload"]):
+            if current_configuration.get("status_ok") is not True:
+                self.set_configuration_status(current_configuration, {"status_ok": True})
             return True
         #
         self.delete_configuration_entities(previous_configuration)

@@ -54,13 +54,21 @@ class FakeConfigurations:
         self.status_updates = []
 
     def save(self, configuration):
-        self.saved[(configuration["project_id"], configuration["uuid"])] = configuration
+        key = (configuration["project_id"], configuration["uuid"])
+        status_ok = self.saved[key].get("status_ok") if key in self.saved else None
+        self.saved[key] = {**configuration, "status_ok": status_ok}
 
     def timeout(self, _seconds):
         return self
 
     def configurations_update(self, project_id, config_id, payload):
         self.status_updates.append((project_id, config_id, payload))
+        for configuration in self.saved.values():
+            if (configuration["project_id"], configuration["id"]) == (project_id, config_id) and "status_ok" in payload:
+                configuration["status_ok"] = payload["status_ok"]
+
+    def status_ok(self, project_id, configuration_uuid):
+        return self.saved[(project_id, configuration_uuid)].get("status_ok")
 
     def configurations_get_filtered_project(self, project_id, include_shared, filter_fields):
         found = self.saved.get((project_id, filter_fields["uuid"]))
@@ -292,6 +300,17 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self.gateway.model_new("2_gpt-4o", {"model": "gpt-4o"}, {"centry_configuration_uuid": "model-uuid"})
         self._fire(self._save(_model("gpt-5"), _model("gpt-5")))
         self.assertEqual(self.gateway.model_names(), ["2_gpt-5"])
+
+    def test_reverting_a_failed_rename_lists_the_model_again(self):
+        self._create(_credential("key"))
+        self._create(_model("gpt-4o"))
+        self.module.unbuildable.add("model-uuid")
+        self._fire(self._save(_model("gpt-4o"), _model("gpt-5")))
+        self.assertIs(self.configurations.status_ok(2, "model-uuid"), False)
+        self.module.unbuildable.clear()
+        self._fire(self._save(_model("gpt-5"), _model("gpt-4o")))
+        self.assertEqual(self.gateway.model_names(), ["2_gpt-4o"])
+        self.assertIs(self.configurations.status_ok(2, "model-uuid"), True)
 
     def test_credential_resave_pushes_a_secret_changed_in_the_vault(self):
         self.module.vault["{{secret.openai_key}}"] = "old-key"
