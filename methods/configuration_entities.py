@@ -116,7 +116,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         """ Method """
         with self.configurations_lock:
             lock_key = f'{configuration["project_id"]}:{configuration["id"]}'
-            self.configurations_blocklist.add(lock_key)
+            self.configurations_blocklist[lock_key] += 1
         #
         try:
             context.rpc_manager.timeout(5).configurations_update(
@@ -195,6 +195,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             self.register_configuration_entity(current_configuration, entity)
         except:  # pylint: disable=W0702
             log.exception("Failed to register configuration %s", current_configuration["id"])
+            if entity["kind"] == "credential":
+                self.restore_credential(previous_configuration)
             self.set_configuration_status(current_configuration, {
                 "status_ok": False,
                 "status_logs": "The LLM gateway rejected the saved settings; save again to retry",
@@ -202,6 +204,20 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             return False
         #
         return True
+
+    @web.method()
+    def restore_credential(self, configuration):
+        """ Method """
+        try:
+            previous_entity = self.build_configuration_entity(configuration)
+            #
+            if previous_entity is None:
+                return
+            #
+            self.service_node.call.litellm_api_call("credential_new", **previous_entity["payload"])
+            log.info("Restored credential: %s", previous_entity["payload"]["credential_name"])
+        except:  # pylint: disable=W0702
+            log.exception("Failed to restore credential for configuration %s", configuration["id"])
 
     @web.method()
     def is_model_deployed_as(self, configuration, payload):

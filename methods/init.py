@@ -116,7 +116,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         # Register configurations
         #
         self.configurations_lock = threading.Lock()
-        self.configurations_blocklist = set()
+        self.configurations_blocklist = collections.Counter()
         self.configuration_entity_locks = collections.defaultdict(threading.Lock)
         #
         # pylint: disable=C0415

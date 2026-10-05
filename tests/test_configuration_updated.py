@@ -124,7 +124,7 @@ class FakeModule:
     def __init__(self, gateway):
         self.service_node = types.SimpleNamespace(call=types.SimpleNamespace(litellm_api_call=gateway))
         self.configurations_lock = threading.Lock()
-        self.configurations_blocklist = set()
+        self.configurations_blocklist = collections.Counter()
         self.configuration_entity_locks = collections.defaultdict(threading.Lock)
         self.llm_allowed = True
         self.unbuildable = set()
@@ -319,6 +319,61 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self._fire(self._save(_credential("{{secret.openai_key}}"), _credential("{{secret.openai_key}}")))
         self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
 
+    def test_gateway_rejecting_the_new_credential_keeps_the_previous_one(self):
+        self._create(_credential("old-key"))
+        credential_new = self.gateway.credential_new
+
+        def reject_new_key(credential_name, credential_values, credential_info):
+            if credential_values["api_key"] == "new-key":
+                raise RuntimeError("gateway 503")
+            credential_new(credential_name, credential_values, credential_info)
+
+        self.gateway.credential_new = reject_new_key
+        self._fire(self._save(_credential("old-key"), _credential("new-key")))
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "old-key")
+        self.assertIs(self.configurations.status_updates[-1][2]["status_ok"], False)
+
+    def test_failed_restore_still_reports_the_rejected_credential(self):
+        self._create(_credential("old-key"))
+
+        def reject_credential(*_args, **_kwargs):
+            raise RuntimeError("gateway 503")
+
+        def vault_unavailable_for_old_key(configuration):
+            if configuration["data"]["api_key"] == "old-key":
+                raise RuntimeError("vault unavailable")
+            return FakeModule.configuration_to_credential(self.module, configuration)
+
+        self.gateway.credential_new = reject_credential
+        self.module.configuration_to_credential = vault_unavailable_for_old_key
+        self._fire(self._save(_credential("old-key"), _credential("new-key")))
+        self.assertIs(self.configurations.status_updates[-1][2]["status_ok"], False)
+
+    def test_each_own_status_write_swallows_one_status_event(self):
+        status_event = {**_credential("key"), "status_ok": True}
+        self.module.set_configuration_status(_credential("key"), {"status_ok": True})
+        self.module.set_configuration_status(_credential("key"), {"status_ok": True})
+        self.gateway.calls.clear()
+        self.module.on_configuration_status_changed(None, "configuration_status_changed", status_event)
+        self.module.on_configuration_status_changed(None, "configuration_status_changed", status_event)
+        self.assertEqual(self.gateway.calls, [])
+        self.assertEqual(self.module.configurations_blocklist, collections.Counter())
+
+    def test_status_event_waits_for_the_handler_working_on_that_configuration(self):
+        self._create(_credential("old-key"))
+        self.module.configurations_blocklist.clear()
+        self.configurations.save(_credential("new-key"))
+        lock = self.module.configuration_entity_locks["2:4"]
+        lock.acquire()
+        worker = threading.Thread(target=self.module.on_configuration_status_changed,
+                                  args=[None, "configuration_status_changed", _credential("new-key")])
+        worker.start()
+        time.sleep(0.2)
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "old-key")
+        lock.release()
+        worker.join(5)
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
+
     def test_one_failing_dependent_model_does_not_stop_the_others(self):
         self._create(_credential("key", "https://dial-a"))
         self._create(_model("claude", project_id=2))
@@ -355,7 +410,7 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self.module.configurations_blocklist.clear()
         self._fire(self._save(_credential("old-key"), _credential("new-key")))
         self.assertEqual(self.configurations.status_updates[-1], (2, 4, {"status_ok": True}))
-        self.assertEqual(self.module.configurations_blocklist, {"2:4"})
+        self.assertEqual(self.module.configurations_blocklist, collections.Counter({"2:4": 1}))
 
     def test_edit_in_a_project_without_own_llms_only_unregisters(self):
         self._create(_credential("key"))

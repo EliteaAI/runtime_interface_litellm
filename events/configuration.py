@@ -59,20 +59,23 @@ class Event:  # pylint: disable=E1101,R0903,W0201
         lock_key = f'{configuration["project_id"]}:{configuration["id"]}'
         #
         with self.configurations_lock:
-            if lock_key in self.configurations_blocklist:
-                self.configurations_blocklist.discard(lock_key)
+            if self.configurations_blocklist[lock_key] > 0:
+                self.configurations_blocklist[lock_key] -= 1
+                if not self.configurations_blocklist[lock_key]:
+                    del self.configurations_blocklist[lock_key]
                 return
         #
-        log.info("Got configuration_status_changed: %s", configuration)
-        #
-        if not self.is_llm_allowed_for_project(configuration):
-            log.info("Skipping: allow_project_own_llms is disabled for project %s",
-                     configuration.get("project_id"))
+        with self.configuration_entity_locks[lock_key]:
+            log.info("Got configuration_status_changed: %s", configuration)
+            #
+            if not self.is_llm_allowed_for_project(configuration):
+                log.info("Skipping: allow_project_own_llms is disabled for project %s",
+                         configuration.get("project_id"))
+                self.delete_configuration_entities(configuration)
+                return
+            #
             self.delete_configuration_entities(configuration)
-            return
-        #
-        self.delete_configuration_entities(configuration)
-        self.make_configuration_entities(configuration)
+            self.make_configuration_entities(configuration)
 
     @web.event("configuration_updated")
     def on_configuration_updated(self, _context, _event, configuration, *_args, **_kwargs):
