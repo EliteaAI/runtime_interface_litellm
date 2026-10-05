@@ -83,8 +83,10 @@ class Event:  # pylint: disable=E1101,R0903,W0201
         with self.configuration_entity_locks[f'{configuration["project_id"]}:{configuration["id"]}']:
             log.info("Got configuration_updated: %s", configuration)
             #
-            self.reapply_configuration_entities(configuration, configuration["previous_data"])
+            saved_settings_applied = self.reapply_configuration_entities(
+                configuration, configuration["previous_data"],
+            )
         #
-        if configuration["section"] == "ai_credentials" and \
+        if saved_settings_applied and configuration["section"] == "ai_credentials" and \
                 configuration["previous_data"].get("api_base") != configuration["data"].get("api_base"):
             self.reapply_credential_models(configuration)

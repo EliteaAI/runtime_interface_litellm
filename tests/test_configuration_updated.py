@@ -242,8 +242,39 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self._create(_credential("key"))
         self._create(_model("gpt-5"))
         self.gateway.model_new("20_gpt-5", {"model": "gpt-5"}, {"centry_configuration_uuid": "model-uuid"})
+        self._fire(self._save(_model("gpt-5"), _model("gpt-6")))
+        self.assertEqual(self.gateway.model_names(), ["20_gpt-5", "2_gpt-6"])
+
+    def test_gateway_rejecting_the_new_model_marks_it_broken(self):
+        self._create(_credential("key"))
+        self._create(_model("gpt-5"))
+
+        def rejecting_model_new(*_args, **_kwargs):
+            raise RuntimeError("gateway 503")
+
+        self.gateway.model_new = rejecting_model_new
+        self._fire(self._save(_model("gpt-5"), _model("gpt-6")))
+        project_id, config_id, payload = self.configurations.status_updates[-1]
+        self.assertEqual((project_id, config_id, payload["status_ok"]), (2, 9, False))
+        self.assertIn("rejected", payload["status_logs"])
+
+    def test_failed_credential_edit_leaves_dependent_models_on_the_old_api_base(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude"))
+        self.module.unbuildable.add("cred-uuid")
+        self._fire(self._save(_credential("key", "https://dial-a"), _credential("key", "https://dial-b")))
+        [model] = self.gateway.models.values()
+        self.assertEqual(model["litellm_params"]["api_base"], "https://dial-a/anthropic")
+
+    def test_resave_without_changes_leaves_the_gateway_untouched(self):
+        self._create(_credential("key"))
+        self._create(_model("gpt-5"))
+        self.gateway.calls.clear()
+        self._fire(self._save(_credential("key"), _credential("key")))
         self._fire(self._save(_model("gpt-5"), _model("gpt-5")))
-        self.assertEqual(self.gateway.model_names(), ["20_gpt-5", "2_gpt-5"])
+        self.assertNotIn("credential_delete", self.gateway.calls)
+        self.assertNotIn("model_delete", self.gateway.calls)
+        self.assertNotIn("model_new", self.gateway.calls)
 
     def test_one_failing_dependent_model_does_not_stop_the_others(self):
         self._create(_credential("key", "https://dial-a"))

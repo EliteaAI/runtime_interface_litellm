@@ -139,7 +139,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return configurations[0] if configurations else None
 
     @web.method()
-    def reapply_configuration_entities(self, configuration, previous_data):
+    def reapply_configuration_entities(self, configuration, previous_data, skip_if_unchanged=True):
         """ Method """
         previous_configuration = {**configuration, "data": previous_data}
         #
@@ -151,18 +151,18 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         #
         if current_configuration is None:
             self.delete_configuration_entities(previous_configuration)
-            return
+            return False
         #
         if not self.is_llm_allowed_for_project(current_configuration):
             log.info("Skipping: allow_project_own_llms is disabled for project %s",
                      current_configuration.get("project_id"))
             self.delete_configuration_entities(previous_configuration)
             self.delete_configuration_entities(current_configuration)
-            return
+            return False
         #
         if not self.is_gateway_managed(current_configuration):
             self.delete_configuration_entities(previous_configuration)
-            return
+            return False
         #
         entity = self.build_configuration_entity(current_configuration)
         #
@@ -178,7 +178,11 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             if renamed_model_unknown_to_gateway:
                 status["status_ok"] = False
             self.set_configuration_status(current_configuration, status)
-            return
+            return False
+        #
+        if skip_if_unchanged and self.build_configuration_entity(previous_configuration) == entity and \
+                self.is_entity_registered(current_configuration, entity):
+            return True
         #
         self.delete_configuration_entities(previous_configuration)
         self.delete_configuration_entities(current_configuration)
@@ -186,7 +190,38 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         if entity["kind"] == "model":
             self.delete_configuration_models(current_configuration)
         #
-        self.register_configuration_entity(current_configuration, entity)
+        try:
+            self.register_configuration_entity(current_configuration, entity)
+        except:  # pylint: disable=W0702
+            log.exception("Failed to register configuration %s", current_configuration["id"])
+            self.set_configuration_status(current_configuration, {
+                "status_ok": False,
+                "status_logs": "The LLM gateway rejected the saved settings; save again to retry",
+            })
+            return False
+        #
+        return True
+
+    @web.method()
+    def is_entity_registered(self, configuration, entity):
+        """ Method """
+        payload = entity["payload"]
+        #
+        if entity["kind"] == "credential":
+            return any(
+                credential["credential_name"] == payload["credential_name"]
+                for credential in self.service_node.call.litellm_api_call("credential_list")
+            )
+        #
+        project_prefix = f'{configuration["project_id"]}_'
+        registered_names = [
+            model["model_name"]
+            for model in self.service_node.call.litellm_api_call("model_info")
+            if model["model_info"].get("centry_configuration_uuid") == configuration["uuid"] and
+            model["model_name"].startswith(project_prefix)
+        ]
+        #
+        return registered_names == [payload["model_name"]]
 
     @web.method()
     def delete_configuration_models(self, configuration):
@@ -221,7 +256,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     continue
                 #
                 with self.configuration_entity_locks[f'{project_id}:{model_configuration["id"]}']:
-                    self.reapply_configuration_entities(model_configuration, model_configuration["data"])
+                    self.reapply_configuration_entities(
+                        model_configuration, model_configuration["data"], skip_if_unchanged=False,
+                    )
             except:  # pylint: disable=W0702
                 log.exception("Failed to re-apply model %s in project %s", configuration_uuid, project_id)
 
