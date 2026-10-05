@@ -180,8 +180,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             self.set_configuration_status(current_configuration, status)
             return False
         #
-        if skip_if_unchanged and self.build_configuration_entity(previous_configuration) == entity and \
-                self.is_entity_registered(current_configuration, entity):
+        if skip_if_unchanged and entity["kind"] == "model" and \
+                self.build_configuration_entity(previous_configuration) == entity and \
+                self.is_model_registered(current_configuration, entity["payload"]["model_name"]):
             return True
         #
         self.delete_configuration_entities(previous_configuration)
@@ -203,16 +204,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return True
 
     @web.method()
-    def is_entity_registered(self, configuration, entity):
+    def is_model_registered(self, configuration, model_name):
         """ Method """
-        payload = entity["payload"]
-        #
-        if entity["kind"] == "credential":
-            return any(
-                credential["credential_name"] == payload["credential_name"]
-                for credential in self.service_node.call.litellm_api_call("credential_list")
-            )
-        #
         project_prefix = f'{configuration["project_id"]}_'
         registered_names = [
             model["model_name"]
@@ -221,7 +214,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             model["model_name"].startswith(project_prefix)
         ]
         #
-        return registered_names == [payload["model_name"]]
+        return registered_names == [model_name]
 
     @web.method()
     def delete_configuration_models(self, configuration):

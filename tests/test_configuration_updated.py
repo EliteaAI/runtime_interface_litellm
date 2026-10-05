@@ -118,6 +118,7 @@ class FakeModule:
         self.configuration_entity_locks = collections.defaultdict(threading.Lock)
         self.llm_allowed = True
         self.unbuildable = set()
+        self.vault = {}
 
     def is_llm_allowed_for_project(self, _configuration):
         return self.llm_allowed
@@ -127,7 +128,8 @@ class FakeModule:
             return None
         return {
             "credential_name": f'{configuration["project_id"]}_{configuration["uuid"]}',
-            "credential_values": {"api_key": configuration["data"]["api_key"],
+            "credential_values": {"api_key": self.vault.get(configuration["data"]["api_key"],
+                                                            configuration["data"]["api_key"]),
                                   "api_base": configuration["data"]["api_base"]},
             "credential_info": {},
         }
@@ -266,15 +268,20 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         [model] = self.gateway.models.values()
         self.assertEqual(model["litellm_params"]["api_base"], "https://dial-a/anthropic")
 
-    def test_resave_without_changes_leaves_the_gateway_untouched(self):
+    def test_model_resave_without_changes_leaves_the_gateway_untouched(self):
         self._create(_credential("key"))
         self._create(_model("gpt-5"))
         self.gateway.calls.clear()
-        self._fire(self._save(_credential("key"), _credential("key")))
         self._fire(self._save(_model("gpt-5"), _model("gpt-5")))
-        self.assertNotIn("credential_delete", self.gateway.calls)
         self.assertNotIn("model_delete", self.gateway.calls)
         self.assertNotIn("model_new", self.gateway.calls)
+
+    def test_credential_resave_pushes_a_secret_changed_in_the_vault(self):
+        self.module.vault["{{secret.openai_key}}"] = "old-key"
+        self._create(_credential("{{secret.openai_key}}"))
+        self.module.vault["{{secret.openai_key}}"] = "new-key"
+        self._fire(self._save(_credential("{{secret.openai_key}}"), _credential("{{secret.openai_key}}")))
+        self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
 
     def test_one_failing_dependent_model_does_not_stop_the_others(self):
         self._create(_credential("key", "https://dial-a"))
