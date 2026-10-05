@@ -167,6 +167,10 @@ def _model(name, project_id=2, uuid="model-uuid", config_id=9):
             "section": "llm", "data": {"name": name, "ai_credentials": {"project_id": 2, "uuid": "cred-uuid"}}}
 
 
+def _reject(*_args, **_kwargs):
+    raise RuntimeError("gateway 503")
+
+
 class ConfigurationUpdatedTest(unittest.TestCase):
     def setUp(self):
         self.configurations = FakeConfigurations()
@@ -261,10 +265,7 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         self._create(_credential("key"))
         self._create(_model("gpt-5"))
 
-        def rejecting_model_new(*_args, **_kwargs):
-            raise RuntimeError("gateway 503")
-
-        self.gateway.model_new = rejecting_model_new
+        self.gateway.model_new = _reject
         self._fire(self._save(_model("gpt-5"), _model("gpt-6")))
         project_id, config_id, payload = self.configurations.status_updates[-1]
         self.assertEqual((project_id, config_id, payload["status_ok"]), (2, 9, False))
@@ -336,15 +337,12 @@ class ConfigurationUpdatedTest(unittest.TestCase):
     def test_failed_restore_still_reports_the_rejected_credential(self):
         self._create(_credential("old-key"))
 
-        def reject_credential(*_args, **_kwargs):
-            raise RuntimeError("gateway 503")
-
         def vault_unavailable_for_old_key(configuration):
             if configuration["data"]["api_key"] == "old-key":
                 raise RuntimeError("vault unavailable")
             return FakeModule.configuration_to_credential(self.module, configuration)
 
-        self.gateway.credential_new = reject_credential
+        self.gateway.credential_new = _reject
         self.module.configuration_to_credential = vault_unavailable_for_old_key
         self._fire(self._save(_credential("old-key"), _credential("new-key")))
         self.assertIs(self.configurations.status_updates[-1][2]["status_ok"], False)
@@ -373,6 +371,45 @@ class ConfigurationUpdatedTest(unittest.TestCase):
         lock.release()
         worker.join(5)
         self.assertEqual(self.gateway.credentials["2_cred-uuid"]["api_key"], "new-key")
+
+    def test_rejected_model_edit_keeps_the_working_deployment(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude"))
+        self.configurations.save(_credential("key", "https://dial-b"))
+        self.gateway.model_new = _reject
+        self._fire(self._save(_model("claude"), _model("claude")))
+        self.assertEqual(self.gateway.model_names(), ["2_claude"])
+
+    def test_rejected_credential_api_base_edit_keeps_every_dependent_model(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude", project_id=2))
+        self._create(_model("claude", project_id=3, uuid="other-model", config_id=5))
+        self.gateway.model_new = _reject
+        self._fire(self._save(_credential("key", "https://dial-a"), _credential("key", "https://dial-b")))
+        self.assertEqual(self.gateway.model_names(), ["2_claude", "3_claude"])
+
+    def test_rejected_rename_keeps_the_old_deployment(self):
+        self._create(_credential("key"))
+        self._create(_model("gpt-5"))
+        self.gateway.model_new = _reject
+        self._fire(self._save(_model("gpt-5"), _model("gpt-6")))
+        self.assertEqual(self.gateway.model_names(), ["2_gpt-5"])
+
+    def test_failed_cleanup_after_a_rename_keeps_the_new_deployment(self):
+        self._create(_credential("key"))
+        self._create(_model("gpt-5"))
+        self.gateway.model_delete = _reject
+        self._fire(self._save(_model("gpt-5"), _model("gpt-6")))
+        self.assertIn("2_gpt-6", self.gateway.model_names())
+        self.assertIs(self.configurations.status_ok(2, "model-uuid"), True)
+
+    def test_api_base_edit_leaves_models_in_projects_without_own_llms(self):
+        self._create(_credential("key", "https://dial-a"))
+        self._create(_model("claude", project_id=3, uuid="other-model", config_id=5))
+        self.module.is_llm_allowed_for_project = lambda configuration: configuration["project_id"] == 2
+        self._fire(self._save(_credential("key", "https://dial-a"), _credential("key", "https://dial-b")))
+        [model] = self.gateway.models.values()
+        self.assertEqual(model["litellm_params"]["api_base"], "https://dial-a/anthropic")
 
     def test_one_failing_dependent_model_does_not_stop_the_others(self):
         self._create(_credential("key", "https://dial-a"))

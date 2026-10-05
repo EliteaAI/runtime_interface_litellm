@@ -185,13 +185,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 self.set_configuration_status(current_configuration, {"status_ok": True})
             return True
         #
-        self.delete_configuration_entities(previous_configuration)
-        self.delete_configuration_entities(current_configuration)
-        #
-        if entity["kind"] == "model":
-            self.delete_configuration_models(current_configuration)
-        #
         try:
+            if entity["kind"] == "model":
+                superseded_model_ids = self.superseded_model_ids(previous_configuration, current_configuration)
+            else:
+                self.delete_configuration_entities(previous_configuration)
+                self.delete_configuration_entities(current_configuration)
             self.register_configuration_entity(current_configuration, entity)
         except:  # pylint: disable=W0702
             log.exception("Failed to register configuration %s", current_configuration["id"])
@@ -203,7 +202,40 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             })
             return False
         #
+        if entity["kind"] == "model":
+            self.delete_models(superseded_model_ids)
+        #
         return True
+
+    @web.method()
+    def superseded_model_ids(self, previous_configuration, current_configuration):
+        """ Method """
+        project_prefix = f'{current_configuration["project_id"]}_'
+        configuration_uuid = current_configuration["uuid"]
+        model_names = {
+            model_info["model_name"]
+            for model_info in (self.configuration_to_model_info(previous_configuration),
+                               self.configuration_to_model_info(current_configuration))
+            if model_info is not None
+        }
+        #
+        return [
+            model["model_info"]["id"]
+            for model in self.service_node.call.litellm_api_call("model_info")
+            if (model["model_name"] in model_names and
+                model["model_info"].get("centry_configuration_uuid", configuration_uuid) == configuration_uuid) or
+            (model["model_info"].get("centry_configuration_uuid") == configuration_uuid and
+             model["model_name"].startswith(project_prefix))
+        ]
+
+    @web.method()
+    def delete_models(self, model_ids):
+        """ Method """
+        for model_id in model_ids:
+            try:
+                self.service_node.call.litellm_api_call("model_delete", model_id)
+            except:  # pylint: disable=W0702
+                log.exception("Failed to delete superseded model %s", model_id)
 
     @web.method()
     def restore_credential(self, configuration):
@@ -242,17 +274,6 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         )
 
     @web.method()
-    def delete_configuration_models(self, configuration):
-        """ Method """
-        project_prefix = f'{configuration["project_id"]}_'
-        #
-        for model in self.service_node.call.litellm_api_call("model_info"):
-            if model["model_info"].get("centry_configuration_uuid") == configuration["uuid"] and \
-                    model["model_name"].startswith(project_prefix):
-                log.info("Deleting model: %s", model["model_name"])
-                self.service_node.call.litellm_api_call("model_delete", model["model_info"]["id"])
-
-    @web.method()
     def reapply_credential_models(self, credential_configuration):
         """ Method """
         credential_name = self.configuration_to_credential_info(credential_configuration)["credential_name"]
@@ -270,7 +291,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             try:
                 model_configuration = self.load_configuration(project_id, configuration_uuid)
                 #
-                if model_configuration is None:
+                if model_configuration is None or not self.is_llm_allowed_for_project(model_configuration):
                     continue
                 #
                 with self.configuration_entity_locks[f'{project_id}:{model_configuration["id"]}']:
