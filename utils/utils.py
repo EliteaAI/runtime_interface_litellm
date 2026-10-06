@@ -25,6 +25,9 @@ import requests  # pylint: disable=E0401
 # Connection check timeout in seconds
 CONNECTION_CHECK_TIMEOUT = 30
 
+MODEL_CONFIGURATION_SECTIONS = ("llm", "embedding", "image_generation", "tts", "asr")
+GATEWAY_CONFIGURATION_SECTIONS = ("ai_credentials", *MODEL_CONFIGURATION_SECTIONS)
+
 
 def extract_error_message(response) -> str:
     """Extract error message from API response"""

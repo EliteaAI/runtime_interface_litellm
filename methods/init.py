@@ -17,6 +17,7 @@
 
 """ Method """
 
+import collections
 import threading
 
 from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
@@ -115,7 +116,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         # Register configurations
         #
         self.configurations_lock = threading.Lock()
-        self.configurations_blocklist = set()
+        self.configurations_blocklist = collections.Counter()
+        self.configuration_entity_locks = collections.defaultdict(threading.Lock)
         #
         # pylint: disable=C0415
         try:
