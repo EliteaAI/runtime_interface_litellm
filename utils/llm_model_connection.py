@@ -21,6 +21,8 @@ import re
 import time
 from urllib.parse import urlsplit
 
+from .utils import strip_header_value
+
 TEST_DEADLINE_SECONDS = 30
 CREDENTIAL_LOOKUP_SERVICE_SECONDS = 5
 CREDENTIAL_LOOKUP_HTTP_SECONDS = 4
@@ -105,7 +107,7 @@ def run_connection_test(mapped_model, gateway, secrets=()):
 
 def credential_secrets(credentials):
     api_base = str(credentials.get("api_base") or "")
-    candidates = [str(credentials.get("api_key") or ""), api_base, urlsplit(api_base).hostname or ""]
+    candidates = [str(strip_header_value(credentials.get("api_key")) or ""), api_base, urlsplit(api_base).hostname or ""]
     return sorted({secret for secret in candidates if len(secret) > 3}, key=len, reverse=True)
 
 

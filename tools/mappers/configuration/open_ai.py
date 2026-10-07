@@ -21,6 +21,8 @@ from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 
 from tools import this  # pylint: disable=E0401
 
+from ....utils.utils import strip_header_value
+
 
 def to_credential(  # pylint: disable=R0913
         configuration_info,
@@ -35,7 +37,7 @@ def to_credential(  # pylint: disable=R0913
         "api_base": api_base,
     }
     #
-    api_key = configuration_data["api_key"]
+    api_key = strip_header_value(configuration_data["api_key"])
     #
     if api_key is not None and api_key and api_key != "-":
         credential_values["api_key"] = api_key
