@@ -28,6 +28,21 @@ CONNECTION_CHECK_TIMEOUT = 30
 MODEL_CONFIGURATION_SECTIONS = ("llm", "embedding", "image_generation", "tts", "asr")
 GATEWAY_CONFIGURATION_SECTIONS = ("ai_credentials", *MODEL_CONFIGURATION_SECTIONS)
 
+# Spaces/tabs around a header value are not part of it (RFC 9110 5.5): servers drop them,
+# while httpx (used by the provider SDKs behind the gateway) refuses to send them at all
+HEADER_VALUE_PADDING = " \t"
+API_KEY_PADDING_WARNING = (
+    "The api_key has leading/trailing whitespace, which is ignored. "
+    "Re-save the credential without it."
+)
+
+
+def strip_header_value(value):
+    """ Drop the padding HTTP ignores around a header value; non-strings pass through """
+    if isinstance(value, str):
+        return value.strip(HEADER_VALUE_PADDING)
+    return value
+
 
 def extract_error_message(response) -> str:
     """Extract error message from API response"""
@@ -53,7 +68,8 @@ def check_azure_openai_connection(data: dict) -> dict:
     """
     try:
         api_base = data.get('api_base')
-        api_key = data.get('api_key')
+        raw_api_key = data.get('api_key')
+        api_key = strip_header_value(raw_api_key)
         api_version = data.get('api_version')
 
         # Validate required fields
@@ -84,10 +100,13 @@ def check_azure_openai_connection(data: dict) -> dict:
         )
 
         if response.status_code == 200:
-            return {
+            result = {
                 "success": True,
                 "message": "Connection to Azure OpenAI successful"
             }
+            if api_key != raw_api_key:
+                result["warning"] = API_KEY_PADDING_WARNING
+            return result
         elif response.status_code == 401 or response.status_code == 403:
             error_details = extract_error_message(response)
             return {
@@ -136,7 +155,8 @@ def check_openai_connection(data: dict) -> dict:
     """
     try:
         api_base = data.get('api_base')
-        api_key = data.get('api_key')
+        raw_api_key = data.get('api_key')
+        api_key = strip_header_value(raw_api_key)
 
         # Validate required fields
         if not api_base:
@@ -164,10 +184,13 @@ def check_openai_connection(data: dict) -> dict:
         )
 
         if response.status_code == 200:
-            return {
+            result = {
                 "success": True,
                 "message": "Connection to OpenAI successful"
             }
+            if api_key != raw_api_key:
+                result["warning"] = API_KEY_PADDING_WARNING
+            return result
         elif response.status_code == 401 or response.status_code == 403:
             error_details = extract_error_message(response)
             return {

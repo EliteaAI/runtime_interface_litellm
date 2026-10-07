@@ -57,6 +57,11 @@ connection_rpc = importlib.import_module("plugins.runtime_interface_litellm.rpc.
 open_ai = importlib.import_module("plugins.runtime_interface_litellm.tools.mappers.configuration.open_ai")
 azure_open_ai = importlib.import_module("plugins.runtime_interface_litellm.tools.mappers.configuration.azure_open_ai")
 ai_dial = importlib.import_module("plugins.runtime_interface_litellm.tools.mappers.configuration.ai_dial")
+check_utils = importlib.import_module("plugins.runtime_interface_litellm.utils.utils")
+integration_mappers = [
+    importlib.import_module(f"plugins.runtime_interface_litellm.tools.mappers.integration.{name}")
+    for name in ("ai_dial", "open_ai", "open_ai_azure")
+]
 
 CREDENTIAL_NAME = "7_cred-uuid"
 PROVIDER_TIMEOUT = 25
@@ -407,6 +412,64 @@ class TestRpc(unittest.TestCase):
         self.assertIs(seen["data"], settings)
         self.assertIn("latency_ms", result)
         self.assertEqual(gateway.health_calls()[0][2]["litellm_params"]["model"], "openai/unsaved-name")
+
+
+class TestApiKeyPadding(unittest.TestCase):
+    """ #6711: a padded key must behave in Test Connection exactly as it does at runtime """
+
+    def _check(self, check, api_key):
+        response = mock.Mock(status_code=200)
+        with mock.patch.object(check_utils.requests, "get", return_value=response) as get:
+            result = check({"api_base": "https://dial.example", "api_key": api_key, "api_version": "v1"})
+        return result, get.call_args.kwargs["headers"] if get.called else None
+
+    def test_checks_send_the_stripped_key_and_warn(self):
+        for check, header, prefix in [
+                (check_utils.check_azure_openai_connection, "api-key", ""),
+                (check_utils.check_openai_connection, "Authorization", "Bearer "),
+        ]:
+            with self.subTest(check=check.__name__):
+                result, headers = self._check(check, " key-123\t ")
+                self.assertEqual(headers[header], f"{prefix}key-123")
+                self.assertTrue(result["success"])
+                self.assertEqual(result["warning"], check_utils.API_KEY_PADDING_WARNING)
+
+    def test_a_clean_key_gets_no_warning(self):
+        result, _ = self._check(check_utils.check_azure_openai_connection, "key-123")
+        self.assertNotIn("warning", result)
+
+    def test_a_whitespace_only_key_is_missing(self):
+        result, headers = self._check(check_utils.check_openai_connection, "   ")
+        self.assertEqual(result, {"success": False, "message": "api_key is required"})
+        self.assertIsNone(headers)
+
+    def test_only_http_padding_is_stripped(self):
+        self.assertEqual(check_utils.strip_header_value(" key\t"), "key")
+        self.assertEqual(check_utils.strip_header_value("key\n"), "key\n")
+        self.assertIsNone(check_utils.strip_header_value(None))
+
+    def test_configuration_mappers_register_the_stripped_key(self):
+        for mapper in (open_ai, azure_open_ai, ai_dial):
+            with self.subTest(mapper=mapper.__name__):
+                credential = mapper.to_credential({
+                    "project_id": 7, "uuid": "cred-uuid",
+                    "data": {"api_base": "https://dial.example", "api_key": "key-123 ", "api_version": "v1"},
+                })
+                self.assertEqual(credential["credential_values"]["api_key"], "key-123")
+
+    def test_integration_mappers_register_the_stripped_key(self):
+        vault_client = mock.Mock(unsecret=lambda value: value)
+        settings = {"api_base": "https://dial.example", "api_token": "key-123 ", "api_version": "v1"}
+        for mapper in integration_mappers:
+            with self.subTest(mapper=mapper.__name__), \
+                    mock.patch.object(mapper, "this", mock.Mock(**{"module.get_base_url.return_value": "x"})):
+                credential = mapper.to_credential(
+                    None, None, {"settings": settings}, "uid", 7, 7, vault_client,
+                )
+                self.assertEqual(credential["credential_values"]["api_key"], "key-123")
+
+    def test_scrub_secrets_use_the_key_the_gateway_sends(self):
+        self.assertIn("k-123456", connection.credential_secrets({"api_key": "k-123456 ", "api_base": ""}))
 
 
 if __name__ == "__main__":

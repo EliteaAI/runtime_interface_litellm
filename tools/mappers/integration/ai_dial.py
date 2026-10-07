@@ -21,6 +21,8 @@ from pylon.core.tools import log  # pylint: disable=E0611,E0401,W0611
 
 from tools import this  # pylint: disable=E0401
 
+from ....utils.utils import strip_header_value
+
 
 def to_capabilities(
         integration_settings,
@@ -61,7 +63,7 @@ def to_credential(  # pylint: disable=R0913
         return None
     #
     api_base = integration_data["settings"]["api_base"]
-    api_key = vault_client.unsecret(integration_data["settings"]["api_token"])
+    api_key = strip_header_value(vault_client.unsecret(integration_data["settings"]["api_token"]))
     api_version = integration_data["settings"]["api_version"]
     #
     credential_values = {
