@@ -61,6 +61,10 @@ ELITEA_RUN_ID_HEADER = "X-Elitea-Run-Id"
 # when the response is metered, by which time the header itself is gone from the request.
 PLATFORM_RUN_ID_AUTH_KEY = "platform_run_id"
 
+# Read by the usage plugin: a non-shared (project-own) model is metered but never budgeted.
+# Parked rather than passed, so either plugin can be deployed first.
+BUDGET_EXEMPT_AUTH_KEY = "usage_budget_exempt"
+
 
 def extract_run_id(headers):
     """Canonical platform run id from the request headers, or None.
@@ -513,6 +517,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 #
                 metered_model_name = raw_model_name
                 metered_project_id = public_project_id if is_shared else project_id
+                proxy_auth[BUDGET_EXEMPT_AUTH_KEY] = not is_shared
             #
             # Also handle model mapping for form data (multipart requests like image edits)
             #
@@ -533,6 +538,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                 #
                 metered_model_name = raw_model_name
                 metered_project_id = public_project_id if is_shared else project_id
+                proxy_auth[BUDGET_EXEMPT_AUTH_KEY] = not is_shared
             #
             denial = prepare_llm_call(
                 proxy_target, proxy_auth, metered_model_name, metered_project_id,

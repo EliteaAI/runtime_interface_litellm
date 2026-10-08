@@ -323,6 +323,39 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         #
         self.assertEqual(self.handed[0][3], 1)
 
+    def test_an_own_model_is_budget_exempt(self):
+        # BYO: the provider bills the customer, so the shared-model budget must not gate it
+        _, proxy_auth = self._prepare(is_shared=False)
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], True)
+        self.assertIs(self.handed[0][1], proxy_auth)
+
+    def test_a_shared_model_is_budgeted(self):
+        _, proxy_auth = self._prepare(is_shared=True)
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
+
+    def test_no_model_in_the_body_parks_nothing(self):
+        # Nothing resolved, nothing to exempt: the usage plugin's default (counted) applies
+        _, proxy_auth = self._prepare(is_shared=False, body={"input": "x"})
+        #
+        self.assertNotIn(proxy.BUDGET_EXEMPT_AUTH_KEY, proxy_auth)
+
+    def test_a_form_data_own_model_is_budget_exempt(self):
+        _, proxy_auth = self._prepare(
+            is_shared=False, body={}, data=FormData({"model": "gpt-image-1"}),
+        )
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], True)
+
+    def test_the_key_matches_what_the_usage_plugin_reads(self):
+        import pathlib  # pylint: disable=C0415
+        source = (pathlib.Path(proxy.__file__).parents[2] / "usage" / "interface.py")
+        if not source.exists():
+            self.skipTest("usage plugin not checked out next to this one")
+        self.assertIn(f'BUDGET_EXEMPT_AUTH_KEY = "{proxy.BUDGET_EXEMPT_AUTH_KEY}"',
+                      source.read_text())
+
     def test_a_denial_is_handed_back_out_of_prepare_request(self):
         # routes/proxy.py short-circuits on a non-None return before add_stream(), so the
         # refusal is what the caller sees and no stream is ever opened
