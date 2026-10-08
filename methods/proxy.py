@@ -65,6 +65,12 @@ PLATFORM_RUN_ID_AUTH_KEY = "platform_run_id"
 # Parked rather than passed, so either plugin can be deployed first.
 BUDGET_EXEMPT_AUTH_KEY = "usage_budget_exempt"
 
+# Where a requested model resolved. Only a positive match on the caller's project is OWN;
+# the raw-name fallback (or a failed lookup) is UNRESOLVED and stays budgeted.
+MODEL_SCOPE_OWN = "own"
+MODEL_SCOPE_SHARED = "shared"
+MODEL_SCOPE_UNRESOLVED = "unresolved"
+
 
 def extract_run_id(headers):
     """Canonical platform run id from the request headers, or None.
@@ -213,8 +219,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         routing through dev.elitea.ai/llm/v1).
 
         Returns:
-            (mapped_model_name, is_shared) — is_shared is True only when the model
-            resolved via the public project, i.e. the caller consumes a shared model.
+            (mapped_model_name, scope) — MODEL_SCOPE_OWN / MODEL_SCOPE_SHARED on a positive
+            match in the caller's / public project, MODEL_SCOPE_UNRESOLVED for the raw fallback.
         """
         model_name = f"{project_id}_{raw_model_name}"
         model_info = self.service_node.call.litellm_api_call(
@@ -223,7 +229,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         )
         #
         if model_info:
-            return model_name, False
+            return model_name, MODEL_SCOPE_OWN
         #
         if public_project_id != project_id:
             model_name = f"{public_project_id}_{raw_model_name}"
@@ -233,9 +239,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             )
             #
             if model_info:
-                return model_name, True
+                return model_name, MODEL_SCOPE_SHARED
         #
-        return raw_model_name, False
+        return raw_model_name, MODEL_SCOPE_UNRESOLVED
 
     @web.method()
     def prepare_request(self, proxy_target, proxy_auth):  # pylint: disable=R0911,R0912,R0914
@@ -493,7 +499,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             # The two facts metering cannot work out for itself: the name the caller asked
             # for, and the project the model resolved in. Collected here, handed over below.
             metered_model_name = None
-            metered_project_id = None
+            model_scope = None
             #
             if isinstance(proxy_target["json"], dict) and "model" in proxy_target["json"]:
                 raw_model_name = proxy_target["json"]["model"]
@@ -506,8 +512,10 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                         )
                     except ValueError:
                         return {'error': 'Auto model deployment is unavailable'}, 503
+                    # map_bound_model raises unless the pinned deployment exists, so this is positive
+                    model_scope = MODEL_SCOPE_SHARED if is_shared else MODEL_SCOPE_OWN
                 else:
-                    model_name, is_shared = self._map_model_name(
+                    model_name, model_scope = self._map_model_name(
                         raw_model_name, project_id, public_project_id,
                     )
                 #
@@ -516,15 +524,13 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     proxy_target["json"]["model"] = model_name
                 #
                 metered_model_name = raw_model_name
-                metered_project_id = public_project_id if is_shared else project_id
-                proxy_auth[BUDGET_EXEMPT_AUTH_KEY] = not is_shared
             #
             # Also handle model mapping for form data (multipart requests like image edits)
             #
             raw_model_name = model_of(proxy_target.get("data"))
             #
             if raw_model_name:
-                model_name, is_shared = self._map_model_name(
+                model_name, model_scope = self._map_model_name(
                     raw_model_name, project_id, public_project_id,
                 )
                 #
@@ -537,8 +543,12 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     proxy_target["data"]["model"] = model_name
                 #
                 metered_model_name = raw_model_name
-                metered_project_id = public_project_id if is_shared else project_id
-                proxy_auth[BUDGET_EXEMPT_AUTH_KEY] = not is_shared
+            #
+            # Decided once from the model actually metered, so the two branches cannot disagree
+            metered_project_id = None
+            if model_scope is not None:
+                metered_project_id = public_project_id if model_scope == MODEL_SCOPE_SHARED else project_id
+                proxy_auth[BUDGET_EXEMPT_AUTH_KEY] = model_scope == MODEL_SCOPE_OWN
             #
             denial = prepare_llm_call(
                 proxy_target, proxy_auth, metered_model_name, metered_project_id,
