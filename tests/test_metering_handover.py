@@ -214,6 +214,36 @@ class TestAnOlderOrBrokenUsagePlugin(unittest.TestCase):
             self.assertIs(metering.meter_llm_call({}, {}, None, marker), marker)
 
 
+class TestMapModelNameScope(unittest.TestCase):
+    """_map_model_name only reports OWN on a positive {project}_{model} hit."""
+
+    @staticmethod
+    def _method(known):
+        method = proxy.Method()
+        method.service_node = types.SimpleNamespace(call=types.SimpleNamespace(
+            litellm_api_call=lambda _op, name: known(name),
+        ))
+        return method
+
+    def test_own_shared_and_unresolved(self):
+        method = self._method(lambda name: {"model_group": name} if name in {"7_a", "1_b"} else None)
+        #
+        self.assertEqual(method._map_model_name("a", 7, 1), ("7_a", proxy.MODEL_SCOPE_OWN))
+        self.assertEqual(method._map_model_name("b", 7, 1), ("1_b", proxy.MODEL_SCOPE_SHARED))
+        self.assertEqual(method._map_model_name("c", 7, 1), ("c", proxy.MODEL_SCOPE_UNRESOLVED))
+
+    def test_a_failed_lookup_is_unresolved_not_own(self):
+        # A falsy model_group_info (timeout, error) must never read as project-own
+        method = self._method(lambda name: None)
+        #
+        self.assertEqual(method._map_model_name("a", 7, 1), ("a", proxy.MODEL_SCOPE_UNRESOLVED))
+
+    def test_the_public_project_calling_its_own_model_is_own(self):
+        method = self._method(lambda name: {"model_group": name} if name == "1_a" else None)
+        #
+        self.assertEqual(method._map_model_name("a", 1, 1), ("1_a", proxy.MODEL_SCOPE_OWN))
+
+
 class TestTheDenialShortCircuit(unittest.TestCase):
     """A refused call must be answered here, before LiteLLM is ever dialled."""
 
@@ -276,15 +306,19 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         proxy.this = self._this
         proxy.VaultClient = self._vault
 
-    def _prepare(self, is_shared, body=None, data=None, expected_response=None):
+    def _prepare(self, is_shared, body=None, data=None, expected_response=None, scope=None):
         method = proxy.Method()
         method.preprocess_headers = lambda headers: headers
         method.descriptor = types.SimpleNamespace(
             config=types.SimpleNamespace(get=lambda *a, **kw: None),
         )
         method.get_public_project_id = lambda: 1
+        if scope is None:
+            scope = proxy.MODEL_SCOPE_SHARED if is_shared else proxy.MODEL_SCOPE_OWN
         method._map_model_name = lambda raw, project_id, public_id: (
-            f"{1 if is_shared else project_id}_{raw}", is_shared,
+            raw if scope == proxy.MODEL_SCOPE_UNRESOLVED
+            else f"{1 if scope == proxy.MODEL_SCOPE_SHARED else project_id}_{raw}",
+            scope,
         )
         #
         proxy_target = {
@@ -323,6 +357,94 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         #
         self.assertEqual(self.handed[0][3], 1)
 
+    def test_an_own_model_is_budget_exempt(self):
+        # BYO: the provider bills the customer, so the shared-model budget must not gate it
+        _, proxy_auth = self._prepare(is_shared=False)
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], True)
+        self.assertIs(self.handed[0][1], proxy_auth)
+
+    def test_a_shared_model_is_budgeted(self):
+        _, proxy_auth = self._prepare(is_shared=True)
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
+
+    def test_no_model_in_the_body_parks_nothing(self):
+        # Nothing resolved, nothing to exempt: the usage plugin's default (counted) applies
+        _, proxy_auth = self._prepare(is_shared=False, body={"input": "x"})
+        #
+        self.assertNotIn(proxy.BUDGET_EXEMPT_AUTH_KEY, proxy_auth)
+
+    def test_an_unresolved_model_is_budgeted(self):
+        # The raw-name fallback (externally managed, or a failed model_group_info lookup) is
+        # not a positive own match: exempting it would let any unprefixed platform-funded
+        # model in LiteLLM bypass the shared budget, and fail open on a lookup timeout.
+        proxy_target, proxy_auth = self._prepare(
+            is_shared=False, scope=proxy.MODEL_SCOPE_UNRESOLVED,
+        )
+        #
+        self.assertEqual(proxy_target["json"]["model"], "gpt-4o")
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
+        self.assertEqual(self.handed[0][3], 7)  # still metered in the caller's project
+
+    def test_a_form_data_unresolved_model_is_budgeted(self):
+        _, proxy_auth = self._prepare(
+            is_shared=False, body={}, data=FormData({"model": "gpt-image-1"}),
+            scope=proxy.MODEL_SCOPE_UNRESOLVED,
+        )
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
+
+    def test_json_and_form_models_resolve_to_one_decision(self):
+        # Both branches feed one decision after the fact, so the metered model and the
+        # exemption can never come from different lookups
+        scopes = iter([proxy.MODEL_SCOPE_OWN, proxy.MODEL_SCOPE_SHARED])
+        method_scopes = []
+        #
+        def prepare_with_two_lookups():
+            method = proxy.Method()
+            method.preprocess_headers = lambda headers: headers
+            method.descriptor = types.SimpleNamespace(
+                config=types.SimpleNamespace(get=lambda *a, **kw: None),
+            )
+            method.get_public_project_id = lambda: 1
+            #
+            def mapped(raw, project_id, public_id):
+                scope = next(scopes)
+                method_scopes.append(scope)
+                return f"x_{raw}", scope
+            #
+            method._map_model_name = mapped
+            proxy_auth = {"type": "token", "user": {"id": 42, "name": "someone"}}
+            method.prepare_request({
+                "endpoint": "/v1/images/edits", "headers": proxy.Headers({}),
+                "json": {"model": "gpt-4o"}, "data": FormData({"model": "gpt-image-1"}),
+            }, proxy_auth)
+            return proxy_auth
+        #
+        proxy_auth = prepare_with_two_lookups()
+        #
+        # The form-data model is the one metered (last wins), and the exemption follows it
+        self.assertEqual(method_scopes, [proxy.MODEL_SCOPE_OWN, proxy.MODEL_SCOPE_SHARED])
+        self.assertEqual(self.handed[0][2], "gpt-image-1")
+        self.assertEqual(self.handed[0][3], 1)
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
+
+    def test_a_form_data_own_model_is_budget_exempt(self):
+        _, proxy_auth = self._prepare(
+            is_shared=False, body={}, data=FormData({"model": "gpt-image-1"}),
+        )
+        #
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], True)
+
+    def test_the_key_matches_what_the_usage_plugin_reads(self):
+        import pathlib  # pylint: disable=C0415
+        source = (pathlib.Path(proxy.__file__).parents[2] / "usage" / "interface.py")
+        if not source.exists():
+            self.skipTest("usage plugin not checked out next to this one")
+        self.assertIn(f'BUDGET_EXEMPT_AUTH_KEY = "{proxy.BUDGET_EXEMPT_AUTH_KEY}"',
+                      source.read_text())
+
     def test_a_denial_is_handed_back_out_of_prepare_request(self):
         # routes/proxy.py short-circuits on a non-None return before add_stream(), so the
         # refusal is what the caller sees and no stream is ever opened
@@ -334,7 +456,9 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
             config=types.SimpleNamespace(get=lambda *a, **kw: None),
         )
         method.get_public_project_id = lambda: 1
-        method._map_model_name = lambda raw, project_id, public_id: (raw, False)
+        method._map_model_name = lambda raw, project_id, public_id: (
+            raw, proxy.MODEL_SCOPE_UNRESOLVED,
+        )
         #
         served = method.prepare_request(
             {
@@ -400,7 +524,9 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
             config=types.SimpleNamespace(get=lambda *a, **kw: None),
         )
         method.get_public_project_id = lambda: 1
-        method._map_model_name = lambda raw, project_id, public_id: (raw, False)
+        method._map_model_name = lambda raw, project_id, public_id: (
+            raw, proxy.MODEL_SCOPE_UNRESOLVED,
+        )
         #
         proxy_target = {
             "endpoint": "/v1/chat/completions",
