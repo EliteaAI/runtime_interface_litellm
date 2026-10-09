@@ -101,6 +101,7 @@ def test_preflight_reads_actor_inventory_and_keeps_shared_only_candidates(relay,
         model.update(project_id=1, shared=True)
     private = {**relay.models[0], 'project_id': 7, 'shared': False}
     relay.models.append(private)
+    relay.args['settings']['classifier']['project_id'] = 1
     method = preflight.Method(); method.descriptor = types.SimpleNamespace(config={})
     result = method.resolve_auto_routing({'method': 'POST', 'json': request(), 'headers': {}},
         {'project_id': 7, 'user': {'id': 42}})
@@ -108,6 +109,57 @@ def test_preflight_reads_actor_inventory_and_keeps_shared_only_candidates(relay,
     assert result['trace']['inventory']['discovered'] == 5
     assert result['trace']['inventory']['qualified_variants'] == 8
     assert relay.seen == [(7, 42)]
+
+
+def preflight_method(relay, monkeypatch):
+    preflight = importlib.import_module('plugin_under_test.methods.routing')
+    monkeypatch.setattr(preflight, 'context', relay.context)
+    monkeypatch.setattr(preflight, 'VaultClient', relay.vault)
+    method = preflight.Method(); method.descriptor = types.SimpleNamespace(config={})
+    return lambda: method.resolve_auto_routing({'method': 'POST', 'json': request(), 'headers': {}},
+                                               {'project_id': 7, 'user': {'id': 42}})
+
+
+def test_preflight_prices_classifier_and_passes_canonical_identities(relay, monkeypatch):
+    calls = []
+    def prices(names, canonical_by_name=None):
+        calls.append((names, canonical_by_name))
+        return relay.args['price_snapshot']
+    relay.context.rpc_manager.timeout(10).costs_get_routing_prices = prices
+    classifier = {'name': 'claude-haiku-5-5@default', 'project_id': 7, 'context_window': 200000,
+                  'max_output_tokens': 8000, 'identity': {'canonical': 'anthropic/claude-haiku-5-5', 'kind': 'chat'}}
+    relay.models.append(classifier)
+    relay.args['price_snapshot']['entries'].append({**relay.args['price_snapshot']['entries'][0],
+                                                    'model_name': classifier['name']})
+    relay.args['settings']['classifier'] = {'name': classifier['name'], 'project_id': 7, 'source': 'project'}
+    result = preflight_method(relay, monkeypatch)()
+    assert result['trace']['classifier']['deployment']['name'] == classifier['name']
+    [(names, canonical)] = calls
+    assert classifier['name'] in names and len(names) == 6
+    assert canonical == {m['name']: m['identity']['canonical'] for m in relay.models}
+
+
+def test_preflight_keeps_working_with_exact_only_costs_signature(relay, monkeypatch):
+    calls = []
+    relay.context.rpc_manager.timeout(10).costs_get_routing_prices = lambda names: calls.append(names) or relay.args['price_snapshot']
+    assert preflight_method(relay, monkeypatch)()['action'] == 'generate'
+    assert len(calls) == 1 and 'global.openai.gpt-5.6-luna' in calls[0]
+
+
+def test_preflight_422_carries_the_reason_code(relay, monkeypatch):
+    relay.args['settings']['classifier'] = None
+    body, status = preflight_method(relay, monkeypatch)()
+    assert status == 422
+    assert body == {'error': 'No Auto classifier model is configured', 'reason': 'CLASSIFIER_NOT_CONFIGURED'}
+
+
+def test_preflight_missing_or_malformed_classifier_is_reason_coded(relay, monkeypatch):
+    relay.models.clear()
+    body, status = preflight_method(relay, monkeypatch)()
+    assert status == 422
+    assert body['reason'] == 'CLASSIFIER_UNAVAILABLE'
+    relay.args['settings']['classifier']['name'] = 7
+    assert preflight_method(relay, monkeypatch)()[0]['reason'] == 'CLASSIFIER_NOT_CONFIGURED'
 
 
 def measured_request(relay, variant):

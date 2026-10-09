@@ -81,7 +81,7 @@ def test_multiple_pending_go_does_not_claim_an_intent_or_generate_router_text():
     class Gateway:
         def complete(self, *args, **kwargs):
             pytest.fail('Pending ambiguity classified')
-    router = GenerationRouter(Gateway())
+    router = GenerationRouter(Gateway(), 'luna-default')
     session = Session()
     for name in ('first', 'second'):
         session.register_pending({'id': name, 'status': 'awaiting_user'})
@@ -108,6 +108,6 @@ def test_uncertainty_cannot_escape_explicit_effort_or_available_pool():
 
 
 def test_product_revision_changes_without_mutating_ancestor_behavior():
-    ancestor = CalibratedRouter(object())
-    router = GenerationRouter(object())
+    ancestor = CalibratedRouter(object(), 'luna-default')
+    router = GenerationRouter(object(), 'luna-default')
     assert router.revision == ancestor.revision + '-model-owned-clarification-1'

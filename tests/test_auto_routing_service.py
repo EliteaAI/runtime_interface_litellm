@@ -11,14 +11,31 @@ from routing.service import resolve, decode_pin, RoutingUnavailable, PROFILE
 from routing.v7.catalog import compile_catalog
 
 
+# PLAN #6826 section 3.3: exact catalog name -> canonical identity (Configurations rules, copied).
+CANONICAL = {
+    'global.openai.gpt-5.6-luna': 'openai/gpt-5-6-luna', 'global.openai.gpt-5.6-sol': 'openai/gpt-5-6-sol',
+    'global.openai.gpt-5.6-terra': 'openai/gpt-5-6-terra', 'gpt-5.4': 'openai/gpt-5-4',
+    'gpt-5.4-mini': 'openai/gpt-5-4-mini', 'eu.anthropic.claude-haiku-4-5-20251001-v1:0': 'anthropic/claude-haiku-4-5',
+    'eu.anthropic.claude-sonnet-4-6': 'anthropic/claude-sonnet-4-6', 'eu.anthropic.claude-opus-4-7': 'anthropic/claude-opus-4-7',
+    'eu.anthropic.claude-opus-4-8': 'anthropic/claude-opus-4-8', 'eu.anthropic.claude-opus-5': 'anthropic/claude-opus-5'}
+
+
+def identity(canonical, contract='default', source='rule', kind='chat'):
+    vendor, family = canonical.split('/') if canonical else (None, None)
+    return {'version': 1, 'canonical': canonical, 'vendor': vendor, 'family': family, 'kind': kind,
+            'contract': contract, 'low_tier_hint': False, 'preview': False, 'source': source}
+
+
 def fixture():
     catalog = compile_catalog()
     # Retained V7 deployment fixture. V9 candidate admission has its own32k
     # inventory fixtures; discovering new contracts does not deploy them here.
     names = sorted({v['model'] for v in catalog['variants'].values() if not v.get('calibration_contract')})
-    return dict(project_id=7, user_id=2, settings={'enabled': True, 'revision': 'g1'},
+    return dict(project_id=7, user_id=2, settings={'enabled': True, 'revision': 'g1',
+            'classifier': {'name': 'global.openai.gpt-5.6-luna', 'project_id': 7, 'source': 'platform'}},
         signing_key='unit-test-only', now=100,
-        models=[{'name': n, 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000} for n in names],
+        models=[{'name': n, 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000,
+                 'identity': identity(CANONICAL[n])} for n in names],
         price_snapshot={'revision': 'p1', 'entries': [dict(model_name=n, input_cost_per_token='.000001',
             output_cost_per_token='.000002', cache_read_input_token_cost='.0000001',
             cache_creation_input_token_cost='.00000125') for n in names]})
@@ -62,7 +79,7 @@ def test_untrusted_creative_without_family_still_uses_conservative_baseline():
     from routing.v7.routing import rules
     desc=rules({'latest':{'text':'Tell me a joke about bears.'}})
     desc.pop('task_family')
-    chosen=CalibratedRouter(object()).select(desc)
+    chosen=CalibratedRouter(object(), 'luna-default').select(desc)
     assert chosen['variant']=='gpt54-medium'
     assert chosen['family_qualification']['status']=='insufficient_evidence_baseline'
 
@@ -115,9 +132,9 @@ def test_social_followup_no_classifier_and_same_run_work_stays_pinned():
 
 def test_social_revision_changes_policy_digest(monkeypatch):
     from routing.v7 import coordinator
-    first = coordinator.Router(object()).revision
+    first = coordinator.Router(object(), 'luna-default').revision
     monkeypatch.setattr(coordinator, 'SOCIAL_REVISION', 'different-grammar')
-    assert coordinator.Router(object()).revision != first
+    assert coordinator.Router(object(), 'luna-default').revision != first
 
 
 @pytest.mark.parametrize('change', [dict(project_id=8), dict(user_id=3), dict(now=3700), dict(settings={'enabled': False, 'revision': 'g1'}), dict(settings={'enabled': True, 'revision': 'g2'})])
@@ -176,7 +193,7 @@ def test_frozen_v7_policy_grid_parity():
     from routing.v7.candidate import CalibratedRouter
     fixture_path = Path(__file__).parent/'fixtures/v7-policy-parity.json'
     bank = json.loads(fixture_path.read_text())
-    router = CalibratedRouter(object(), catalog=bank['catalog'])
+    router = CalibratedRouter(object(), 'luna-default', catalog=bank['catalog'])
     for row in bank['cases']:
         try:
             result = router.select(row['descriptor'])
@@ -298,7 +315,7 @@ def test_compiled_router_reused_without_reusing_request_authority():
     from routing.service import compiled_router
     router = compiled_router()
     first = resolve(request(), complete=classifier_design, **fixture())
-    args = fixture();args['project_id'] = 9
+    args = fixture();args['project_id'] = 9;args['settings']['classifier']['project_id'] = 9
     for model in args['models']:
         model['project_id'] = 9
     second = resolve(request(), complete=classifier_design, **args)
