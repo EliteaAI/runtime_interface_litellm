@@ -9,17 +9,17 @@
     "routing.py": {
       "source": "autorouting_impl/poc/routing.py",
       "sha256": "5fe57360f055e4ba2cea83baa85d3824442a9f842c50875b037802a5093a914c",
-      "product_sha256": "bdbb58c25dfb31fb0ea15bbda3ef632658d274e021d8fff3d2ddb5b749eadf85"
+      "product_sha256": "8927cb18359eaeebe2e7e4a3bb3fee0cd35a6679c008719e25a0f27dc2ce3f6a"
     },
     "catalog.json": {
       "source": "autorouting_impl/poc/catalog.json",
       "sha256": "2b62b95673633a10b1233c06464545989ab323ef5dfc546f494d019821bc847a",
-      "product_sha256": "2b62b95673633a10b1233c06464545989ab323ef5dfc546f494d019821bc847a"
+      "product_sha256": "dce2b4ef080c00a3953083db7489c82d45e235b05ba68e997e21e757a327963b"
     },
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "cbed959cf79338c088280c806067ea736f0cc8367dbff6c79f9fb20f81e7cc26"
+      "product_sha256": "c2e78141e783e06a60f1bbeb9e7f1c53b38351e084c8d199e2256a7b902773aa"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
@@ -44,7 +44,7 @@
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "0dc8f2cec8dfd14e0e77f90e7cac97b1dce1a33c47e9b6a22d675b134f7e0fc0"
+      "product_sha256": "e1d290ab415bb0be4ab6bef56f0868899b1e401abe5d3baef106a5e5623186e7"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -88,21 +88,22 @@
     "V9 generated original calibration-only contracts retain all100cells;54full-family successes admitted for exact observed demand at provider default",
     "Per-variant measured output allowance and exact transport participate in live inventory admission, pricing and signed run binding",
     "Internal policy revision changes; old active pins reject and require a drained rollout while the public saved profile handle stays stable",
-    "V10 availability contract candidate: explicit source/status coherence, strict reason-coded rejection and bounded factual/current-information prompt clarification; no extra classifier call or lexical shortcut"
+    "V10 availability contract candidate: explicit source/status coherence, strict reason-coded rejection and bounded factual/current-information prompt clarification; no extra classifier call or lexical shortcut",
+    "#6826 variants declare canonical_model next to the exact measured name; live inventory joins by canonical identity with deterministic duplicate resolution; the classifier is the configured deployment supplied per request, not a catalog variant"
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
-    "economics.py": "c6b0ce8ea28765e58b1e45d7a36b06290613826727ff903b577a1350d3b589dd",
-    "calibration-v9.json": "f693d7ccc6cd422ce210f72f25a0d24590c2ce3ba38f6c0ace3d4b31e768ef0a",
+    "economics.py": "c33e29c40ca5e6c1d2e5567ed04ca1f63532655410a6749e0d40b0d1903d5797",
+    "calibration-v9.json": "0667d2ed76d1c9e90701d78611fdba832c04e20816a17e671d46b3fa1736b7b4",
     "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
-    "calibration-v12.json": "f1638c2af9a9033a822f98d973ec43261261e8b017d50f16209bbe5257b36f65",
+    "calibration-v12.json": "b8ccfb1ecdc2720af2001b78bc075853ddba9a6267f912af9f8ac2a0560cf559",
     "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d"
   },
   "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion",
   "calibration_compiler": {
     "path": "scripts/compile_v9_candidate.py",
-    "sha256": "ff37a90f6872f248c7dcfff85c8cf79366f25e2b0d160b2eb77fa607aba5a346",
+    "sha256": "24abbad3d90b123d82c082939439029e1c55b9b74a65d91ff292d5af6fc0057a",
     "source_sha256": "869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd"
   },
   "observation_compilers": {
@@ -115,7 +116,7 @@
   },
   "effort_compiler": {
     "path": "scripts/compile_v12_candidate.py",
-    "sha256": "df3b823ea90f0321a84793e3f5965e84cf2851d78c04fc3c3140c797715226cd",
+    "sha256": "da784f8fc6bee60a17dc2901a43d34ff8d4410af894f82bbb0e25c576e924a59",
     "source_sha256": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc"
   },
   "implementation_notes": [

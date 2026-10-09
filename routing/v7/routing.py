@@ -139,6 +139,9 @@ def validate_descriptor(value, view):
     return value
 
 
+CONFIGURED_CLASSIFIER = "configured-classifier"
+
+
 class Classifier:
     def __init__(self, gateway, variant="mini-low", system_prompt=None, catalog=None):
         self.gateway, self.variant = gateway, variant
@@ -146,7 +149,10 @@ class Classifier:
         self.catalog = catalog or CATALOG
 
     def classify(self, view):
-        config = self.catalog["variants"][self.variant]
+        # Product Auto names no catalog variant: its gateway supplies the exact
+        # configured deployment per request. Lab callers name a catalog variant.
+        config = (self.gateway.classifier_contract if self.variant == CONFIGURED_CLASSIFIER
+                  else self.catalog["variants"][self.variant])
         payload = [{"role": "system", "content": self.system_prompt},
                    {"role": "user", "content": json.dumps(view, ensure_ascii=False)}]
         result = self.gateway.complete(config["model"], payload, effort=config["effort"], max_tokens=900)

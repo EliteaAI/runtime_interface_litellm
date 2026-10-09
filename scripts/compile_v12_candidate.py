@@ -12,6 +12,12 @@ from collections import Counter
 from pathlib import Path
 
 OBSERVATION_SHA = '0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc'
+# Environment-independent identity the live inventory joins on (#6826); the
+# exact measured deployment name stays in `model`.
+CANONICAL_MODEL = {
+    'global.openai.gpt-5.6-sol': 'openai/gpt-5-6-sol', 'global.openai.gpt-5.6-terra': 'openai/gpt-5-6-terra',
+    'eu.anthropic.claude-opus-4-7': 'anthropic/claude-opus-4-7', 'eu.anthropic.claude-opus-4-8': 'anthropic/claude-opus-4-8',
+    'eu.anthropic.claude-opus-5': 'anthropic/claude-opus-5'}
 
 
 def sha(raw):
@@ -71,9 +77,9 @@ def compile_candidate(observations, source_sha, source_root=None):
         raise ValueError('Original outcomes changed')
     if len(observations['presets']) != 20 or len(observations['observations']) != 400:
         raise ValueError('Incomplete measured preset/family coverage')
-    variants = {name: {key: value[key] for key in (
+    variants = {name: {**{key: value[key] for key in (
         'model', 'effort', 'transport', 'requested_reasoning_fields',
-        'total_output_allowance', 'output_allowance_semantics')}
+        'total_output_allowance', 'output_allowance_semantics')}, 'canonical_model': CANONICAL_MODEL[value['model']]}
         for name, value in observations['presets'].items()}
     records = []
     seen = set()

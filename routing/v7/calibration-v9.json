@@ -4935,6 +4935,7 @@
   "variants": {
     "opus47-default": {
       "actual_effort": "provider_default_not_reported",
+      "canonical_model": "anthropic/claude-opus-4-7",
       "effort": null,
       "model": "eu.anthropic.claude-opus-4-7",
       "total_output_allowance": 32000,
@@ -4942,6 +4943,7 @@
     },
     "opus48-default": {
       "actual_effort": "provider_default_not_reported",
+      "canonical_model": "anthropic/claude-opus-4-8",
       "effort": null,
       "model": "eu.anthropic.claude-opus-4-8",
       "total_output_allowance": 32000,
@@ -4949,6 +4951,7 @@
     },
     "opus5-default": {
       "actual_effort": "provider_default_not_reported",
+      "canonical_model": "anthropic/claude-opus-5",
       "effort": null,
       "model": "eu.anthropic.claude-opus-5",
       "total_output_allowance": 32000,
@@ -4956,6 +4959,7 @@
     },
     "sol-default": {
       "actual_effort": "provider_default_not_reported",
+      "canonical_model": "openai/gpt-5-6-sol",
       "effort": null,
       "model": "global.openai.gpt-5.6-sol",
       "total_output_allowance": 32000,
@@ -4963,6 +4967,7 @@
     },
     "terra-default": {
       "actual_effort": "provider_default_not_reported",
+      "canonical_model": "openai/gpt-5-6-terra",
       "effort": null,
       "model": "global.openai.gpt-5.6-terra",
       "total_output_allowance": 32000,

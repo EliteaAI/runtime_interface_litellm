@@ -55,22 +55,58 @@ def validate_binding(binding, models, project_id):
     return current
 
 
-def qualified_inventory(models, catalog):
-    """Join live inventory to evidence; unmeasured models stay visible/excluded."""
-    cards = {}
-    for variant, contract in catalog['variants'].items():
-        cards.setdefault(contract['model'], []).append(variant)
-    available, exclusions = {}, []
+def _joins(model, variant):
+    """Canonical identity joins a measured contract; legacy items join by exact name."""
+    identity = model.get('identity')
+    if not isinstance(identity, dict):
+        return model['name'] == variant['model']
+    contract = identity.get('contract', 'default')
+    # D6: provider-default variants take default deployments only; effort
+    # variants may use either. A web-search tool contract never joins Auto.
+    return (identity.get('canonical') is not None and identity['canonical'] == variant.get('canonical_model')
+            and identity.get('kind') == 'chat'
+            and contract in ({'default'} if variant.get('effort') is None else {'default', 'reasoning'}))
+
+
+def select_deployment(candidates, variant, *, project_id=None):
+    """Deterministic winner among deployments of one canonical model (#6826 3.4):
+    explicit identity, project-owned, preferred contract, shortest, lexicographic."""
+    preferred = 'default' if variant.get('effort') is None else 'reasoning'
+    def key(model):
+        identity = model.get('identity') if isinstance(model.get('identity'), dict) else {}
+        return (identity.get('source') != 'explicit', model['project_id'] != project_id,
+                identity.get('contract', 'default') != preferred, len(model['name']), model['name'])
+    return min(candidates, key=key)
+
+
+def qualified_inventory(models, catalog, *, project_id=None):
+    """Join live inventory to evidence; unmeasured models stay visible/excluded.
+
+    One deployment is bound per measured variant; same-canonical losers are
+    listed, never merged. Discovering a model never invents its qualification.
+    """
+    joined, candidates, exclusions = {}, {}, []
     for name, model in models.items():
-        reason = model.get('exclusion_reason') if model.get('available') is False else None
+        entry = {'model': name, 'model_project_id': model['project_id']}
         if model.get('available') is False:
-            reason = reason or 'CONFIGURATION_UNAVAILABLE'
-        elif name not in cards:
-            reason = 'NO_CALIBRATED_MODEL_CONTRACT'
-        if reason:
-            exclusions.append({'model': name, 'model_project_id': model['project_id'], 'reason': reason})
-        else:
-            available.update({variant: model for variant in cards[name]})
+            exclusions.append({**entry, 'reason': model.get('exclusion_reason') or 'CONFIGURATION_UNAVAILABLE'})
+            continue
+        joined[name] = [vid for vid, variant in catalog['variants'].items() if _joins(model, variant)]
+        if not joined[name]:
+            identity = model.get('identity')
+            if isinstance(identity, dict) and identity.get('canonical') is None:
+                entry['identity_source'] = 'unresolved'
+            exclusions.append({**entry, 'reason': 'NO_CALIBRATED_MODEL_CONTRACT'})
+        for vid in joined[name]:
+            candidates.setdefault(vid, []).append(model)
+    winners = {vid: select_deployment(group, catalog['variants'][vid], project_id=project_id)
+               for vid, group in candidates.items()}
+    # Retain inventory order, then catalog order, for every downstream tie-break.
+    available = {vid: models[name] for name in joined for vid in joined[name] if winners[vid] is models[name]}
+    for name, variants in joined.items():
+        if variants and not any(winners[vid] is models[name] for vid in variants):
+            exclusions.append({'model': name, 'model_project_id': models[name]['project_id'],
+                               'reason': 'DUPLICATE_CANONICAL_DEPLOYMENT', 'selected': winners[variants[0]]['name']})
     return available, exclusions
 
 

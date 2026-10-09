@@ -10,6 +10,11 @@ from pathlib import Path
 
 SOURCE_SHA256 = '869c7592376cf547ebb03c3b293b8284622e47e2727dbb8d9ec1a104340a07dd'
 DEMANDS = ('simple', 'standard', 'deep')
+# Environment-independent identity the live inventory joins on (#6826).
+CANONICAL_MODEL = {
+    'global.openai.gpt-5.6-sol': 'openai/gpt-5-6-sol', 'global.openai.gpt-5.6-terra': 'openai/gpt-5-6-terra',
+    'eu.anthropic.claude-opus-4-7': 'anthropic/claude-opus-4-7', 'eu.anthropic.claude-opus-4-8': 'anthropic/claude-opus-4-8',
+    'eu.anthropic.claude-opus-5': 'anthropic/claude-opus-5'}
 
 
 def compile_candidate(source, source_sha256):
@@ -36,6 +41,7 @@ def compile_candidate(source, source_sha256):
             'eligible_local_beta': supported,
             'tasks': [{k: t[k] for k in ('task_id', 'status', 'difficulty', 'source_sha256')} for t in tasks]})
         identity = {k: row[k] for k in ('model', 'effort', 'actual_effort', 'transport', 'total_output_allowance')}
+        identity['canonical_model'] = CANONICAL_MODEL[row['model']]
         existing = variants.setdefault(row['variant'], identity)
         if existing != identity:
             raise ValueError('Variant contract changes between families')

@@ -26,7 +26,7 @@ def descriptor(family, demand, effort='low'):
 @pytest.mark.parametrize('row', DATA['records'], ids=lambda r: r['variant']+'-'+r['family'])
 @pytest.mark.parametrize('demand', ['simple', 'standard', 'deep'])
 def test_all_cells_use_unchanged_full_family_outcomes_and_observed_demand(row, demand):
-    router = CalibratedRouter(object())
+    router = CalibratedRouter(object(), 'luna-default')
     result = router.select(descriptor(row['family'], demand), allowed=['gpt54-high', row['variant']])
     assert (result['variant'] == row['variant']) == (row['eligible_local_beta'] and demand in row['demand_coverage'])
     if result['variant'] == row['variant']:

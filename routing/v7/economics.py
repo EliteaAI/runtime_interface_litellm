@@ -34,7 +34,8 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
     comparable=bool(eligible) and all(forecasts.values())
     for vid in eligible:
         variant_cap = getattr(gateway, 'output_caps', {}).get(vid, cap)
-        model = catalog['variants'][vid]['model']
+        # Price the live deployment bound to this measured variant (#6826).
+        model = getattr(gateway, 'deployments', {}).get(vid, catalog['variants'][vid]['model'])
         cold = gateway.prices.quote(model, Tokens(size, variant_cap))
         # V7's upper scenario includes a cache miss/write, without assuming a hit.
         write = (cold if catalog['variants'][vid].get('cache_write_mode') == 'ordinary_input'
