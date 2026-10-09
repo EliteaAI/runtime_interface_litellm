@@ -10,11 +10,12 @@ from .routing import Coordinator,Classifier,CLASSIFIER_SYSTEM,DEMAND,unknown,CAT
 from .retrieval import build,bounded,digest
 from .protocol import SYSTEM
 from .lexical import guarded_rules
-from .state import Session,observe_cache
+from .state import Session,observe_cache,CACHE_STATE_REVISION
 from .economics import rank
 from .catalog import compile_catalog,QualificationSnapshot
 from .social import REVISION as SOCIAL_REVISION
 from .mechanical import REVISION as MECHANICAL_REVISION
+from .task_continuity import REVISION as CONTINUITY_REVISION
 
 EFFORT_SYSTEM='''
 Also include effort_need="low|medium|high". This describes a requested reasoning
@@ -42,13 +43,20 @@ class DispatchClassifier:
 
 class Router(Coordinator):
     supports_request_contract=True
-    def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
+    def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None,
+                 lexical_scorer=None,lexical_mode='shadow'):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
-        self.revision='v6-'+digest({'algorithm_revision':5,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
+        self.revision='v6-'+digest({'algorithm_revision':'6-context-r25-scoped-instructions','continuity_revision':CONTINUITY_REVISION,'cache_state_revision':CACHE_STATE_REVISION,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
             'classifier_protocol':CLASSIFIER_SYSTEM+SYSTEM+EFFORT_SYSTEM})[:12]
+        if lexical_mode not in {'shadow','enabled'}:
+            raise ValueError('Unknown learned lexical mode')
+        if lexical_mode=='enabled' and (lexical_scorer is None or lexical_scorer.artifact.get('promotion_allowed') is not True):
+            raise ValueError('Learned bypass requires a validated enablement artifact')
+        self.lexical_scorer=lexical_scorer;self.lexical_mode=lexical_mode
+        if lexical_scorer is not None:self.revision+='-lexical-'+digest({'artifact':lexical_scorer.artifact,'mode':lexical_mode})[:12]
         self.local=ContextVar('routing_request_'+str(id(self)),default=None)
-        self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=guarded_rules
+        self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=self._lexical_rules
         self.classifier=DispatchClassifier(gateway,classifier_variant,self.catalog)
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
@@ -66,14 +74,34 @@ class Router(Coordinator):
     def _view(self,messages,hint):
         ctx=self.local.get()
         view,resolution=build(messages,hint,ctx['session'].index,epoch=ctx['session'].epoch,
-            max_bytes=ctx['view_bytes'],force_sources=ctx.get('force_sources',()))
+            max_bytes=ctx['view_bytes'],force_sources=ctx.get('force_sources',()),
+            active_instructions=getattr(self.gateway,'runtime_context',{}).get('active_instructions'))
         if ctx.get('pending_task'):
             view['pending_task']=copy.deepcopy(ctx['pending_task'])
+        tasks,omitted=ctx['session'].pending_index(messages,self.revision)
+        if tasks or omitted:
+            view['pending_tasks']=tasks;view['pending_tasks_omitted']=omitted
         if (getattr(self.gateway,'runtime_context',{}).get('active_instructions') or {}).get('text'):
             resolution={**resolution,'status':'ranked','candidates':[],'method':'Active Agent instructions require classification'}
         ctx['resolution']=resolution
         view['reference_resolution']=copy.deepcopy(resolution)
+        if self.lexical_scorer is not None:
+            start=time.perf_counter()
+            flags={'has_history':len(messages)>1,'has_tools':bool(ctx['tools']),
+                   'pending_count':len(tasks)+omitted,
+                   'has_active_instructions':bool((getattr(self.gateway,'runtime_context',{}).get('active_instructions') or {}).get('text'))}
+            proposal=self.lexical_scorer.propose(view['latest']['text'],flags)
+            ctx['lexical_proposal']={**proposal,'mode':self.lexical_mode,
+                                     'cpu_ms':(time.perf_counter()-start)*1000,'used':False}
         return view
+
+    def _lexical_rules(self,view):
+        result=guarded_rules(view)
+        proposal=(self.local.get() or {}).get('lexical_proposal')
+        if result['needs_context'] and proposal and proposal['accepted'] and self.lexical_mode=='enabled':
+            proposal['used']=True
+            return copy.deepcopy(proposal['descriptor'])
+        return result
 
     def _preprocess(self,messages,view):
         return view,view['reference_resolution']
@@ -81,15 +109,39 @@ class Router(Coordinator):
     def resolve(self,messages,*,mode='economic',binding=None,hint=None,previous=None,scope=None,allowed=None,
                 min_demand='simple',session=None,output_cap=None,tools=None,view_bytes=24000,
                 access_revision='local-authorized-v1',trusted_role=None,task_family=None,task_contract='text-tools-v1'):
+        scope_gap = None
+        configured_scope = False
+        if self.catalog.get('configured_selection_policy'):
+            from ..selection_policy import covers
+            configured_scope = covers(self.catalog['configured_selection_policy'], task_contract, messages, tools)
+        if self.catalog.get('request_scope'):
+            from .calibration_scope import check_request_scope
+            try:
+                check_request_scope(self.catalog['request_scope'], task_contract, messages, tools)
+            except ValueError as exc:
+                fallback = self.catalog['variants'].get(getattr(self, 'coverage_fallback_variant', None), {})
+                supported_gaps = {'native tool schema differs', 'conversation turn bound exceeded',
+                                  'prior tool history is not calibrated',
+                                  'isolated calibration does not cover conversation history'}
+                if (not (fallback.get('configured_fallback_contract') or configured_scope)
+                        or str(exc) not in {'Unmeasured execution envelope: '+reason for reason in supported_gaps}):
+                    raise
+                scope_gap = str(exc)
         hint=copy.deepcopy(hint or {'kind':'chat_turn'})
         cap=output_cap if output_cap is not None else hint.get('generation_output_cap',8000)
-        if type(cap)is not int or not 256<=cap<=32000:raise ValueError('Completion ceiling must be 256–32000')
+        if type(cap)is not int or cap<1:raise ValueError('Completion allowance must be a positive integer')
         if type(view_bytes)is not int or not 6000<=view_bytes<=64000:raise ValueError('Classifier view budget outside bounds')
         session=session or getattr(scope,'routing_session',None) or Session()
         if scope is not None and not hasattr(scope,'routing_session'):scope.routing_session=session
         if not (scope and scope.decision) and (not binding or binding.get('mode')!='fixed'):
             session.prepare(messages,access_revision)
-        ctx={'session':session,'cap':cap,'tools':tools,'view_bytes':view_bytes,'trusted_role':trusted_role,'task_contract':task_contract}
+        ctx={'session':session,'cap':cap,'tools':tools,'view_bytes':view_bytes,'trusted_role':trusted_role,'task_contract':task_contract,
+             'unmeasured_scope':scope_gap, 'configured_scope':configured_scope,
+             'quality_request_scope': {'id': task_contract,
+                 'user_turns': sum(m.get('role') == 'user' for m in messages),
+                 'has_history': (sum(m.get('role') == 'user' for m in messages) > 1
+                     or any(m.get('role') in ('assistant', 'tool') for m in messages)),
+                 'has_tools': bool(tools or any(m.get('role') == 'tool' for m in messages))}}
         if task_family:ctx['task_family']=task_family
         token=self.local.set(ctx)
         try:
@@ -104,6 +156,7 @@ class Router(Coordinator):
             if cap>pinned:raise ValueError('Child completion ceiling exceeds the root pin contract')
             decision.setdefault('budget',{'completion_cap':cap,'classifier_view_bytes':view_bytes})
             decision['policy_revision']=self.revision;decision['session_id']=session.id
+            if ctx.get('lexical_proposal') is not None:decision['lexical_proposal']=copy.deepcopy(ctx['lexical_proposal'])
             # The full manifest stays in session/checkpoint state. The trace is
             # compact; generation still receives every original tool response.
             if messages and messages[-1].get('role')=='user':
@@ -135,9 +188,18 @@ class Router(Coordinator):
         decision=super()._resolve(messages,effective_mode,binding,hint,previous,allowed,min_demand)
         decision['budget']={'completion_cap':ctx['cap'],'classifier_view_bytes':ctx['view_bytes']}
         if decision.get('action')!='clarify' and mode=='economic':
-            decision['selection']=rank(decision['selection'],messages,self.catalog,session=session,gateway=self.gateway,
-                cap=ctx['cap'],tools=ctx['tools'],previous=previous)
+            decision['selection']=self._rank_selection(decision,messages,previous,allowed,min_demand)
         if pending and 'intent' in pending and decision.get('action')!='clarify':
             if not session.claim_pending(pending['intent']['id']):raise ValueError('Pending task is already claimed')
             decision['pending_intent_id']=pending['intent']['id']
+        elif decision.get('action')!='clarify':
+            link=(decision.get('descriptor') or {}).get('task_continuity') or {}
+            if link.get('action')=='resume':
+                if not session.claim_pending(link['task_id']):raise ValueError('Pending task is already claimed')
+                decision['pending_intent_id']=link['task_id']
         return decision
+
+    def _rank_selection(self, decision, messages, previous, allowed, min_demand):
+        ctx = self.local.get()
+        return rank(decision['selection'], messages, self.catalog, session=ctx['session'],
+                    gateway=self.gateway, cap=ctx['cap'], tools=ctx['tools'], previous=previous)

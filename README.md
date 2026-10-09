@@ -8,6 +8,11 @@ context retrieval, richer classifier properties and comparable expenditure
 ranking. See the [current implementation and rollout contract](routing/V12-IMPLEMENTATION.md).
 The V9 description below is retained as historical provenance and replay guidance.
 
+The opt-in [version 4 development quality policy](routing/QUALITY-DEVELOPMENT-V4.md)
+separates observed development support from release confidence and requires
+comparable validated total-usage forecasts before economic ranking. It preserves
+known exact-scope negatives and leaves existing policy versions unchanged.
+
 Auto remains off by default, with the saved public handle `v7-quality-cost` revision 1.
 The live inventory comes from authenticated Configurations: current-project models
 plus shared public-project models. A current-project definition shadows only the

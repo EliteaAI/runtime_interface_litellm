@@ -7,14 +7,16 @@ Authored instructions, pending work and modality checks belong to the caller.
 import re
 import unicodedata
 
-REVISION = "social-grammar-v1"
+REVISION = "social-grammar-v3"
 MAX_CHARS = 240
 MAX_PHRASES = 6
 SEPARATOR = re.compile(r"[\s,.!?;:]+")
 PHRASES = (
+    ("greeting_request", r"(?:please )?(?:give|write|say) (?:me )?(?:a|one) (?:(?:brief|short|friendly) )?greeting(?: please)?"),
     ("greeting", r"(?:good (?:morning|afternoon|evening)|hello(?: there)?|hi(?: there)?|hey(?: there)?|greetings|howdy)"),
     ("wellbeing", r"(?:how are you(?: doing)?|how is it going|how's it going|how are things|how do you do|what's up)"),
     ("status", r"(?:(?:i am|i'm|im) (?:(?:doing|feeling) )?(?:pretty good|all right|alright|fine|okay|ok|good|great|well)|(?:doing|feeling) (?:fine|good|great|well)|not bad)"),
+    ("short_status", r"(?:pretty good|all right|alright|fine|okay|ok|good|great|well)"),
     ("thanks", r"(?:thank you|thanks)(?: (?:so much|very much|a lot))?(?: for (?:your help|the help|asking))?"),
     ("farewell", r"(?:goodbye|bye(?: bye)?|see you(?: later| soon)?|have a (?:good|great|nice) (?:day|evening|weekend)|take care)"),
     ("courtesy", r"(?:you are welcome|you're welcome|my pleasure)"),
@@ -51,6 +53,8 @@ def match_social(text):
             if separator is None:
                 return None
             position = separator.end()
-    if "reciprocal" in kinds and not set(kinds) & {"status", "wellbeing"}:
+    if "short_status" in kinds and "reciprocal" not in kinds:
+        return None  # Bare Good/OK can approve a pending task.
+    if "reciprocal" in kinds and not set(kinds) & {"status", "short_status", "wellbeing"}:
         return None
     return tuple(kinds) if kinds else None
