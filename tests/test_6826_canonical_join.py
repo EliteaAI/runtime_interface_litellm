@@ -232,3 +232,31 @@ def test_trace_records_price_match_kind():
 ])
 def test_vendor_comes_from_identity_when_present(model, variant, expected):
     assert is_anthropic(model, variant) is expected
+
+
+@pytest.mark.parametrize('why,reason,message', [
+    ({'code': 'CLASSIFIER_UNAVAILABLE', 'message': 'Classifier model luna is no longer available to this project',
+      'model': {'name': 'luna', 'project_id': 2}}, 'CLASSIFIER_UNAVAILABLE',
+     'Classifier model luna is no longer available to this project'),
+    ({'code': 'CLASSIFIER_NOT_CHAT', 'message': 'Classifier model embed is not a chat model', 'model': None},
+     'CLASSIFIER_NOT_CHAT', 'Classifier model embed is not a chat model'),
+    ({'code': 'CLASSIFIER_NOT_CONFIGURED', 'message': 'No classifier is selected', 'model': None},
+     'CLASSIFIER_NOT_CONFIGURED', 'No classifier is selected'),
+    (None, 'CLASSIFIER_NOT_CONFIGURED', 'No Auto classifier model is configured'),
+    ({'code': 'SOMETHING_ELSE', 'message': 'Untrusted code'}, 'CLASSIFIER_NOT_CONFIGURED',
+     'No Auto classifier model is configured'),
+])
+def test_unresolved_classifier_passes_configurations_reason_through(why, reason, message):
+    args = fixture()
+    args['settings'].update(classifier=None, classifier_reason=why)
+    with pytest.raises(RoutingUnavailable) as raised:
+        resolve(request(), complete=lambda *a, **k: pytest.fail('No classifier call'), **args)
+    assert (raised.value.reason, str(raised.value)) == (reason, message)
+
+
+def test_older_configurations_without_classifier_reason_keeps_not_configured_text():
+    args = fixture()
+    args['settings']['classifier'] = None
+    with pytest.raises(RoutingUnavailable) as raised:
+        resolve(request(), complete=lambda *a, **k: pytest.fail('No classifier call'), **args)
+    assert (raised.value.reason, str(raised.value)) == ('CLASSIFIER_NOT_CONFIGURED', 'No Auto classifier model is configured')

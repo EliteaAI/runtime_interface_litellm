@@ -254,3 +254,11 @@ def test_settings_fall_back_to_older_configurations_signature(relay, monkeypatch
         lambda project: calls.append(project) or relay.args['settings'])
     assert preflight_method(relay, monkeypatch)()['action'] == 'generate'
     assert calls == [7]
+
+
+def test_preflight_422_passes_configurations_classifier_reason(relay, monkeypatch):
+    relay.args['settings'].update(classifier=None, classifier_reason={
+        'code': 'CLASSIFIER_UNAVAILABLE', 'message': 'Classifier model luna is no longer available to this project',
+        'model': {'name': 'luna', 'project_id': 1}})
+    assert preflight_method(relay, monkeypatch)() == ({
+        'error': 'Classifier model luna is no longer available to this project', 'reason': 'CLASSIFIER_UNAVAILABLE'}, 422)

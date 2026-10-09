@@ -22,6 +22,7 @@ from .inventory import effective_models, model_binding, validate_binding, qualif
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
 PIN_HEADER = 'X-Elitea-Routing-Pin'
+CLASSIFIER_REASONS = {'CLASSIFIER_NOT_CONFIGURED', 'CLASSIFIER_UNAVAILABLE', 'CLASSIFIER_NOT_CHAT'}
 
 
 class RoutingUnavailable(ValueError):
@@ -289,6 +290,11 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     # never request text or a catalog literal. Missing settings fail closed.
     ref = settings.get('classifier')
     if not isinstance(ref, dict) or not isinstance(ref.get('name'), str) or type(ref.get('project_id')) is not int:
+        # Configurations explains why nothing resolved; older plugins omit it.
+        why = settings.get('classifier_reason') if ref is None else None
+        if (isinstance(why, dict) and why.get('code') in CLASSIFIER_REASONS
+                and isinstance(why.get('message'), str) and why['message']):
+            raise RoutingUnavailable(why['message'][:512], why['code'])
         raise RoutingUnavailable('No Auto classifier model is configured', 'CLASSIFIER_NOT_CONFIGURED')
     classifier = visible.get(ref['name'])
     if (classifier is None or classifier['project_id'] != ref['project_id'] or classifier.get('available') is False
