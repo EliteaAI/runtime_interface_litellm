@@ -32,6 +32,15 @@ class RoutingUnavailable(ValueError):
         self.reason = reason
 
 
+def auto_routing_settings(rpc, project_id, user_id):
+    """Actor-resolved settings: the classifier and `revision` depend on the actor's
+    inventory (#6826), so resolve, renewal and relay checks pass the same actor."""
+    try:
+        return rpc.configurations_get_auto_routing_settings(project_id, user_id=user_id)
+    except TypeError:
+        return rpc.configurations_get_auto_routing_settings(project_id)  # Configurations before #6826.
+
+
 def is_anthropic(model, variant):
     identity = model.get('identity')
     if isinstance(identity, dict):

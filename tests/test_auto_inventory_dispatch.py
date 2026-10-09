@@ -16,10 +16,11 @@ def relay(monkeypatch):
     args = fixture(); args['user_id'] = 42
     args.pop('now')
     models = args['models']
-    seen = []
+    seen, settings_calls = [], []
     rpc = types.SimpleNamespace(
         projects_get_personal_project_id=lambda user: 7,
-        configurations_get_auto_routing_settings=lambda project: args['settings'],
+        configurations_get_auto_routing_settings=lambda project, user_id=None: (
+            settings_calls.append((project, user_id)) or args['settings']),
         configurations_get_routing_models=lambda project, user: (
             seen.append((project, user)) or {'items': models, 'revision': 'test'}),
         costs_get_routing_prices=lambda names: args['price_snapshot'],
@@ -41,7 +42,7 @@ def relay(monkeypatch):
     lookup = Mock(return_value={'available': True})
     method.service_node = types.SimpleNamespace(call=types.SimpleNamespace(litellm_api_call=lookup))
     return types.SimpleNamespace(proxy=proxy, args=args, models=models, method=method, context=context, vault=vault,
-                                 keys=keys, seen=seen, lookup=lookup, metering=metering)
+                                 keys=keys, seen=seen, lookup=lookup, metering=metering, settings_calls=settings_calls)
 
 
 def signed_request(relay):
@@ -223,3 +224,33 @@ def test_parameter_drops_cannot_change_measured_auto_contract(relay,preset,field
     assert relay.method.prepare_request(target,{'type':'token','user':{'id':42,'name':'user'}})[1]==409
     relay.lookup.assert_not_called()
     relay.metering.assert_not_called()
+
+
+def test_resolve_and_relay_read_settings_for_the_same_actor(relay, monkeypatch):
+    # Configurations resolves the classifier per actor; `revision` covers it.
+    rpc = relay.context.rpc_manager.timeout(10)
+    def settings(project, user_id=None):
+        relay.settings_calls.append((project, user_id))
+        return {**relay.args['settings'], 'revision': f'g-{user_id}'}
+    rpc.configurations_get_auto_routing_settings = settings
+    result = preflight_method(relay, monkeypatch)()
+    config = result['config']
+    target = {'endpoint': '/v1/chat/completions', 'headers': relay.proxy.Headers({
+        'X-Elitea-Routing-Pin': result['pin'], 'X-Elitea-Routing-Invocation': 'a'*64}),
+        'json': {'model': config['model_name'], 'reasoning_effort': config['reasoning_effort'],
+                 'max_tokens': config['max_tokens']}, 'data': None}
+    assert relay.method.prepare_request(target, {'type': 'token', 'user': {'id': 42, 'name': 'user'}}) is None
+    assert relay.settings_calls == [(7, 42), (7, 42)]
+    # A revision computed for another actor (or none) never renews this pin.
+    rpc.configurations_get_auto_routing_settings = lambda project, user_id=None: {
+        **relay.args['settings'], 'revision': 'g-None'}
+    target['headers'] = relay.proxy.Headers({'X-Elitea-Routing-Pin': result['pin'], 'X-Elitea-Routing-Invocation': 'a'*64})
+    assert relay.method.prepare_request(target, {'type': 'token', 'user': {'id': 42, 'name': 'user'}})[1] == 409
+
+
+def test_settings_fall_back_to_older_configurations_signature(relay, monkeypatch):
+    calls = []
+    relay.context.rpc_manager.timeout(10).configurations_get_auto_routing_settings = (
+        lambda project: calls.append(project) or relay.args['settings'])
+    assert preflight_method(relay, monkeypatch)()['action'] == 'generate'
+    assert calls == [7]

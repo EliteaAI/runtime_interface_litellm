@@ -3,7 +3,8 @@ import copy
 import json
 from pylon.core.tools import web
 from tools import context, VaultClient
-from ..routing.service import resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router
+from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router,
+                               auto_routing_settings)
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
 
@@ -24,7 +25,7 @@ class Method:
     @web.method()
     def resolve_auto_routing(self, proxy_target, proxy_auth):
         project_id = proxy_auth['project_id']
-        settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+        settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, proxy_auth['user']['id'])
         if proxy_target['method'] == 'GET':
             return {'enabled': bool(settings['enabled']), 'profile_ref': PROFILE,
                     'surfaces': ['chat', 'agent'], 'revision': settings['revision']}

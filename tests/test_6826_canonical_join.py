@@ -163,12 +163,13 @@ def test_uncalibrated_low_tier_model_can_classify():
     args['models'].append({'name': 'claude-haiku-5-5@default', 'project_id': 1, 'shared': True,
                            'identity': identity('anthropic/claude-haiku-5-5')})
     args['price_snapshot']['entries'].append(dict(args['price_snapshot']['entries'][0], model_name='claude-haiku-5-5@default'))
-    args['settings']['classifier'] = {'name': 'claude-haiku-5-5@default', 'project_id': 1, 'source': 'project'}
+    args['settings']['classifier'] = {'name': 'claude-haiku-5-5@default', 'project_id': 1, 'source': 'project_low_tier'}
     calls = []
     result = resolve(request('Design recovery durability.'),
                      complete=lambda model, *a, **k: calls.append(model) or classifier_design(), **args)
     assert calls == ['claude-haiku-5-5@default']
-    assert result['trace']['classifier']['deployment']['project_id'] == 1
+    assert result['trace']['classifier']['deployment'] == {
+        'name': 'claude-haiku-5-5@default', 'project_id': 1, 'source': 'project_low_tier'}
 
 
 def no_classifier_key(args):

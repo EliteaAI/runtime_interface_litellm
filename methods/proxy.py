@@ -410,9 +410,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             proxy_target['headers'].remove('X-Elitea-Routing-Invocation')
             auto_binding = proxy_auth.get('_auto_model_binding')
             if routing_pin:
-                from ..routing.service import decode_pin, RoutingUnavailable
+                from ..routing.service import decode_pin, RoutingUnavailable, auto_routing_settings
                 try:
-                    settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+                    settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, user_id)
                     pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
                     if routing_invocation != pin.get('invocation_id'):
                         raise RoutingUnavailable('Routing invocation mismatch')
