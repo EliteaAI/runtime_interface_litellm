@@ -25,7 +25,7 @@ def CalibratedRouter(*args, **kwargs):
 def retained_v9_policy(monkeypatch):
     # Reproduce the historical candidate explicitly; V12 has a separate suite.
     import routing.service as service
-    router = service.GenerationRouter(service.ClassifierTransport(), catalog=compile_catalog('v9'))
+    router = service.GenerationRouter(service.ClassifierTransport(), service.CONFIGURED_CLASSIFIER, catalog=compile_catalog('v9'))
     monkeypatch.setattr(service, 'compiled_router', lambda: router)
 
 
@@ -77,7 +77,7 @@ def test_generated_evidence_keeps_all_original_failures_unknowns_and_bounds():
 @pytest.mark.parametrize('row', DATA['records'], ids=lambda r: r['variant']+'-'+r['family'])
 @pytest.mark.parametrize('demand', ['simple','standard','deep'])
 def test_every_cell_requires_full_family_success_and_exact_observed_demand(row,demand):
-    chosen = CalibratedRouter(object()).select(descriptor(row['family'], demand),
+    chosen = CalibratedRouter(object(), 'luna-default').select(descriptor(row['family'], demand),
         allowed=['gpt54-high', row['variant']])
     expected = row['eligible_local_beta'] and demand in row['demand_coverage']
     assert (chosen['variant'] == row['variant']) == expected
@@ -90,7 +90,7 @@ def test_every_cell_requires_full_family_success_and_exact_observed_demand(row,d
     {'needs_context':True}, {'relation':'ambiguous'}, {'operation':'greeting'}])
 def test_uncertain_or_social_descriptors_never_gain_new_default_fallback(change):
     desc=descriptor();desc.update(change)
-    chosen=CalibratedRouter(object()).select(desc,allowed=['gpt54-high','sol-default'])
+    chosen=CalibratedRouter(object(), 'luna-default').select(desc,allowed=['gpt54-high','sol-default'])
     assert chosen['variant']=='gpt54-high'
 
 

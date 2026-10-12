@@ -140,7 +140,7 @@ def test_active_instructions_second_budget_keeps_selected_history_pair():
     instructions='Verify durability against every supplied requirement. '*55
     gateway=SimpleNamespace(complete=classify,runtime_context={'active_instructions':{
         'text':instructions,'revision':'fixture','total_chars':len(instructions),'truncated':False}})
-    result=GenerationRouter(gateway).resolve(distraction_history(),view_bytes=6000,allowed=['gpt54-high'])
+    result=GenerationRouter(gateway, 'luna-default').resolve(distraction_history(),view_bytes=6000,allowed=['gpt54-high'])
     assert result['selection']['variant'] == 'gpt54-high'
     assert len(packets) == 1 and size(packets[0]) <= 6000
     assert packets[0]['active_instructions']['text'] == instructions

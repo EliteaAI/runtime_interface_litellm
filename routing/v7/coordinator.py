@@ -42,7 +42,7 @@ class DispatchClassifier:
 
 class Router(Coordinator):
     supports_request_contract=True
-    def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
+    def __init__(self,gateway,classifier_variant,*,catalog=None,qualifications=None):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
         self.revision='v6-'+digest({'algorithm_revision':5,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,

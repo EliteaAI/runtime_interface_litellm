@@ -15,17 +15,38 @@ from .pricing import PriceBook, Tokens
 from .context import read_context, digest, context_revision
 from .v7.catalog import compile_catalog
 from .v7.candidate import CalibratedRouter
-from .v7.routing import GatewayError
+from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
 PIN_HEADER = 'X-Elitea-Routing-Pin'
+CLASSIFIER_REASONS = {'CLASSIFIER_NOT_CONFIGURED', 'CLASSIFIER_UNAVAILABLE', 'CLASSIFIER_NOT_CHAT'}
 
 
 class RoutingUnavailable(ValueError):
-    pass
+    """`reason` is a stable code for product-visible failures (#6826), else None."""
+
+    def __init__(self, message, reason=None):
+        super().__init__(message)
+        self.reason = reason
+
+
+def auto_routing_settings(rpc, project_id, user_id):
+    """Actor-resolved settings: the classifier and `revision` depend on the actor's
+    inventory (#6826), so resolve, renewal and relay checks pass the same actor."""
+    try:
+        return rpc.configurations_get_auto_routing_settings(project_id, user_id=user_id)
+    except TypeError:
+        return rpc.configurations_get_auto_routing_settings(project_id)  # Configurations before #6826.
+
+
+def is_anthropic(model, variant):
+    identity = model.get('identity')
+    if isinstance(identity, dict):
+        return identity.get('vendor') == 'anthropic'
+    return any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
 
 
 class RoutingAdmissionDenied(Exception):
@@ -95,6 +116,14 @@ class ClassifierTransport:
     def runtime_context(self):
         return _REQUEST.get().get("runtime_context", {})
 
+    @property
+    def classifier_contract(self):
+        return _REQUEST.get()['classifier']
+
+    @property
+    def deployments(self):
+        return _REQUEST.get().get('deployments', {})
+
     def complete(self, model, messages, *, effort=None, max_tokens=900):
         try:
             return _REQUEST.get()['complete'](model, messages, effort=effort, max_tokens=max_tokens)
@@ -129,7 +158,7 @@ class GenerationRouter(CalibratedRouter):
 def compiled_router():
     # Immutable source/profile is compiled once per process. Invocation data is
     # isolated in ContextVars; authority/prices remain current request snapshots.
-    return GenerationRouter(ClassifierTransport(), catalog=compile_catalog())
+    return GenerationRouter(ClassifierTransport(), CONFIGURED_CLASSIFIER, catalog=compile_catalog())
 
 
 def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, policy_revision):
@@ -187,7 +216,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     router = compiled_router()
     catalog = router.catalog
     visible = effective_models(models, project_id)
-    runtime_variants, exclusions = qualified_inventory(visible, catalog)
+    runtime_variants, exclusions = qualified_inventory(visible, catalog, project_id=project_id)
     inventory_revision = fingerprint([model_binding(m) for m in visible.values()])
     output_schema = request.get('output_schema')
     if output_schema is not None and not isinstance(output_schema, dict):
@@ -219,7 +248,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         contract = variant.get('calibration_contract')
         variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
         if contract:
-            native = not model.get('openai_compatible', False) and any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
+            native = not model.get('openai_compatible', False) and is_anthropic(model, variant)
             transport = 'anthropic_messages' if native else 'chat_completions'
             reasons = []
             if transport != contract['transport']:
@@ -242,7 +271,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             continue
         # The current native Anthropic SDK uses bounded enabled-thinking for
         # this frozen pool. Its budget must fit inside Auto's total allowance.
-        if ('anthropic' in variant['model'] and variant['effort'] and not model.get('openai_compatible')
+        if (is_anthropic(model, variant) and variant['effort'] and not model.get('openai_compatible')
                 and not (contract and 'reasoning_fields' in contract)):
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
@@ -251,20 +280,30 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             continue
         if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
             continue
-        if prices.quote(variant['model'], Tokens(size, variant_cap))['usd'] is None:
+        if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
             continue
-        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(variant['model'], Tokens(0, variant_cap, write=size))['usd'] is None:
+        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
             continue
         allowed.append(vid)
         output_caps[vid] = variant_cap
-    # Classifier identity is supplied by the calibrated policy, never request text.
-    classifier = catalog['variants'][router.classifier.variant]['model']
-    if router.classifier.variant not in runtime_variants:
-        raise RoutingUnavailable('The configured Auto classifier is unavailable')
-    if prices.quote(classifier, Tokens(34000, 900))['usd'] is None:
-        raise RoutingUnavailable('Classifier pricing is unavailable')
+    # Classifier identity is the configured deployment (project, else platform),
+    # never request text or a catalog literal. Missing settings fail closed.
+    ref = settings.get('classifier')
+    if not isinstance(ref, dict) or not isinstance(ref.get('name'), str) or type(ref.get('project_id')) is not int:
+        # Configurations explains why nothing resolved; older plugins omit it.
+        why = settings.get('classifier_reason') if ref is None else None
+        if (isinstance(why, dict) and why.get('code') in CLASSIFIER_REASONS
+                and isinstance(why.get('message'), str) and why['message']):
+            raise RoutingUnavailable(why['message'][:512], why['code'])
+        raise RoutingUnavailable('No Auto classifier model is configured', 'CLASSIFIER_NOT_CONFIGURED')
+    classifier = visible.get(ref['name'])
+    if (classifier is None or classifier['project_id'] != ref['project_id'] or classifier.get('available') is False
+            or (classifier.get('identity') or {}).get('kind', 'chat') != 'chat'):
+        raise RoutingUnavailable(f"The configured Auto classifier {ref['name']} is unavailable", 'CLASSIFIER_UNAVAILABLE')
+    if prices.quote(classifier['name'], Tokens(34000, 900))['usd'] is None:
+        raise RoutingUnavailable('Classifier pricing is unavailable', 'CLASSIFIER_PRICE_UNAVAILABLE')
     if not allowed:
-        raise RoutingUnavailable('No qualified model fits the request and pricing contract')
+        raise RoutingUnavailable('No qualified model fits the request and pricing contract', 'NO_QUALIFIED_MODELS')
     if prior:
         try:
             validate_binding(restored.get('model_binding'), models, project_id)
@@ -272,7 +311,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             raise RoutingUnavailable(str(exc)) from exc
         if restored.get('policy_revision') != router.revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
-        allowed = [v for v in allowed if catalog['variants'][v]['model'] == restored['config']['model_name']
+        allowed = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
                    and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
         if not allowed:
             raise RoutingUnavailable('The checkpoint model is no longer admitted')
@@ -289,7 +328,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     runtime_context = read_context(request, key=signing_key, project_id=project_id, user_id=user_id, now=now)
     restored_state = restore_state(request.get('state_token'), signing_key, project_id=project_id,
         user_id=user_id, scope_id=scope_id, gate_revision=settings['revision'], policy_revision=router.revision)
-    context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size, 'output_caps': output_caps})
+    context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size, 'output_caps': output_caps,
+                                  'classifier': {'model': classifier['name'], 'effort': None},
+                                  'deployments': {vid: m['name'] for vid, m in runtime_variants.items()}})
     try:
         key = f'{project_id}:{user_id}:{scope_id}'
         with session_for(key, request.get('state_token') if restored_state else None,
@@ -316,6 +357,12 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
     trace['classifier']['called'] = classifier_info.get('called', bool(classifier_info))
+    trace['classifier']['classifier_variant'] = CONFIGURED_CLASSIFIER
+    trace['classifier']['deployment'] = {'name': classifier['name'], 'project_id': classifier['project_id'],
+                                         'source': ref.get('source')}
+    entries = price_snapshot['entries']
+    trace['prices'] = {'match': {e['model_name']: e.get('match', 'exact') for e in entries},
+                       'aliases': {e['model_name']: e['matched_name'] for e in entries if e.get('match') == 'alias'}}
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
@@ -323,8 +370,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']
     selected = decision['selection']
-    model = visible[selected['model']]
-    config = {'model_name': selected['model'], 'model_project_id': model['project_id'],
+    # The measured variant was chosen; its bound live deployment is dispatched.
+    model = runtime_variants[selected['variant']]
+    config = {'model_name': model['name'], 'model_project_id': model['project_id'],
               'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
               'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'], 'max_tokens': cap,
               'routing_total_output_cap': True}

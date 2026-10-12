@@ -40,7 +40,8 @@ def compile_catalog(calibration_revision='v12'):
             if row['variant'] == vid and row['family'] in families and row.get('usage_profile'):
                 families[row['family']]['usage_profile'] = copy.deepcopy(row['usage_profile'])
         value['variants'][vid] = {
-            'model': identity['model'], 'effort': identity['effort'], 'enabled': True,
+            'model': identity['model'], 'canonical_model': identity['canonical_model'],
+            'effort': identity['effort'], 'enabled': True,
             # These are the selector's legal known operations, not independent
             # model capability claims. CalibratedRouter requires the exact
             # measured family/demand cell before this generic selector runs.
