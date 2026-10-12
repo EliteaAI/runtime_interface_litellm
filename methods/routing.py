@@ -3,16 +3,29 @@ import copy
 import json
 from pylon.core.tools import web
 from tools import context, VaultClient
-from ..routing.service import resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router
+from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router,
+                               auto_routing_settings)
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
+
+UNRESOLVED = 'Auto cannot resolve this request under the current profile'
+
+
+def routing_prices(rpc, names, canonical_by_name):
+    """Exact prices, plus labelled alias matches when Costs supports them (#6826)."""
+    if canonical_by_name:
+        try:
+            return rpc.costs_get_routing_prices(names, canonical_by_name=canonical_by_name)
+        except TypeError:
+            pass  # Costs before #6826 accepts exact names only.
+    return rpc.costs_get_routing_prices(names)
 
 
 class Method:
     @web.method()
     def resolve_auto_routing(self, proxy_target, proxy_auth):
         project_id = proxy_auth['project_id']
-        settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+        settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, proxy_auth['user']['id'])
         if proxy_target['method'] == 'GET':
             return {'enabled': bool(settings['enabled']), 'profile_ref': PROFILE,
                     'surfaces': ['chat', 'agent'], 'revision': settings['revision']}
@@ -24,11 +37,17 @@ class Method:
         models = snapshot['items']
         inventory = effective_models(models, project_id)
         router = compiled_router()
-        variants, _ = qualified_inventory(inventory, router.catalog)
-        # Quote discovered qualified bindings only; unqualified inventory can
-        # exceed the bounded Costs RPC and cannot become a candidate anyway.
-        names = sorted({model['name'] for model in variants.values()})
-        prices = context.rpc_manager.timeout(10).costs_get_routing_prices(names)
+        variants, _ = qualified_inventory(inventory, router.catalog, project_id=project_id)
+        # Quote discovered qualified bindings and the configured classifier only;
+        # unqualified inventory can exceed the bounded Costs RPC.
+        names = {model['name'] for model in variants.values()}
+        classifier = settings.get('classifier')
+        if isinstance(classifier, dict) and classifier.get('name') in inventory:
+            names.add(classifier['name'])
+        names = sorted(names)
+        canonical = {name: inventory[name]['identity']['canonical'] for name in names
+                     if isinstance((inventory[name].get('identity') or {}).get('canonical'), str)}
+        prices = routing_prices(context.rpc_manager.timeout(10), names, canonical)
         key = VaultClient(project_id).get_secrets().get('project_llm_key')
         if not key:
             return {'error': 'Auto model selection is unavailable'}, 503
@@ -74,5 +93,9 @@ class Method:
                            settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete)
         except RoutingAdmissionDenied as denied:
             return denied.response
+        except RoutingUnavailable as exc:
+            if exc.reason:
+                return {'error': str(exc), 'reason': exc.reason}, 422
+            return {'error': UNRESOLVED, 'reason': None}, 422
         except (ValueError, KeyError, TypeError):
-            return {'error': 'Auto cannot resolve this request under the current profile'}, 422
+            return {'error': UNRESOLVED, 'reason': None}, 422

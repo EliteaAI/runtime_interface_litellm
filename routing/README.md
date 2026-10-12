@@ -55,6 +55,19 @@ dispatch requires the exact owner-prefixed LiteLLM deployment; it never falls
 back to a same-name shared deployment or raw model name when that deployment
 disappears. Existing manual dispatch retains its previous mapping behavior.
 
+Catalog and calibration variants declare `canonical_model` next to the exact
+measured name (#6826). Inventory items carrying a Configurations `identity` join
+a variant by canonical identity (chat kind, D6 request contract; web-search
+deployments never join); items without `identity` join by exact name. One
+deployment is bound per variant (`inventory.select_deployment`: explicit identity,
+project-owned, preferred contract, shortest, lexicographic); losers appear as
+`DUPLICATE_CANONICAL_DEPLOYMENT` with the selected winner. A canonical match only
+joins an existing measured contract; it never adds quality evidence. The classifier
+is the configured deployment from `settings['classifier']` (project, else platform),
+resolved by name and owner in the visible inventory and called without effort.
+Missing or unusable settings fail with a reason code (`CLASSIFIER_NOT_CONFIGURED`,
+`CLASSIFIER_UNAVAILABLE`, `CLASSIFIER_PRICE_UNAVAILABLE`, `NO_QUALIFIED_MODELS`).
+
 Product Auto always returns a generation binding, never a router-authored chat
 reply. `service.GenerationRouter` converts ancestor clarification decisions
 (missing input, ambiguous references or non-unique pending tasks) through the
