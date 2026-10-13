@@ -10,12 +10,16 @@ from pylon.core.tools import log  # pylint: disable=E0611,E0401
 
 TRACER_NAME = "auto-routing"
 EVENT = "auto_routing_shadow_decision"
-CANDIDATE_FIELDS = ("variant", "deployment", "canonical", "effort", "p_pass", "expected_cost_usd", "ineligible", "gates")
+CANDIDATE_FIELDS = ("variant", "deployment", "canonical", "effort", "p_pass", "expected_output_tokens",
+                    "expected_cost_usd", "ineligible", "gates")
 
 
-def shadow_record(v5_trace, *, project_id, user_id, invocation_id, executed):
-    """The event payload: a projection of `trace.v5`, bounded by the catalog size."""
-    return {
+def shadow_record(v5_trace, *, project_id, user_id, invocation_id, executed, refusal=None):
+    """The event payload: a projection of `trace.v5`, bounded by the catalog size.
+
+    `refusal` (the 422 reason code) marks a request the executed path refused,
+    so shadow evidence is not conditioned on legacy success."""
+    record = {
         "event": EVENT, "project_id": project_id, "user_id": user_id, "invocation_id": invocation_id,
         "selector_id": v5_trace.get("selector_id"), "selector_sha256": v5_trace.get("selector_sha256"),
         "policy_revision": v5_trace.get("policy_revision"), "tau": v5_trace.get("tau"),
@@ -23,19 +27,29 @@ def shadow_record(v5_trace, *, project_id, user_id, invocation_id, executed):
         "noise_band": v5_trace.get("noise_band"), "p_spread": v5_trace.get("p_spread"),
         "v5_choice": v5_trace.get("chosen"), "legacy_choice": v5_trace.get("legacy_choice"),
         "executed": executed,
+        "selector_stub": v5_trace.get("selector_stub"), "abstain": v5_trace.get("abstain"),
+        "features_sha256": v5_trace.get("features_sha256"), "fallback": v5_trace.get("fallback"),
+        "clamped": v5_trace.get("clamped"), "preflight": v5_trace.get("preflight"),
         "candidates": [{k: c.get(k) for k in CANDIDATE_FIELDS if k in c} for c in v5_trace.get("candidates", [])],
     }
+    if refusal is not None:
+        record.update(v5_reason=record["reason"], refusal_reason=refusal["reason"],
+                      reason="ACTIVE_REFUSED" if v5_trace.get("shadow") is False else "LEGACY_REFUSED")
+    return record
 
 
-def emit_shadow_decision(result, *, project_id, user_id):
-    """Best effort; a tracing failure never affects routing."""
+def emit_shadow_decision(result, *, project_id, user_id, refusal=None):
+    """Best effort; a tracing failure never affects routing.
+
+    `result` is the resolve result, or `{"trace": {"v5": exc.v5_trace}}` with
+    `refusal={"reason": <422 reason>}` when the executed path refused."""
     try:
         trace_v5 = ((result or {}).get("trace") or {}).get("v5")
         if not isinstance(trace_v5, dict):
             return None
         record = shadow_record(trace_v5, project_id=project_id, user_id=user_id,
                                invocation_id=result.get("invocation_id"),
-                               executed=(result.get("config") or {}).get("model_name"))
+                               executed=(result.get("config") or {}).get("model_name"), refusal=refusal)
         from opentelemetry import trace  # pylint: disable=C0415,E0401
         span = trace.get_tracer(TRACER_NAME).start_span(name=EVENT, attributes={
             "auto.event": EVENT, "project.id": int(project_id), "user.id": int(user_id),

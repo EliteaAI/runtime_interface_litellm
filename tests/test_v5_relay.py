@@ -38,7 +38,9 @@ def test_relay_thinking_budget_map_follows_the_policy(relay, budgets, expected, 
     service = importlib.import_module('plugin_under_test.routing.service')
     selector = importlib.import_module('plugin_under_test.routing.selector')
     value = json.loads((selector.ARTIFACT_DIR/'selector-v5-stub.json').read_text())
-    value['id'] = 'selector-v5-t1'; value['sha256'] = selector.canonical_sha256(value)
+    value['id'] = 'selector-v5-t1'
+    value['heads']['anthropic/claude-haiku-4-5|default'] = value['heads']['openai/gpt-5-4|medium']
+    value['sha256'] = selector.canonical_sha256(value)
     (tmp_path/'t1.json').write_text(json.dumps(value))
     (tmp_path/'MANIFEST.json').write_text(json.dumps({'artifacts': {'selector-v5-t1': {
         'file': 't1.json', 'sha256': value['sha256'], 'stub': False}}}))
@@ -58,7 +60,7 @@ def test_relay_thinking_budget_map_follows_the_policy(relay, budgets, expected, 
     assert (response if response is None else response[1]) == expected
 
 
-def test_preflight_emits_shadow_event_without_prompt_text(relay, monkeypatch):
+def capture_spans(monkeypatch):
     spans = []
     class Span:
         def __init__(self, name, attributes):
@@ -69,6 +71,53 @@ def test_preflight_emits_shadow_event_without_prompt_text(relay, monkeypatch):
     otel.trace = types.SimpleNamespace(get_tracer=lambda name: types.SimpleNamespace(
         start_span=lambda name, attributes: Span(name, attributes)))
     monkeypatch.setitem(sys.modules, 'opentelemetry', otel)
+    return spans
+
+
+RECORD_KEYS = {'event', 'project_id', 'user_id', 'invocation_id', 'selector_id', 'selector_sha256', 'policy_revision',
+               'tau', 'reason', 'shadow', 'noise_band', 'p_spread', 'v5_choice', 'legacy_choice', 'executed',
+               'selector_stub', 'abstain', 'features_sha256', 'fallback', 'clamped', 'preflight', 'candidates'}
+
+
+def test_preflight_span_record_shape_for_a_scored_request(relay, monkeypatch):
+    spans = capture_spans(monkeypatch)
+    relay.args['settings']['policy'] = dict(POLICY)
+    preflight = importlib.import_module('plugin_under_test.methods.routing')
+    monkeypatch.setattr(preflight, 'context', relay.context)
+    monkeypatch.setattr(preflight, 'VaultClient', relay.vault)
+    method = preflight.Method(); method.descriptor = types.SimpleNamespace(config={})
+    secret = 'Please prove the zebra-7c1f recovery architecture is correct'
+    from test_auto_routing_service import classifier_design
+    service = importlib.import_module('plugin_under_test.routing.service')
+    monkeypatch.setattr(preflight, 'resolve', lambda *a, **k: service.resolve(*a, **{**k, 'complete': classifier_design}))
+    result = method.resolve_auto_routing({'method': 'POST', 'json': request(secret), 'headers': {}},
+                                         {'project_id': 7, 'user': {'id': 42}})
+    assert result['trace']['v5']['reason'] == 'SELECTED'
+    [(name, attributes)] = spans
+    record = json.loads(attributes['auto.record'])
+    assert set(record) == RECORD_KEYS
+    assert len(record['features_sha256']) == 64 and record['selector_stub'] is True and record['clamped'] == []
+    assert record['invocation_id'] == 'a'*64
+    scored = [c for c in record['candidates'] if 'p_pass' in c]
+    assert scored and all('expected_output_tokens' in c for c in scored)
+    assert 'zebra' not in attributes['auto.record'] and '7c1f' not in attributes['auto.record']
+
+
+def test_refused_requests_still_emit_the_v5_decision(relay, monkeypatch):
+    spans = capture_spans(monkeypatch)
+    relay.args['settings']['policy'] = dict(POLICY)
+    relay.args['settings']['classifier'] = None  # legacy refuses: CLASSIFIER_NOT_CONFIGURED
+    body, status = preflight_method(relay, monkeypatch)()
+    assert status == 422 and body['reason'] == 'CLASSIFIER_NOT_CONFIGURED'
+    [(name, attributes)] = spans
+    record = json.loads(attributes['auto.record'])
+    assert record['reason'] == 'LEGACY_REFUSED' and record['refusal_reason'] == 'CLASSIFIER_NOT_CONFIGURED'
+    assert record['v5_reason'] == 'GREETING_RULE' and record['v5_choice'] is not None
+    assert record['executed'] is None and record['legacy_choice'] is None
+
+
+def test_preflight_emits_shadow_event_without_prompt_text(relay, monkeypatch):
+    spans = capture_spans(monkeypatch)
     relay.args['settings']['policy'] = dict(POLICY)
     result = preflight_method(relay, monkeypatch)()
     assert result['action'] == 'generate' and result['trace']['v5']['reason'] == 'GREETING_RULE'

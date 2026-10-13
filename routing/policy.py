@@ -25,7 +25,7 @@ PLATFORM_MIN_CAP = 256
 PLATFORM_MAX_CAP = 128000
 MAX_THINKING_BUDGET = 128000
 MAX_POOL_ENTRIES = 256
-ARTIFACT_ID = re.compile(r'^[a-z0-9][a-z0-9.-]{0,127}$')
+ARTIFACT_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')  # Configurations grammar
 NESTED = {'selector': {'artifact', 'tau', 'abstain'}, 'output': {'default_allowance', 'min_cap', 'max_cap'},
           'thinking_budget_tokens': {'low', 'medium', 'high'}, 'classifier': {'enabled'}}
 

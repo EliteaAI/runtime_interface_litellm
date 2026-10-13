@@ -22,6 +22,16 @@ def routing_prices(rpc, names, canonical_by_name):
     return rpc.costs_get_routing_prices(names)
 
 
+def emit_refusal(exc, project_id, proxy_auth, proxy_target, reason):
+    """A refused request still logs its V5 decision (ids/scores only). Module
+    level: Pylon binds only @web.method functions onto the Method class."""
+    trace = getattr(exc, 'v5_trace', None)
+    if trace is not None:
+        invocation = (proxy_target.get('json') or {}).get('invocation_id')
+        emit_shadow_decision({'trace': {'v5': trace}, 'invocation_id': invocation if isinstance(invocation, str) else None},
+                             project_id=project_id, user_id=proxy_auth['user']['id'], refusal={'reason': reason})
+
+
 class Method:
     @web.method()
     def resolve_auto_routing(self, proxy_target, proxy_auth):
@@ -99,8 +109,10 @@ class Method:
         except RoutingAdmissionDenied as denied:
             return denied.response
         except RoutingUnavailable as exc:
+            emit_refusal(exc, project_id, proxy_auth, proxy_target, exc.reason)
             if exc.reason:
                 return {'error': str(exc), 'reason': exc.reason}, 422
             return {'error': UNRESOLVED, 'reason': None}, 422
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError) as exc:
+            emit_refusal(exc, project_id, proxy_auth, proxy_target, None)
             return {'error': UNRESOLVED, 'reason': None}, 422

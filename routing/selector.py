@@ -27,7 +27,7 @@ MAX_HASHING_DIM = 16384
 MAX_FEATURE_CHARS = 20000
 NUMERIC = ('log_request_chars', 'history_turns', 'tools_count', 'has_output_schema', 'log_input_bytes')
 HEAD_KEY = re.compile(r'^[a-z]+/[a-z0-9][a-z0-9-]*\|[a-z]+$')
-ARTIFACT_ID = re.compile(r'^[a-z0-9][a-z0-9.-]{0,127}$')
+ARTIFACT_ID = re.compile(r'^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$')  # Configurations grammar; case-sensitive
 WORD = re.compile(r'\w+')
 MAX_EXPONENT = math.log(1_000_000)
 

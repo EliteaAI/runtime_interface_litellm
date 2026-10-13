@@ -6,6 +6,8 @@ artifact. Candidates are the deployment-variants that passed the hard gates
 and effort (`<vendor/family>|<effort or default>`). The trace carries ids,
 scores and costs only, never request text.
 """
+import hashlib
+import json
 import math
 from decimal import Decimal
 from .pricing import Tokens
@@ -111,7 +113,11 @@ def decide(*, policy, mode, report, allowed, runtime_variants, catalog, output_c
     else:
         latest = messages[-1].get('content') if messages[-1].get('role') == 'user' else ''
         history = sum(1 for m in messages[:-1] if m.get('role') in {'user', 'assistant'})
-        scores = selector.score(selector.features(latest or '', history, len(tools), output_schema is not None, size))
+        features = selector.features(latest or '', history, len(tools), output_schema is not None, size)
+        # Identifies the request's feature vector for offline joins; not reversible to text.
+        trace['features_sha256'] = hashlib.sha256(json.dumps(
+            sorted((k, round(v, 9)) for k, v in features.items()), separators=(',', ':')).encode()).hexdigest()
+        scores = selector.score(features)
         qualified = []
         for vid in allowed:
             entry = entries[vid]

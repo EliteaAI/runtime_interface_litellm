@@ -413,7 +413,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             if routing_pin:
                 from ..routing.service import (decode_pin, RoutingUnavailable, auto_routing_settings,
                                                compiled_router, routing_policy_revision, pinned_is_anthropic)
-                from ..routing.policy import runtime_policy
+                from ..routing.policy import runtime_policy, DEFAULT_POLICY
                 try:
                     settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, user_id)
                     pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
@@ -431,7 +431,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     effort = body.get('reasoning_effort') or (body.get('reasoning') or {}).get('effort') or (body.get('output_config') or {}).get('effort')
                     if (effort is None and (body.get('thinking') or {}).get('type') == 'enabled'
                             and pinned_is_anthropic(auto_binding, routing_inventory['items'], project_id)):
-                        budgets = runtime_policy(settings)[0]['thinking_budget_tokens']
+                        # Policy budgets are executed only by active-mode pins (signed field).
+                        budgets = (runtime_policy(settings)[0] if pin.get('routing_mode') == 'active'
+                                   else DEFAULT_POLICY)['thinking_budget_tokens']
                         effort = {v: k for k, v in budgets.items()}.get(body['thinking'].get('budget_tokens'))
                     if effort != pin['config']['reasoning_effort']:
                         raise RoutingUnavailable('Pinned reasoning effort mismatch')

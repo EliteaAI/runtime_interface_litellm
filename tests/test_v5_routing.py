@@ -220,40 +220,129 @@ def test_shadow_pool_never_narrows_the_executed_legacy_choice():
             assert v5_trace['reason'] == 'FALLBACK_GATED' and v5_trace['fallback']['gated'] == ['POOL']
 
 
+def active(trained, **changes):
+    return policy(**{'shadow_mode': False, 'selector': {'artifact': trained, 'tau': 0.85}, 'fallback': None, **changes})
+
+
 def test_active_pool_admits_canonical_ids_or_exact_names(trained):
     args = fixture(); args['settings'].pop('classifier')
-    active = dict(shadow_mode=False, selector={'artifact': trained, 'tau': 0.85}, fallback=None)
-    args['settings']['policy'] = policy(pool=['openai/gpt-5-6-luna'], **active)
+    args['settings']['policy'] = active(trained, pool=['openai/gpt-5-6-luna'])
     result = resolve(request(), complete=no_classifier, **args)
     assert result['config']['model_name'] == 'global.openai.gpt-5.6-luna'
     assert result['trace']['inventory']['admitted_variants'] == 1
-    args['settings']['policy'] = policy(pool=['gpt-5.4-mini'], **active)
-    assert resolve(request(), complete=no_classifier, **args)['config']['model_name'] == 'gpt-5.4-mini'
-    args['settings']['policy'] = policy(pool=['openai/not-deployed'], **active)
-    with pytest.raises(RoutingUnavailable) as exc:
-        resolve(request(), complete=no_classifier, **args)
-    assert exc.value.reason == 'NO_QUALIFIED_MODELS'
+    args['settings']['policy'] = active(trained, pool=['gpt-5.4'])
+    assert resolve(request(), complete=no_classifier, **args)['config']['model_name'] == 'gpt-5.4'
 
 
-def test_merged_allowance_above_a_lowered_cap_is_clamped_and_traced():
+@pytest.mark.parametrize('changes,cause', [
+    ({'pool': ['gpt-5.4-mini']}, 'NO_HEAD_FOR_POOL'),            # no selector head for any pool deployment
+    ({'pool': ['openai/not-deployed']}, 'NO_HEAD_FOR_POOL'),
+    ({'fallback': {'name': 'gone', 'project_id': 7}}, 'FALLBACK_NOT_ADMITTABLE'),
+    ({'fallback': {'name': 'custom-chat', 'project_id': 7}}, 'FALLBACK_NOT_ADMITTABLE'),  # no calibrated contract
+    ({'fallback': {'name': 'gpt-5.4', 'project_id': 7}, 'pool': ['openai/gpt-5-6-luna']}, 'FALLBACK_NOT_ADMITTABLE'),
+])
+def test_failed_activation_preflight_degrades_to_shadow_once_per_resolve(trained, changes, cause):
+    args = fixture()
+    args['models'].append({'name': 'custom-chat', 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000})
+    legacy = resolve(request(SUMMARY), complete=classify_design, **args)
+    args['settings']['policy'] = active(trained, **changes)
+    result = resolve(request(SUMMARY), complete=classify_design, **args)
+    assert result['config'] == legacy['config']  # legacy, with today's literals
+    assert result['trace']['v5']['reason'] == 'ACTIVATION_PREFLIGHT_FAILED'
+    assert result['trace']['v5']['preflight']['cause'] == cause
+    pin = decode_pin(result['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=101)
+    assert pin['routing_mode'] == 'shadow'
+
+
+def test_merged_allowance_above_a_lowered_cap_is_clamped_and_traced(trained):
     value = validate({'output': {'default_allowance': 8000, 'max_cap': 4000}})
     assert value['output']['default_allowance'] == 4000 and value['clamped'] == ['output.default_allowance']
     assert validate({'output': {'default_allowance': 300, 'min_cap': 512}})['output']['default_allowance'] == 512
     assert validate({})['clamped'] == []
-    args = fixture(); args['settings']['policy'] = policy(output={'default_allowance': 8000, 'max_cap': 4000})
+    args = fixture(); args['settings'].pop('classifier')
+    args['settings']['policy'] = active(trained, output={'default_allowance': 8000, 'max_cap': 4000})
     result = resolve(request(), complete=no_classifier, **args)
     assert result['config']['max_tokens'] == 4000
     assert result['trace']['v5']['clamped'] == ['output.default_allowance']
 
 
-def test_output_values_come_from_policy():
-    args = fixture()
-    args['settings']['policy'] = policy(output={'default_allowance': 6000, 'min_cap': 512, 'max_cap': 12000})
+def test_active_output_values_come_from_policy(trained):
+    args = fixture(); args['settings'].pop('classifier')
+    args['settings']['policy'] = active(trained, output={'default_allowance': 6000, 'min_cap': 512, 'max_cap': 12000})
     assert resolve(request(), complete=no_classifier, **args)['config']['max_tokens'] == 6000
     for cap in (511, 12001):
         req = request(); req['output_cap'] = cap
         with pytest.raises(RoutingUnavailable, match='between 512 and 12000'):
             resolve(req, complete=no_classifier, **args)
+
+
+@pytest.mark.parametrize('prompt,cap', [('Hi', None), (PROVE, None), (PROVE, 300), ('Hi', 16000)])
+def test_shadow_executes_todays_literals_whatever_the_policy_values(prompt, cap):
+    """Shadow purity (review C2, option a): caps, allowance, budgets and pool of a
+    shadow policy reach only trace.v5; the executed legacy config is byte-identical."""
+    complete = no_classifier if prompt == 'Hi' else classify_design
+    req = request(prompt)
+    if cap is not None:
+        req['output_cap'] = cap
+    args = fixture()
+    legacy = resolve(copy.deepcopy(req), complete=complete, **args)
+    args['settings']['policy'] = policy(
+        output={'default_allowance': 2000, 'min_cap': 512, 'max_cap': 4000}, pool=['gpt-5.4-mini'],
+        thinking_budget_tokens={'low': 1024, 'medium': 1500, 'high': 1900})
+    shadow = resolve(copy.deepcopy(req), complete=complete, **args)
+    assert shadow['config'] == legacy['config']
+    assert shadow['trace']['selection'] == legacy['trace']['selection']
+    pin = decode_pin(shadow['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=101)
+    legacy_pin = decode_pin(legacy['pin'], args['signing_key'], project_id=7, user_id=2, settings=fixture()['settings'], now=101)
+    assert pin['routing_mode'] == 'shadow' and 'routing_mode' not in legacy_pin
+    assert ({k: v for k, v in pin.items() if k not in {'policy_revision', 'routing_mode'}}
+            == {k: v for k, v in legacy_pin.items() if k != 'policy_revision'})
+    if cap is not None and not 512 <= cap <= 4000:
+        assert shadow['trace']['v5']['reason'] == 'REQUEST_CAP_OUTSIDE_POLICY'
+    else:
+        assert shadow['trace']['v5']['clamped'] == []
+
+
+def test_contract_allowance_above_policy_max_cap_is_a_failed_gate_never_clamped():
+    catalog = compiled_router().catalog
+    variant = catalog['variants']['terra-default']
+    model = {'name': variant['model'], 'project_id': 7, 'context_window': 400000, 'max_output_tokens': 128000}
+    prices = PriceBook([dict(model_name=variant['model'], input_cost_per_token='1', output_cost_per_token='1',
+                             cache_creation_input_token_cost='1')], source_revision='p')
+    common = dict(cap=None, size=10, output_schema=None, explicit={'mode': 'auto'}, prices=prices)
+    assert variant['calibration_contract']['output_allowance'] == 32000
+    assert evaluate('terra-default', variant, model, policy=DEFAULT_POLICY, **common)['failed'] == []
+    lowered = validate({'output': {'max_cap': 16000}})
+    result = evaluate('terra-default', variant, model, policy=lowered, **common)
+    assert result['failed'] == ['CONTRACT_ALLOWANCE_ABOVE_CAP'] and result['cap'] == 32000
+
+
+def test_active_continuation_never_switches_models(trained):
+    args = fixture(); args['settings'].pop('classifier')
+    args['settings']['policy'] = active(trained)
+    first = resolve(request(PROVE), complete=no_classifier, **args)
+    assert first['config']['model_name'] == 'gpt-5.4'
+    # Same invocation: the pinned deployment is reauthorized, never re-scored.
+    same = request(SUMMARY); same['prior_pin'] = first['pin']
+    assert resolve(same, complete=no_classifier, **args)['config'] == first['config']
+    # A new invocation with the old pin is a typed refusal, never another model.
+    later = request(SUMMARY); later['invocation_id'] = 'c'*64; later['prior_pin'] = first['pin']
+    with pytest.raises(RoutingUnavailable):
+        resolve(later, complete=no_classifier, **args)
+
+
+def test_artifact_ids_follow_the_configurations_grammar_case_sensitively(tmp_path, monkeypatch):
+    for good in ('Selector_V5.R1', 'selector-v5-r1', 'A'):
+        assert validate({'selector': {'artifact': good}})['selector']['artifact'] == good
+    for bad in ('-x', '_x', 'a/b', 'a'*129, 'a b'):
+        with pytest.raises(PolicyError):
+            validate({'selector': {'artifact': bad}})
+    value = artifact(); value['id'] = 'Selector_V5.R1'
+    install(tmp_path, value)
+    monkeypatch.setattr(sel, 'ARTIFACT_DIR', tmp_path)
+    assert sel.installed('Selector_V5.R1').id == 'Selector_V5.R1'
+    with pytest.raises(ValueError):
+        sel.installed('selector_v5.r1')
 
 
 # ---------------------------------------------------------------- V5 decision (pure)
@@ -504,11 +593,7 @@ def test_active_runtime_selector_failure_falls_back_else_refuses(trained, monkey
     (None, None, 'NO_QUALIFIED_MODELS', 'No qualified model'),
     ({'name': 'gpt-5.4', 'project_id': 7}, {'max_output_tokens': 1000}, 'FALLBACK_GATED',
      'The Auto fallback gpt-5.4 is not admitted for this request: OUTPUT_CAP'),
-    ({'name': 'custom-chat', 'project_id': 7}, None, 'FALLBACK_GATED',
-     'The Auto fallback custom-chat is not admitted for this request: NO_CALIBRATED_MODEL_CONTRACT'),
-    ({'name': 'gone', 'project_id': 7}, None, 'FALLBACK_UNAVAILABLE',
-     'The Auto fallback gone is not available to this project'),
-])
+])  # Request-independent fallback failures degrade at preflight (see above).
 def test_active_refusals_name_the_blocking_fallback(trained, fallback, model_change, code, message):
     args = fixture(); args['settings'].pop('classifier')
     args['models'].append({'name': 'custom-chat', 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000})

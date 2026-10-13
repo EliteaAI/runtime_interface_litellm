@@ -19,7 +19,8 @@ from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
 from .gates import admit, is_anthropic
-from .policy import runtime_policy, policy_revision as _policy_digest
+from .policy import runtime_policy, policy_revision as _policy_digest, DEFAULT_POLICY
+from .gates import in_pool
 from . import v5
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
@@ -243,13 +244,53 @@ def _configured_classifier(settings, visible, prices):
     return classifier, ref
 
 
+def _activation_preflight(policy, runtime_variants, catalog, prices):
+    """Request-independent checks before executing V5 (#6722 V5 review C6):
+    the configured fallback is joinable, in the pool and priced, and at least
+    one pool deployment has a selector head. None when activation may proceed."""
+    pooled = {vid: m for vid, m in runtime_variants.items()
+              if in_pool(policy['pool'], m, catalog['variants'][vid])}
+    ref = policy['fallback']
+    if ref and not any(m['name'] == ref['name'] and m['project_id'] == ref['project_id']
+                       and prices.quote(m['name'], Tokens(1, 1))['usd'] is not None for m in pooled.values()):
+        return {'cause': 'FALLBACK_NOT_ADMITTABLE', 'fallback': {'deployment': ref['name'], 'project_id': ref['project_id']}}
+    try:
+        from .selector import installed
+        heads = set(installed(policy['selector']['artifact']).heads)
+    except ValueError:
+        return None  # A runtime load failure is SELECTOR_UNAVAILABLE in the decision itself.
+    if not any(v5.head_key(m, catalog['variants'][vid]) in heads for vid, m in pooled.items()):
+        return {'cause': 'NO_HEAD_FOR_POOL', 'pooled_deployments': len({m['name'] for m in pooled.values()})}
+    return None
+
+
 def resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None):
+    """A refusal carries `exc.v5_trace` when a V5 decision was (or can be)
+    computed, so shadow evidence is not conditioned on legacy success."""
+    ctx = {}
+    try:
+        return _resolve(request, project_id=project_id, user_id=user_id, settings=settings, models=models,
+                        price_snapshot=price_snapshot, signing_key=signing_key, complete=complete, now=now, ctx=ctx)
+    except Exception as exc:
+        trace = ctx.get('v5_trace')
+        if trace is None and ctx.get('v5_inputs') is not None:
+            try:
+                trace = v5.decide(**ctx['v5_inputs'])
+            except Exception:  # pylint: disable=W0703
+                trace = None
+        if trace is not None:
+            trace.update(policy_revision=ctx.get('revision'), clamped=ctx.get('clamped', []), legacy_choice=None)
+            exc.v5_trace = trace
+        raise
+
+
+def _resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now, ctx):
     if not settings.get('enabled'):
         raise RoutingUnavailable('Auto model selection is disabled for this project')
     # None: no policy (legacy only, as before #6722 V5); 'shadow': legacy runs,
     # V5 is traced; 'active': V5 runs. Invalid policy -> today's literals, traced.
     policy, policy_mode, policy_error = runtime_policy(settings)
-    out_policy = policy['output']
+    active = policy_mode == 'active'
     if not isinstance(request, dict) or len(json.dumps(request).encode()) > MAX_REQUEST_BYTES:
         raise RoutingUnavailable('Routing request exceeds the supported bound')
     scope_id = request.get('scope_id')
@@ -263,10 +304,6 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Unknown or stale Auto profile')
     if request.get('surface') not in {'chat', 'agent'}:
         raise RoutingUnavailable('Auto is unavailable for this execution surface')
-    cap = request.get('output_cap')
-    if 'output_cap' in request and (type(cap) is not int or not out_policy['min_cap'] <= cap <= out_policy['max_cap']):
-        raise RoutingUnavailable(f"Auto output allowance must be between {out_policy['min_cap']} and "
-                                 f"{out_policy['max_cap']} tokens")
     messages = request.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 4096:
         raise RoutingUnavailable('Auto requires a bounded task history')
@@ -290,9 +327,22 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if type(generation_size) is not int or not 0 <= generation_size <= 16_000_000:
         raise RoutingUnavailable('Invalid generation input size bound')
     size = max(size, generation_size)
+    preflight = _activation_preflight(policy, runtime_variants, catalog, prices) if active else None
+    if preflight:
+        # Degrade once per resolve instead of a 422 on every request (review C6).
+        policy_mode, policy_error, active = 'shadow', 'ACTIVATION_PREFLIGHT_FAILED', False
+    # Shadow purity (review C2): only active mode executes policy values. Shadow
+    # executes today's literals; the policy is applied inside the V5 trace only.
+    exec_policy = policy if active else DEFAULT_POLICY
+    out_policy = exec_policy['output']
+    cap = request.get('output_cap')
+    if 'output_cap' in request and (type(cap) is not int or not out_policy['min_cap'] <= cap <= out_policy['max_cap']):
+        raise RoutingUnavailable(f"Auto output allowance must be between {out_policy['min_cap']} and "
+                                 f"{out_policy['max_cap']} tokens")
     prior = request.get('prior_pin')
     restored = None
     revision = routing_policy_revision(router, settings)
+    ctx.update(revision=revision, clamped=list(policy.get('clamped', [])))
     if prior:
         restored = decode_pin(prior, signing_key, project_id=project_id, user_id=user_id,
             settings=settings, now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
@@ -305,12 +355,23 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
-    allowed, output_caps, contract_exclusions, gate_report = admit(
-        runtime_variants, catalog, cap=cap, size=size, output_schema=output_schema, explicit=explicit,
-        prices=prices, policy=policy, enforce_pool=policy_mode == 'active')
-    active = policy_mode == 'active'
-    # Shadow keeps the legacy set unnarrowed by the pool; V5 candidates honour it.
-    v5_allowed = [vid for vid in allowed if not gate_report[vid]['failed']]
+    gate_args = dict(cap=cap, size=size, output_schema=output_schema, explicit=explicit, prices=prices)
+    allowed, output_caps, contract_exclusions, gate_report = admit(runtime_variants, catalog, policy=exec_policy, **gate_args)
+    v5_skip = None
+    if active:
+        v5_allowed, v5_caps, v5_report = allowed, output_caps, gate_report
+    elif policy_mode == 'shadow' and not policy_error:
+        # The V5 trace sees the policy (pool, caps, budgets); legacy does not.
+        bounds = policy['output']
+        if cap is not None and not bounds['min_cap'] <= cap <= bounds['max_cap']:
+            v5_skip = 'REQUEST_CAP_OUTSIDE_POLICY'
+        v5_allowed, v5_caps, _, v5_report = admit(runtime_variants, catalog, policy=policy, **gate_args)
+    def v5_inputs(**extra):
+        return dict(policy=policy, mode=policy_mode, report=v5_report, allowed=v5_allowed,
+                    runtime_variants=runtime_variants, catalog=catalog, output_caps=v5_caps, inventory=visible,
+                    prices=prices, messages=messages, tools=tools, output_schema=output_schema, size=size, **extra)
+    if policy_mode is not None and not policy_error and not v5_skip:
+        ctx['v5_inputs'] = v5_inputs()
     classifier, ref = (None, None) if active else _configured_classifier(settings, visible, prices)
     if not allowed:
         raise RoutingUnavailable('No qualified model fits the request and pricing contract', 'NO_QUALIFIED_MODELS')
@@ -321,8 +382,15 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             raise RoutingUnavailable(str(exc)) from exc
         if restored.get('policy_revision') != revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
-        allowed = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
-                   and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
+        def pinned(v):
+            return (runtime_variants[v]['name'] == restored['config']['model_name']
+                    and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort'])
+        allowed = [v for v in allowed if pinned(v)]
+        if policy_mode is not None and not policy_error:
+            # A continuation never switches models: V5 sees the pinned deployment only.
+            v5_allowed = [v for v in v5_allowed if pinned(v)]
+            if ctx.get('v5_inputs'):
+                ctx['v5_inputs'] = v5_inputs()
         if not allowed:
             raise RoutingUnavailable('The checkpoint model is no longer admitted')
         if restored.get('invocation_id') == invocation_id:
@@ -349,13 +417,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             apply_observation(session, restored_state, request.get('observation'), messages,
                               router.gateway, catalog, tools, revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
-            v5_inputs = dict(policy=policy, mode=policy_mode, report=gate_report, allowed=v5_allowed,
-                             runtime_variants=runtime_variants, catalog=catalog, output_caps=output_caps,
-                             inventory=visible,
-                             prices=prices, messages=messages, tools=tools, output_schema=output_schema, size=size,
-                             runtime_context=runtime_context, previous=previous)
+            if ctx.get('v5_inputs'):
+                ctx['v5_inputs'] = v5_inputs(runtime_context=runtime_context, previous=previous)
             if active:
-                v5_trace = v5.decide(**v5_inputs)
+                v5_trace = ctx['v5_trace'] = v5.decide(**ctx['v5_inputs'])
                 if v5_trace['chosen'] is None:
                     raise _v5_refusal(v5_trace)
                 chosen = v5_trace['chosen']
@@ -390,15 +455,18 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     else:
         trace['classifier'] = {'called': False, 'classifier_variant': None}
     if policy_mode is not None:
-        if policy_error:
-            # POLICY_INVALID (literals applied) or ACTIVATION_WITHOUT_ARTIFACT
-            # (valid values, shadow execution): legacy runs, V5 is not computed.
-            v5_trace = {'reason': policy_error, 'shadow': True, 'chosen': None, 'candidates': []}
+        if policy_error or v5_skip:
+            # POLICY_INVALID (literals), ACTIVATION_WITHOUT_ARTIFACT or
+            # ACTIVATION_PREFLIGHT_FAILED (shadow execution), or a request cap
+            # outside the policy bounds: legacy runs, V5 is not computed.
+            v5_trace = {'reason': policy_error or v5_skip, 'shadow': True, 'chosen': None, 'candidates': []}
+            if preflight:
+                v5_trace['preflight'] = preflight
         elif not active:
             # Shadow: observe the V5 choice; the legacy decision is executed.
             # A shadow defect is reported, never allowed to break legacy Auto.
             try:
-                v5_trace = v5.decide(**v5_inputs)
+                v5_trace = v5.decide(**ctx['v5_inputs'])
             except Exception as exc:  # pylint: disable=W0703
                 v5_trace = {'reason': 'V5_ERROR', 'error': type(exc).__name__, 'shadow': True,
                             'chosen': None, 'candidates': []}
@@ -440,5 +508,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
            'model_binding': model_binding(model), 'policy_revision': revision,
            'expires_at': int(time.time() if now is None else now)+3600}
+    if policy_mode is not None:
+        # Signed: the relay applies policy thinking budgets only to active-mode pins.
+        pin['routing_mode'] = 'active' if active else 'shadow'
     return {'action': 'generate', 'config': config, 'pin': encode_pin(pin, signing_key), 'trace': trace,
             'invocation_id': invocation_id, 'scope_id': scope_id, 'state_token': state_token, 'expires_at': pin['expires_at']}
