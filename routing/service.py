@@ -49,6 +49,44 @@ def is_anthropic(model, variant):
     return any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
 
 
+def transport_of(model, variant):
+    native = not model.get('openai_compatible', False) and is_anthropic(model, variant)
+    return 'anthropic_messages' if native else 'chat_completions'
+
+
+def is_low_tier(model):
+    identity = model.get('identity') if isinstance(model.get('identity'), dict) else {}
+    return model.get('low_tier') is True or identity.get('low_tier_hint') is True
+
+
+def deployment_signals(catalog, runtime_variants, alternates, visible, prices):
+    """Request-independent pool health from the static binding (#6826 review G).
+
+    `no_priced_deployment`: canonical models none of whose deployments has a
+    price; `transport_unmeasured`: canonical models whose every variant has a
+    contract its deployments' transport cannot meet (e.g. Anthropic served as
+    OpenAI-compatible on DIAL); `low_tier_priced`: a priced low-tier deployment
+    is bound to a measured variant.
+    """
+    priced = lambda name: prices.quote(name, Tokens(1, 1))['usd'] is not None
+    groups = {}
+    for vid, bound in runtime_variants.items():
+        variant = catalog['variants'][vid]
+        group = groups.setdefault(variant.get('canonical_model') or variant['model'], {'names': [], 'transport_ok': False})
+        for model in [bound] + [visible[name] for name in alternates.get(vid, ())]:
+            if model['name'] not in group['names']:
+                group['names'].append(model['name'])
+            contract = variant.get('calibration_contract')
+            group['transport_ok'] |= not contract or transport_of(model, variant) == contract['transport']
+    return {
+        'no_priced_deployment': {canonical: [{'deployment': name, 'remedy': f'add a Costs price alias for {name}'}
+                                             for name in group['names']]
+                                 for canonical, group in groups.items() if not any(map(priced, group['names']))},
+        'transport_unmeasured': sorted(c for c, group in groups.items() if not group['transport_ok']),
+        'low_tier_priced': any(is_low_tier(visible[name]) and priced(name)
+                               for group in groups.values() for name in group['names'])}
+
+
 class RoutingAdmissionDenied(Exception):
     """Owner denial must escape the classifier's recoverable ValueError path."""
 
@@ -216,7 +254,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     router = compiled_router()
     catalog = router.catalog
     visible = effective_models(models, project_id)
-    runtime_variants, exclusions = qualified_inventory(visible, catalog, project_id=project_id)
+    alternates = {}
+    runtime_variants, exclusions = qualified_inventory(visible, catalog, project_id=project_id, alternates=alternates)
     inventory_revision = fingerprint([model_binding(m) for m in visible.values()])
     output_schema = request.get('output_schema')
     if output_schema is not None and not isinstance(output_schema, dict):
@@ -243,13 +282,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
-    for vid, model in runtime_variants.items():
-        variant = catalog['variants'][vid]
-        contract = variant.get('calibration_contract')
-        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
+    def gate(vid, variant, contract, variant_cap, model):
+        """Failed gates of one deployment, first failure only ([] admits)."""
         if contract:
-            native = not model.get('openai_compatible', False) and is_anthropic(model, variant)
-            transport = 'anthropic_messages' if native else 'chat_completions'
+            transport = transport_of(model, variant)
             reasons = []
             if transport != contract['transport']:
                 reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
@@ -264,28 +300,58 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             if reasons:
                 # Missing evidence for this configuration is not model
                 # incapability or a provider-family ban. Keep it observable.
-                contract_exclusions[vid] = {'reasons': reasons,
+                contract_exclusions[vid] = {'reasons': reasons, 'deployment': model['name'],
                     'configured_transport': transport, 'measured_transport': contract['transport']}
-                continue
+                return reasons
         if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
-            continue
+            return ['EXPLICIT_EFFORT_MISMATCH']
         # The current native Anthropic SDK uses bounded enabled-thinking for
         # this frozen pool. Its budget must fit inside Auto's total allowance.
         if (is_anthropic(model, variant) and variant['effort'] and not model.get('openai_compatible')
                 and not (contract and 'reasoning_fields' in contract)):
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
-                continue
+                return ['THINKING_BUDGET']
         if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
-            continue
+            return ['CONTEXT_WINDOW']
         if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
-            continue
+            return ['OUTPUT_LIMIT']
         if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
-            continue
+            return ['PRICE']
         if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
-            continue
-        allowed.append(vid)
-        output_caps[vid] = variant_cap
+            return ['CACHE_WRITE_PRICE']
+        return []
+
+    signals = deployment_signals(catalog, runtime_variants, alternates, visible, prices)
+    # A renewal keeps its pinned deployment while it is still a ranked candidate
+    # and passes the gates, so a later price row cannot flip an in-flight run.
+    pinned = (restored['config']['model_name'], restored['config']['model_project_id']) if restored else None
+    rebound, rebound_attempts = {}, {}
+    for vid, bound in list(runtime_variants.items()):
+        variant = catalog['variants'][vid]
+        contract = variant.get('calibration_contract')
+        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
+        candidates = [bound] + [visible[name] for name in alternates.get(vid, ())]
+        candidates.sort(key=lambda m: (m['name'], m['project_id']) != pinned)
+        attempts = []
+        for model in candidates:
+            failed = gate(vid, variant, contract, variant_cap, model)
+            attempts.append({'deployment': model['name'], 'failed': failed})
+            if not failed:
+                allowed.append(vid)
+                output_caps[vid] = variant_cap
+                if model is not bound:
+                    runtime_variants[vid] = model
+                    rebound[vid] = {'deployment': model['name'], 'rebound_from': bound['name'],
+                                    'reason': 'PINNED_DEPLOYMENT' if (model['name'], model['project_id']) == pinned
+                                    else 'BOUND_DEPLOYMENT_UNPRICED'}
+                break
+            # Only an unpriced deployment falls back to its next ranked duplicate (#6826);
+            # any other gate failure stops the variant.
+            if failed[0] not in {'PRICE', 'CACHE_WRITE_PRICE'}:
+                break
+        if len(candidates) > 1:
+            rebound_attempts[vid] = attempts
     # Classifier identity is the configured deployment (project, else platform),
     # never request text or a catalog literal. Missing settings fail closed.
     ref = settings.get('classifier')
@@ -366,7 +432,12 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
-                          'excluded': exclusions, 'unmeasured_contracts': contract_exclusions}
+                          'excluded': exclusions, 'unmeasured_contracts': contract_exclusions,
+                          'rebound': rebound, 'rebound_attempts': rebound_attempts,
+                          'unquoted_alternates': list(price_snapshot.get('unquoted', [])),
+                          'no_priced_deployment': signals['no_priced_deployment'],
+                          'transport_unmeasured': signals['transport_unmeasured'],
+                          'low_tier_priced': any(is_low_tier(runtime_variants[v]) for v in allowed)}
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']
     selected = decision['selection']

@@ -262,3 +262,54 @@ def test_preflight_422_passes_configurations_classifier_reason(relay, monkeypatc
         'model': {'name': 'luna', 'project_id': 1}})
     assert preflight_method(relay, monkeypatch)() == ({
         'error': 'Classifier model luna is no longer available to this project', 'reason': 'CLASSIFIER_UNAVAILABLE'}, 422)
+
+
+def test_preflight_prices_winners_first_then_ranked_alternates_within_the_costs_bound(relay, monkeypatch):
+    calls = []
+    def prices(names, canonical_by_name=None):
+        calls.append(names)
+        return relay.args['price_snapshot']
+    relay.context.rpc_manager.timeout(10).costs_get_routing_prices = prices
+    luna = next(m for m in relay.models if m['name'] == 'global.openai.gpt-5.6-luna')
+    relay.models.extend({**luna, 'name': f'gpt-5.6-luna-2026-07-{i:02d}'} for i in range(80))
+    preflight_method(relay, monkeypatch)()
+    [names] = calls
+    assert len(names) == 64
+    assert names[:5] == sorted({'global.openai.gpt-5.6-luna', 'gpt-5.4', 'gpt-5.4-mini',
+                                'eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'eu.anthropic.claude-sonnet-4-6'})
+    assert names[5:] == [f'gpt-5.6-luna-2026-07-{i:02d}' for i in range(59)]
+
+
+def test_pin_on_rebound_dial_deployment_relays_through_its_owner_prefixed_name(relay):
+    luna = next(m for m in relay.models if m['name'] == 'global.openai.gpt-5.6-luna')
+    relay.models.append({**luna, 'name': 'gpt-5.6-luna-2026-07-09'})
+    entries = relay.args['price_snapshot']['entries']
+    measured = next(e for e in entries if e['model_name'] == 'global.openai.gpt-5.6-luna')
+    entries[entries.index(measured)] = {**measured, 'model_name': 'gpt-5.6-luna-2026-07-09',
+                                        'input_cost_per_token': '.00000005', 'output_cost_per_token': '.0000001'}
+    relay.args['settings']['classifier']['name'] = 'gpt-5.6-luna-2026-07-09'
+    service = importlib.import_module('plugin_under_test.routing.service')
+    result = service.resolve(request('Tell me a joke about bears.'),
+                             complete=lambda *a, **k: pytest.fail('Joke classified'), **relay.args)
+    config = result['config']
+    assert config['model_name'] == 'gpt-5.6-luna-2026-07-09'
+    target = {'endpoint': '/v1/chat/completions', 'headers': relay.proxy.Headers({
+        'X-Elitea-Routing-Pin': result['pin'], 'X-Elitea-Routing-Invocation': 'a'*64}),
+        'json': {'model': config['model_name'], 'reasoning_effort': config['reasoning_effort'],
+                 'max_tokens': config['max_tokens']}, 'data': None}
+    assert relay.method.prepare_request(target, {'type': 'token', 'user': {'id': 42, 'name': 'user'}}) is None
+    relay.lookup.assert_called_once_with('model_group_info', '7_gpt-5.6-luna-2026-07-09')
+    assert target['json']['model'] == '7_gpt-5.6-luna-2026-07-09'
+
+
+def test_auto_preflight_rpc_reports_pool_signals_without_a_request(relay):
+    preflight = importlib.import_module('plugin_under_test.methods.routing')
+    rpc = relay.context.rpc_manager.timeout(10)
+    calls = []
+    rpc.costs_get_routing_prices = lambda names, canonical_by_name=None: calls.append(names) or {
+        'revision': 'p1', 'entries': [e for e in relay.args['price_snapshot']['entries'] if 'luna' not in e['model_name']]}
+    signals = preflight.auto_preflight(rpc, 7, 42)
+    assert relay.seen == [(7, 42)] and len(calls) == 1
+    assert set(signals) == {'no_priced_deployment', 'transport_unmeasured', 'low_tier_priced'}
+    assert list(signals['no_priced_deployment']) == ['openai/gpt-5-6-luna']
+    assert signals['transport_unmeasured'] == [] and signals['low_tier_priced'] is False

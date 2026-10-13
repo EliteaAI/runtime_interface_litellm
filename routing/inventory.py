@@ -68,22 +68,29 @@ def _joins(model, variant):
             and contract in ({'default'} if variant.get('effort') is None else {'default', 'reasoning'}))
 
 
-def select_deployment(candidates, variant, *, project_id=None):
-    """Deterministic winner among deployments of one canonical model (#6826 3.4):
-    explicit identity, project-owned, preferred contract, shortest, lexicographic."""
+def rank_deployments(candidates, variant, *, project_id=None):
+    """Deterministic order of deployments of one canonical model (#6826 3.4):
+    explicit identity, project-owned, preferred contract, the measured deployment
+    name, shortest, lexicographic."""
     preferred = 'default' if variant.get('effort') is None else 'reasoning'
     def key(model):
         identity = model.get('identity') if isinstance(model.get('identity'), dict) else {}
         return (identity.get('source') != 'explicit', model['project_id'] != project_id,
-                identity.get('contract', 'default') != preferred, len(model['name']), model['name'])
-    return min(candidates, key=key)
+                identity.get('contract', 'default') != preferred, model['name'] != variant.get('model'),
+                len(model['name']), model['name'])
+    return sorted(candidates, key=key)
 
 
-def qualified_inventory(models, catalog, *, project_id=None):
+def select_deployment(candidates, variant, *, project_id=None):
+    return rank_deployments(candidates, variant, project_id=project_id)[0]
+
+
+def qualified_inventory(models, catalog, *, project_id=None, alternates=None):
     """Join live inventory to evidence; unmeasured models stay visible/excluded.
 
     One deployment is bound per measured variant; same-canonical losers are
     listed, never merged. Discovering a model never invents its qualification.
+    A given `alternates` dict receives each variant's ranked loser names.
     """
     joined, candidates, exclusions = {}, {}, []
     for name, model in models.items():
@@ -99,8 +106,11 @@ def qualified_inventory(models, catalog, *, project_id=None):
             exclusions.append({**entry, 'reason': 'NO_CALIBRATED_MODEL_CONTRACT'})
         for vid in joined[name]:
             candidates.setdefault(vid, []).append(model)
-    winners = {vid: select_deployment(group, catalog['variants'][vid], project_id=project_id)
-               for vid, group in candidates.items()}
+    ranked = {vid: rank_deployments(group, catalog['variants'][vid], project_id=project_id)
+              for vid, group in candidates.items()}
+    winners = {vid: group[0] for vid, group in ranked.items()}
+    if alternates is not None:
+        alternates.update({vid: [m['name'] for m in group[1:]] for vid, group in ranked.items() if group[1:]})
     # Retain inventory order, then catalog order, for every downstream tie-break.
     available = {vid: models[name] for name in joined for vid in joined[name] if winners[vid] is models[name]}
     for name, variants in joined.items():
