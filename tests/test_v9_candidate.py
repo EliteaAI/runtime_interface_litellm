@@ -43,10 +43,11 @@ def classified(value=None):
 def inputs(vid, **metadata):
     args = fixture()
     target = DATA['variants'][vid]['model']
-    # Classifier stays available but cannot perform an8k generation. The single
-    # new generation model must pass the real family and transport gates.
+    # Classifier stays available but its deployment is too small to generate with (its context
+    # window cannot hold a request plus its own output maximum). The single new generation
+    # model must pass the real family and transport gates.
     args['models'] = [{'name': 'global.openai.gpt-5.6-luna', 'project_id': 7,
-                       'context_window': 128000, 'max_output_tokens': 1024},
+                       'context_window': 1000, 'max_output_tokens': 1024},
                      {'name': target, 'project_id': 7, 'context_window': 128000,
                       'max_output_tokens': 32000, **metadata}]
     args['price_snapshot']['entries'].append(dict(model_name=target,
@@ -95,59 +96,81 @@ def test_uncertain_or_social_descriptors_never_gain_new_default_fallback(change)
 
 
 @pytest.mark.parametrize('vid', VARIANTS)
-def test_absent_cap_materializes_measured_contract_and_renews_without_classifier(vid):
+def test_absent_cap_is_the_provider_default_and_renews_without_classifier(vid):
+    # #6722: no ceiling is invented. Absent cap -> max_tokens None; a renewal keeps None and can
+    # only narrow it; an explicit cap, once pinned, can never be enlarged.
     args=inputs(vid);req=request('Reformat the supplied records A=1 B=2.');calls=[]
     result=resolve(req, complete=lambda *a,**k: (calls.append(a) or classified()), **args)
     assert len(calls)==1
-    assert result['config']['max_tokens']==32000
-    assert result['trace']['budget']['completion_cap']==32000
-    assert result['trace']['selection']['economics']['output_range']==[0,32000]
-    assert result['trace']['selection']['economics']['quotes'][vid]['output_allowance']==32000
+    assert result['config']['max_tokens'] is None
+    assert result['config']['routing_total_output_cap'] is False
+    assert result['config']['max_output_tokens']==32000
+    assert 'routing_min_output_cap' not in result['config']
+    assert result['trace']['budget']['completion_cap'] is None
     assert result['config']['routing_transport']==DATA['variants'][vid]['transport']
-    assert result['config']['routing_min_output_cap']==32000
     assert result['config']['reasoning_effort'] is None
     state=state_body(result['state_token'])
-    assert state['decision']['budget']['completion_cap']==32000
+    assert state['decision']['budget']['completion_cap'] is None
     req['prior_pin']=result['pin'];req['state_token']=result['state_token']
     req['messages'].append({'role':'tool','content':'Completed step','tool_call_id':'t1'})
     renewed=resolve(req, complete=lambda *a,**k: pytest.fail('Same run reclassified'), **args)
     assert renewed['config']==result['config']
     assert renewed['state_token']==result['state_token']
-    req['output_cap']=8000
+    req['output_cap']=8000  # narrowing the provider default is allowed ...
+    narrowed=resolve(req,complete=lambda *a,**k: pytest.fail('Narrowing reclassified'),**args)
+    assert narrowed['config']['max_tokens']==8000 and narrowed['config']['routing_total_output_cap'] is True
+    # ... but a pin that carries a cap cannot be enlarged by a later renewal.
+    req['prior_pin']=narrowed['pin'];req['output_cap']=9000
     with pytest.raises(RoutingUnavailable):
         resolve(req,complete=lambda *a,**k: pytest.fail('Invalid renewal classified'),**args)
 
 
-@pytest.mark.parametrize('change', [ {'output_cap':8000}, {'output_cap':31999},
-    {'output_cap':None}, {'output_schema':{'type':'object'}},
+@pytest.mark.parametrize('change', [ {'output_schema':{'type':'object'}},
     {'selection':{'mode':'auto','profile_ref':{'id':'v7-quality-cost','revision':1},
-                  'reasoning':{'mode':'explicit','preset':'high'}}}])
-def test_explicit_limits_presets_and_unmeasured_schema_are_not_overridden(change):
+                  'reasoning':{'mode':'explicit','preset':'high'}}},
+    {'output_cap':255}, {'output_cap':33000}])
+def test_unmeasured_schema_preset_and_out_of_range_caps_are_not_overridden(change):
     req=request('Reformat A=1 B=2.');req.update(change)
     with pytest.raises(RoutingUnavailable):
         resolve(req,complete=lambda *a,**k: pytest.fail('No model admitted'),**inputs('sol-default'))
 
 
-@pytest.mark.parametrize('metadata', [{'max_output_tokens':16000}, {'context_window':32001},
-    {'openai_compatible':True}])
-def test_native_opus_contract_cannot_override_live_configuration(metadata):
-    with pytest.raises(RoutingUnavailable):
+@pytest.mark.parametrize('cap', [8000, 31999, None])
+def test_explicit_or_absent_caps_are_authoritative_for_a_measured_contract(cap):
+    req=request('Reformat A=1 B=2.')
+    if cap is not None:req['output_cap']=cap
+    result=resolve(req,complete=lambda *a,**k: classified(),**inputs('sol-default'))
+    assert result['config']['max_tokens']==cap
+    assert result['config']['routing_total_output_cap'] is (cap is not None)
+    assert result['config'].get('routing_min_output_cap')==cap
+
+
+def test_native_opus_contract_cannot_override_live_configuration():
+    with pytest.raises(RoutingUnavailable):  # context cannot hold the model's own output maximum
         resolve(request('Reformat supplied records.'),complete=lambda *a,**k: classified(),
-                **inputs('opus5-default',**metadata))
+                **inputs('opus5-default',context_window=32001))
+    # The live maximum bounds the provider default; nothing larger is pinned.
+    result=resolve(request('Reformat supplied records.'),complete=lambda *a,**k: classified(),
+                   **inputs('opus5-default',max_output_tokens=16000))
+    assert result['config']['max_output_tokens']==16000 and result['config']['max_tokens'] is None
+    req=request('Reformat supplied records.');req['output_cap']=16001
+    with pytest.raises(RoutingUnavailable):  # an explicit cap beyond the model maximum has no model
+        resolve(req,complete=lambda *a,**k: classified(),**inputs('opus5-default',max_output_tokens=16000))
 
 
-def test_compatible_opus_is_reported_as_unmeasured_transport_not_incapable():
+def test_compatible_opus_is_admitted_as_provisional_with_the_transport_flag():
     args = fixture()
     extra = inputs('opus5-default', openai_compatible=True)
     args['models'].append(extra['models'][1])
     args['price_snapshot']['entries'].append(extra['price_snapshot']['entries'][-1])
     result = resolve(request('Reformat supplied records A=1 B=2.'),
                      complete=lambda *a, **k: classified(), **args)
-    gap = result['trace']['inventory']['unmeasured_contracts']['opus5-default']
-    assert gap == {'reasons': ['CALIBRATION_TRANSPORT_UNMEASURED'], 'deployment': 'eu.anthropic.claude-opus-5',
-                   'configured_transport': 'chat_completions',
-                   'measured_transport': 'anthropic_messages'}
-    assert DATA['variants']['opus5-default']['model'] not in result['trace']['inventory']['excluded']
+    inventory = result['trace']['inventory']
+    assert inventory['provisional_contracts']['opus5-default'] == {
+        'flags': ['CALIBRATION_TRANSPORT_UNMEASURED'], 'deployment': 'eu.anthropic.claude-opus-5',
+        'configured_transport': 'chat_completions', 'measured_transport': 'anthropic_messages'}
+    assert 'opus5-default' not in inventory['unmeasured_contracts']
+    assert DATA['variants']['opus5-default']['model'] not in inventory['excluded']
 
 
 def test_unmeasured_effort_is_distinct_from_transport_gap():
@@ -198,7 +221,9 @@ def test_compiler_rejects_changed_source_and_preserves_original_baseline_cohorts
             assert set(expected)<=set(policy['eligible_by_family'][family]) & old_ids
 
 
-def test_economics_prices_each_eligible_contract_at_its_actual_allowance():
+def test_lab_economics_prices_each_eligible_contract_at_its_effective_cap():
+    # The frozen lab policy still prices the cap each variant would run with: the explicit cap,
+    # else that model's own maximum (provider default). Product catalogs price at the cell p90.
     args=fixture();target=inputs('sol-default')
     args['models'].append(target['models'][1])
     args['price_snapshot']['entries'].append(target['price_snapshot']['entries'][-1])
@@ -209,9 +234,8 @@ def test_economics_prices_each_eligible_contract_at_its_actual_allowance():
     result=resolve(req,complete=lambda *a,**k: classified(),**args)
     quotes=result['trace']['selection']['economics']['quotes']
     assert quotes['sol-default']['output_allowance']==32000
-    assert quotes['luna-default']['output_allowance']==8000
-    assert result['trace']['selection']['variant']!='sol-default'
-    assert result['config']['max_tokens']==8000  # .008 upper bound < new .016
+    assert quotes['luna-default']['output_allowance']==16000
+    assert result['config']['max_tokens'] is None
     req['output_cap']=32000
     for model in args['models']:model['max_output_tokens']=32000
     explicit=resolve(req,complete=lambda *a,**k: classified(),**args)

@@ -8,13 +8,15 @@ import copy
 import hashlib
 import hmac
 import json
+import re
 import time
 from contextvars import ContextVar
 from functools import lru_cache
-from .pricing import PriceBook, Tokens
+from .pricing import PriceBook, Tokens, BYTES_PER_TOKEN, INPUT_ESTIMATOR, estimated_input_tokens
 from .context import read_context, digest, context_revision
 from .v7.catalog import compile_catalog
 from .v7.candidate import CalibratedRouter
+from .v7.economics import rank
 from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
@@ -95,6 +97,50 @@ class RoutingAdmissionDenied(Exception):
         self.response = response
 
 
+_TOKEN = re.compile(r'[^A-Za-z0-9_.:/@+-]')
+
+
+def _tok(value, limit=64):
+    """One log token: names and codes only, no whitespace, bounded."""
+    text = '-' if value is None or value == '' else str(value)
+    return _TOKEN.sub('_', text)[:limit] or '-'
+
+
+def _first_codes(mapping):
+    """`vid:CODE,vid:CODE` using each variant's first reason; never free text."""
+    return ','.join(f'{_tok(v)}:{_tok((codes or ["-"])[0])}' for v, codes in sorted((mapping or {}).items())) or '-'
+
+
+def decision_log_line(project_id, request, result=None, refused=None):
+    """One INFO line per Auto resolve (#6722): enough to read a decision from pylon_main logs.
+
+    Built from the trace's names and codes only; request and message text never enter it.
+    """
+    scope = request.get('scope_id') if isinstance(request, dict) else None
+    head = f'auto-routing decision project={_tok(project_id)} scope={_tok(scope if isinstance(scope, str) else None)[:8]}'
+    if result is None:
+        return f'{head} refused={_tok(refused)}'
+    trace = result.get('trace') or {}
+    classifier, selection = trace.get('classifier') or {}, trace.get('selection') or {}
+    descriptor, inventory = trace.get('descriptor') or {}, trace.get('inventory') or {}
+    admission = selection.get('admission') or {}
+    config = result.get('config') or {}
+    cap = config.get('max_tokens')
+    deployment = (classifier.get('deployment') or {}).get('name')
+    shape = '/'.join(_tok(descriptor.get(k)) for k in ('operation', 'demand', 'relation', 'task_family', 'effort_need'))
+    return (f"{head} classifier={_tok(deployment)} schema_valid={classifier.get('schema_valid', '-')} "
+            f"error={_tok(classifier.get('error'))} profile_error={_tok(classifier.get('profile_error'))} "
+            f"descriptor={shape} needs_context={descriptor.get('needs_context', '-')} "
+            f"input_status={_tok(descriptor.get('input_status'))} "
+            f"selection={_tok(selection.get('variant') or trace.get('reason'))}/{_tok(selection.get('reason'))}/{_tok(selection.get('tier'))} "
+            f"model={_tok(config.get('model_name'))} cap={'default' if cap is None else _tok(cap)} "
+            f"admitted={_tok(inventory.get('admitted_variants'))}/{_tok(inventory.get('qualified_variants'))} "
+            f"gate_failures={_first_codes(inventory.get('gate_failures'))} "
+            f"rejections={_first_codes(admission.get('rejections'))} input_bytes={_tok(inventory.get('input_bytes'))} "
+            f"input_tokens_est={_tok(inventory.get('input_tokens_estimate'))} "
+            f"bytes_per_token={_tok((inventory.get('input_estimator') or {}).get('bytes_per_token'))}")
+
+
 def encode_pin(value, key):
     body = base64.urlsafe_b64encode(json.dumps(value, sort_keys=True, separators=(',', ':')).encode()).decode().rstrip('=')
     sig = hmac.new(key.encode(), body.encode(), hashlib.sha256).hexdigest()
@@ -144,7 +190,17 @@ class ClassifierTransport:
 
     @property
     def output_caps(self):
+        """Effective output cap per admitted variant: the explicit cap, else the model's own maximum."""
         return _REQUEST.get().get('output_caps', {})
+
+    @property
+    def cap_basis(self):
+        return _REQUEST.get().get('cap_basis', 'provider_default')
+
+    @property
+    def tier_caps(self):
+        """Variants admitted only at provisional tier, with the flags that capped them."""
+        return _REQUEST.get().get('tier_caps', {})
 
     @property
     def cache_policy_revision(self):
@@ -187,6 +243,12 @@ class GenerationRouter(CalibratedRouter):
             decision['uncertainty'] = {'handling': 'generation_model',
                                        'reason': decision['selection']['reason']}
             decision['selection'] = self.select(decision['descriptor'], allowed, previous, min_demand)
+            ctx = self.local.get()
+            if (mode == 'economic' and getattr(self.gateway, 'prices', None) is not None
+                    and decision['selection']['reason'] != 'UNCERTAIN_TASK_BASELINE'):
+                # The cheapest variant that clears the floor is chosen by expected expenditure.
+                decision['selection'] = rank(decision['selection'], messages, self.catalog, session=ctx['session'],
+                                             gateway=self.gateway, cap=ctx['cap'], tools=ctx['tools'], previous=previous)
             decision['action'] = 'generate'
             decision.pop('clarification', None)
         return decision
@@ -238,9 +300,11 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Unknown or stale Auto profile')
     if request.get('surface') not in {'chat', 'agent'}:
         raise RoutingUnavailable('Auto is unavailable for this execution surface')
+    # Optional and authoritative when present (bounded below here, above by each model's own
+    # maximum). Absent means the provider default: no ceiling is invented (#6722).
     cap = request.get('output_cap')
-    if 'output_cap' in request and (type(cap) is not int or not 256 <= cap <= 32000):
-        raise RoutingUnavailable('Auto output allowance must be between 256 and 32000 tokens')
+    if cap is not None and (type(cap) is not int or cap < 256):
+        raise RoutingUnavailable('Auto output allowance must be at least 256 tokens')
     messages = request.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 4096:
         raise RoutingUnavailable('Auto requires a bounded task history')
@@ -264,7 +328,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     generation_size = request.get('generation_input_bytes', 0)
     if type(generation_size) is not int or not 0 <= generation_size <= 16_000_000:
         raise RoutingUnavailable('Invalid generation input size bound')
-    size = max(size, generation_size)
+    size = max(size, generation_size)  # UTF-8 bytes; byte-based bounds and the trace use this
+    input_tokens = estimated_input_tokens(size)  # tokens: context-window gate and price quotes
     prior = request.get('prior_pin')
     restored = None
     if prior:
@@ -272,25 +337,30 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             settings=settings, now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
         if restored.get('policy_revision') != router.revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
-        # An omitted cap renews the original run contract, never the new-turn
-        # default. A user-specified cap can narrow it but cannot enlarge it.
+        # An omitted cap renews the original run contract (None stays None: the provider
+        # default), never a new-turn default. A user-specified cap can narrow it but cannot enlarge it.
         if cap is None:
             cap = restored['config']['max_tokens']
     allowed = []
     output_caps = {}
+    tier_caps = {}
     contract_exclusions = {}
+    provisional_contracts = {}
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
-    def gate(vid, variant, contract, variant_cap, model):
-        """Failed gates of one deployment, first failure only ([] admits)."""
+    def gate(vid, variant, contract, variant_cap, model, flags):
+        """Failed gates of one deployment, first failure only ([] admits).
+
+        `flags` collects non-blocking provisional-tier flags of an admitted deployment.
+        """
         if contract:
             transport = transport_of(model, variant)
             reasons = []
             if transport != contract['transport']:
-                reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
-            if variant_cap != contract['output_allowance']:
-                reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
+                # Not a hard gate: an Anthropic deployment behind an OpenAI-compatible
+                # transport is admitted at provisional tier, flagged in the trace.
+                flags.append('CALIBRATION_TRANSPORT_UNMEASURED')
             if output_schema is not None:
                 reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
             if explicit['mode'] == 'explicit' and 'reasoning_fields' not in contract:
@@ -312,13 +382,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
                 return ['THINKING_BUDGET']
-        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
+        if type(model.get('context_window')) is not int or input_tokens+variant_cap > model['context_window']:
             return ['CONTEXT_WINDOW']
         if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
             return ['OUTPUT_LIMIT']
-        if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
+        if prices.quote(model['name'], Tokens(input_tokens, variant_cap))['usd'] is None:
             return ['PRICE']
-        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
+        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=input_tokens))['usd'] is None:
             return ['CACHE_WRITE_PRICE']
         return []
 
@@ -327,19 +397,30 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     # and passes the gates, so a later price row cannot flip an in-flight run.
     pinned = (restored['config']['model_name'], restored['config']['model_project_id']) if restored else None
     rebound, rebound_attempts = {}, {}
+    gate_failures = {}
     for vid, bound in list(runtime_variants.items()):
         variant = catalog['variants'][vid]
         contract = variant.get('calibration_contract')
-        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
         candidates = [bound] + [visible[name] for name in alternates.get(vid, ())]
         candidates.sort(key=lambda m: (m['name'], m['project_id']) != pinned)
         attempts = []
         for model in candidates:
-            failed = gate(vid, variant, contract, variant_cap, model)
+            # The explicit cap is authoritative; without one the provider default applies, which is
+            # the deployment's own maximum. The calibration allowance is checked against the cell's
+            # observed p90 output once the demand is known (v7/admission.py), not here.
+            variant_cap = cap if cap is not None else model.get('max_output_tokens')
+            flags = []
+            failed = (['OUTPUT_LIMIT'] if type(variant_cap) is not int
+                      else gate(vid, variant, contract, variant_cap, model, flags))
             attempts.append({'deployment': model['name'], 'failed': failed})
             if not failed:
                 allowed.append(vid)
                 output_caps[vid] = variant_cap
+                if flags:
+                    tier_caps[vid] = {'tier': 'provisional', 'flags': flags}
+                    provisional_contracts[vid] = {
+                        'flags': flags, 'deployment': model['name'],
+                        'configured_transport': transport_of(model, variant), 'measured_transport': contract['transport']}
                 if model is not bound:
                     runtime_variants[vid] = model
                     rebound[vid] = {'deployment': model['name'], 'rebound_from': bound['name'],
@@ -350,6 +431,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             # any other gate failure stops the variant.
             if failed[0] not in {'PRICE', 'CACHE_WRITE_PRICE'}:
                 break
+        if vid not in output_caps:
+            # Names only: which gate removed this qualified variant (the last deployment tried).
+            gate_failures[vid] = list(attempts[-1]['failed'])
         if len(candidates) > 1:
             rebound_attempts[vid] = attempts
     # Classifier identity is the configured deployment (project, else platform),
@@ -377,15 +461,24 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             raise RoutingUnavailable(str(exc)) from exc
         if restored.get('policy_revision') != router.revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
-        allowed = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
-                   and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
+        kept = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
+                and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
+        gate_failures.update({v: ['CHECKPOINT_PIN'] for v in allowed if v not in kept})
+        allowed = kept
         if not allowed:
             raise RoutingUnavailable('The checkpoint model is no longer admitted')
         if restored.get('invocation_id') == invocation_id:
             # Reauthorize a durable tool-cycle binding, never reclassify its result.
-            if cap > restored['config']['max_tokens']:
+            pinned_cap = restored['config']['max_tokens']
+            if cap is not None and pinned_cap is not None and cap > pinned_cap:
                 raise RoutingUnavailable('The checkpoint output allowance cannot be enlarged')
             restored['config']['max_tokens'] = cap
+            restored['config']['routing_total_output_cap'] = cap is not None
+            if 'routing_min_output_cap' in restored['config']:
+                if cap is None:
+                    del restored['config']['routing_min_output_cap']
+                else:
+                    restored['config']['routing_min_output_cap'] = cap
             restored['expires_at'] = int(time.time() if now is None else now)+3600
             return {'action': 'generate', 'config': restored['config'], 'pin': encode_pin(restored, signing_key),
                     'invocation_id': invocation_id, 'expires_at': restored['expires_at'],
@@ -395,6 +488,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     restored_state = restore_state(request.get('state_token'), signing_key, project_id=project_id,
         user_id=user_id, scope_id=scope_id, gate_revision=settings['revision'], policy_revision=router.revision)
     context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size, 'output_caps': output_caps,
+                                  'cap_basis': 'explicit' if cap is not None else 'provider_default', 'tier_caps': tier_caps,
                                   'classifier': {'model': classifier['name'], 'effort': None},
                                   'deployments': {vid: m['name'] for vid, m in runtime_variants.items()}})
     try:
@@ -405,10 +499,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             apply_observation(session, restored_state, request.get('observation'), messages,
                               router.gateway, catalog, tools, router.revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
-            decision = router.resolve(messages, output_cap=cap if cap is not None else 8000, tools=tools, allowed=allowed,
+            decision = router.resolve(messages, output_cap=cap, tools=tools, allowed=allowed,
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
-            cap = output_caps[decision['selection']['variant']]
             decision['budget']['completion_cap'] = cap
             state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
                 project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
@@ -418,7 +511,11 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         _REQUEST.reset(context_token)
 
     trace = {k: copy.deepcopy(decision.get(k)) for k in ('descriptor', 'policy_revision', 'routing_ms', 'budget')}
-    trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in ('variant', 'reason', 'family_qualification', 'economics')}
+    trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in (
+        'variant', 'reason', 'family_qualification', 'economics', 'tier', 'provisional', 'admission')}
+    if catalog.get('admission') is not None:
+        trace['policy'] = {'admission_table_sha256': catalog['admission']['sha256'],
+                           'rule_revision': catalog['admission']['rule_revision']}
     classifier_info = decision.get('classifier') or {}
     trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error', 'profile_error', 'trailing_chars') if k in classifier_info}
     trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
@@ -437,6 +534,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                           'unquoted_alternates': list(price_snapshot.get('unquoted', [])),
                           'no_priced_deployment': signals['no_priced_deployment'],
                           'transport_unmeasured': signals['transport_unmeasured'],
+                          'provisional_contracts': provisional_contracts, 'gate_failures': gate_failures,
+                          'input_bytes': size, 'input_tokens_estimate': input_tokens,
+                          'input_estimator': {'name': INPUT_ESTIMATOR, 'bytes_per_token': str(BYTES_PER_TOKEN)},
                           'low_tier_priced': any(is_low_tier(runtime_variants[v]) for v in allowed)}
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']
@@ -445,19 +545,23 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     model = runtime_variants[selected['variant']]
     config = {'model_name': model['name'], 'model_project_id': model['project_id'],
               'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
-              'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'], 'max_tokens': cap,
-              'routing_total_output_cap': True}
+              'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'],
+              # None is the provider default; the relay then accepts any value up to max_output_tokens.
+              'max_tokens': cap, 'routing_total_output_cap': cap is not None}
     contract = catalog['variants'][selected['variant']].get('calibration_contract')
     if contract:
-        config['routing_transport'] = contract['transport']
-        config['routing_min_output_cap'] = contract['output_allowance']
-        if 'reasoning_fields' in contract:
-            config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
+        unmeasured = selected['variant'] in tier_caps
+        if not unmeasured:
+            config['routing_transport'] = contract['transport']
+            if 'reasoning_fields' in contract:
+                config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
+        if cap is not None:
+            config['routing_min_output_cap'] = cap
+        family = decision['descriptor'].get('task_family')
         trace['calibration_contract'] = {
             'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
             'status': 'provisional_local_beta', 'production_promotion_allowed': False,
-            'family': decision['descriptor']['task_family'],
-            'cell': contract['families'][decision['descriptor']['task_family']]}
+            'family': family, 'cell': contract['families'].get(family)}
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
            'model_binding': model_binding(model), 'policy_revision': router.revision,

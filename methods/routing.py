@@ -1,10 +1,10 @@
 """Auto preflight uses the same authenticated relay and Usage hooks as generation."""
 import copy
 import json
-from pylon.core.tools import web
+from pylon.core.tools import web, log
 from tools import context, VaultClient
 from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router,
-                               auto_routing_settings, deployment_signals)
+                               auto_routing_settings, deployment_signals, decision_log_line)
 from ..routing.pricing import PriceBook
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
@@ -117,14 +117,26 @@ class Method:
                     emitter.end()
                 self.stream_node.remove_stream(response_id)
 
+        def record(result=None, refused=None):
+            try:  # Diagnostics must never change a routing outcome.
+                log.info(decision_log_line(project_id, proxy_target.get('json'), result, refused))
+            except Exception:  # pylint: disable=W0703
+                pass
+
         try:
-            return resolve(proxy_target['json'], project_id=project_id, user_id=proxy_auth['user']['id'],
-                           settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete)
+            result = resolve(proxy_target['json'], project_id=project_id, user_id=proxy_auth['user']['id'],
+                             settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete)
+            record(result)
+            return result
         except RoutingAdmissionDenied as denied:
+            record(refused='ADMISSION_DENIED')
             return denied.response
         except RoutingUnavailable as exc:
+            record(refused=exc.reason or str(exc))
             if exc.reason:
                 return {'error': str(exc), 'reason': exc.reason}, 422
             return {'error': UNRESOLVED, 'reason': None}, 422
-        except (ValueError, KeyError, TypeError):
+        except (ValueError, KeyError, TypeError) as exc:
+            # Our own fixed messages for ValueError; other classes by name only.
+            record(refused=f'{type(exc).__name__}:{exc}' if type(exc) is ValueError else type(exc).__name__)
             return {'error': UNRESOLVED, 'reason': None}, 422

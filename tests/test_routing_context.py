@@ -135,7 +135,9 @@ def test_plain_chat_greeting_typed_projection_restores_zero_classifier_path():
     args=fixture()
     for price in args['price_snapshot']['entries']:
         if 'luna' in price['model_name']:
-            price['input_cost_per_token']='.0000002';price['output_cost_per_token']='.0000012'
+            # Ranking prices each head's observed p90 answer (#6722), not an 8000-token ceiling,
+            # so Luna needs a lower rate than before to stay the cheapest greeting model.
+            price['input_cost_per_token']='.0000001';price['output_cost_per_token']='.0000004'
     result=resolve(req,complete=lambda *a,**k:pytest.fail('Plain greeting needs no classifier'),**args)
     assert result['trace']['selection']['variant']=='luna-default'
     assert result['trace']['classifier']['called'] is False

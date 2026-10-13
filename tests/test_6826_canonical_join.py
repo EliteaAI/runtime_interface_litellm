@@ -47,7 +47,9 @@ def customer(args):
 @pytest.mark.parametrize('revision', ['v9', 'v12'])
 def test_every_compiled_variant_declares_the_expected_canonical_model(revision):
     variants = compile_catalog(revision)['variants']
-    assert {v['model'] for v in variants.values()} == set(CANONICAL)
+    # The admission table adds the 5.5 heads to the product (v12) catalog only (#6722).
+    added = {'global.anthropic.claude-sonnet-5-5', 'global.anthropic.claude-opus-5-5'}
+    assert {v['model'] for v in variants.values()} == (set(CANONICAL) if revision == 'v12' else set(CANONICAL) - added)
     for vid, variant in variants.items():
         assert GRAMMAR.fullmatch(variant['canonical_model']), vid
         assert variant['canonical_model'] == CANONICAL[variant['model']], vid
@@ -196,7 +198,7 @@ def test_customer_named_inventory_routes_greeting_and_binds_exact_deployment():
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
     assert result['config']['model_name'] in DIAL.values()
     assert result['trace']['inventory']['excluded'] == []
-    assert result['trace']['inventory']['qualified_variants'] == 8
+    assert result['trace']['inventory']['qualified_variants'] == 9
     pin = decode_pin(result['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=101)
     assert pin['model_binding']['name'] == result['config']['model_name']
 
@@ -269,7 +271,7 @@ def test_older_configurations_without_identity_still_route_by_exact_name():
     for model in args['models']:
         model.pop('identity')
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
-    assert result['trace']['inventory']['qualified_variants'] == 8
+    assert result['trace']['inventory']['qualified_variants'] == 9
 
 
 def test_trace_records_price_match_kind():

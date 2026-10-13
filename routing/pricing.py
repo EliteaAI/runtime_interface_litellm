@@ -5,7 +5,7 @@ cached input; output tokens do not decide the threshold. This is an estimate
 from the platform catalog, not an invoice or a budget reservation.
 """
 from dataclasses import dataclass
-from decimal import Decimal, InvalidOperation
+from decimal import Decimal, InvalidOperation, ROUND_CEILING
 from types import MappingProxyType
 import hashlib
 import json
@@ -18,6 +18,17 @@ FIELDS = {
     'write': 'cache_creation_input_token_cost',
 }
 TIER = re.compile(r'^(input_cost_per_token|output_cost_per_token|cache_read_input_token_cost|cache_creation_input_token_cost)_above_(\d+)k_tokens$')
+
+
+# Request sizes are UTF-8 bytes; context windows and prices are in tokens. Three bytes per token is
+# deliberately conservative: English prose is about 4, code and JSON about 3. A larger input is
+# never under-counted by more than this ratio, and nothing is converted twice.
+INPUT_ESTIMATOR = 'utf8_bytes_per_token'
+BYTES_PER_TOKEN = Decimal('3')
+
+
+def estimated_input_tokens(size_bytes):
+    return int((Decimal(size_bytes) / BYTES_PER_TOKEN).to_integral_value(rounding=ROUND_CEILING))
 
 
 @dataclass(frozen=True)

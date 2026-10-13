@@ -480,12 +480,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             validate_fields(pin['config'], body)
                         elif body.get('thinking') is not None or body.get('reasoning'):
                             raise RoutingUnavailable('Pinned provider-default reasoning changed')
-                    output_limit = body.get('max_completion_tokens', body.get('max_tokens', body.get('max_output_tokens')))
-                    if type(output_limit) is not int or output_limit > pin['config']['max_tokens']:
-                        raise RoutingUnavailable('Pinned output allowance exceeded')
-                    if output_limit < pin['config'].get('routing_min_output_cap', 0):
-                        raise RoutingUnavailable('Pinned measured output allowance reduced')
-                    from ..routing.effort import FIELDS
+                    from ..routing.effort import FIELDS, check_output_limit
+                    check_output_limit(pin['config'], body)
                     pinned_envelope = {k: v for k, v in body.items() if k in FIELDS | {
                         'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'}}
                 except (ValueError, KeyError, TypeError):

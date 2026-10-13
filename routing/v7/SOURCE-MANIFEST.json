@@ -9,7 +9,7 @@
     "routing.py": {
       "source": "autorouting_impl/poc/routing.py",
       "sha256": "5fe57360f055e4ba2cea83baa85d3824442a9f842c50875b037802a5093a914c",
-      "product_sha256": "91e24f72245feee173e237284e0656c6655e91a68e8f025e9f67757598efe4cc"
+      "product_sha256": "8787ca07d10b72d4b136744a39b176628f2fb24caaa274ca1eae78f6b2549785"
     },
     "catalog.json": {
       "source": "autorouting_impl/poc/catalog.json",
@@ -19,7 +19,7 @@
     "catalog.py": {
       "source": "autorouting_impl/poc/router_v6/catalog.py",
       "sha256": "4c26be52388ff24ede3e7ab32ff33221189a1018f56cfa00dfdd6231b2e43385",
-      "product_sha256": "c2e78141e783e06a60f1bbeb9e7f1c53b38351e084c8d199e2256a7b902773aa"
+      "product_sha256": "27db6154452ed09e8934674e40f16bfd1c40bb4de1e07f117bc9246e9f69091a"
     },
     "lexical.py": {
       "source": "autorouting_impl/poc/router_v6/lexical.py",
@@ -44,7 +44,7 @@
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "7fec262e5d5f5f754c082ac9ba0275ed87f389cd44be52441873cf71b59e7c49"
+      "product_sha256": "ece34c43bd6ade328ed165abd79fb681874959866ae95b3c0f518ec8be5c8d5c"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -59,7 +59,7 @@
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "bb14339f4750b33e1047f78333e5caac5c7849ea8d40c855cf07cce3149665b7"
+      "product_sha256": "661533613f5a2e94ab722780d684e0f455ed1b36659792b4fa4d4ced7b243d60"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
@@ -93,14 +93,17 @@
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
-    "economics.py": "c33e29c40ca5e6c1d2e5567ed04ca1f63532655410a6749e0d40b0d1903d5797",
+    "economics.py": "db15e4125f9f8806e6fb9fdfb2f9c74c3f7da54cf9d5ff6e1824aef134632036",
     "calibration-v9.json": "0667d2ed76d1c9e90701d78611fdba832c04e20816a17e671d46b3fa1736b7b4",
     "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
     "calibration-v12.json": "b8ccfb1ecdc2720af2001b78bc075853ddba9a6267f912af9f8ac2a0560cf559",
     "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
-    "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d"
+    "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
+    "admission.py": "aa9fa32d77c6fe804259878cf144911c90a81fa6e646bcce65681afc74065a60",
+    "admission-table.json": "5eef4a1a250aa781c0a11d7b52ffd2eb494301860d9eb1e0f5c4cb4413cf8d31",
+    "build_admission_table.py": "fbc4d15bf2a77b12510e897a63d24e702e6f7b8acea781ced5e2a3e523d016b6"
   },
-  "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion",
+  "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion; interim admission table (reviewed-demand view), provider-default output",
   "calibration_compiler": {
     "path": "scripts/compile_v9_candidate.py",
     "sha256": "24abbad3d90b123d82c082939439029e1c55b9b74a65d91ff292d5af6fc0057a",
@@ -123,6 +126,7 @@
     "V12 retains original failures and unknowns;248 full-family model/effort cells provisionally admitted with exact transport/demand/32000 total output allowance.",
     "Classifier adds bounded work/reasoning/evidence/creativity/verification fields in the same call; conservative floors do not create new model capability claims.",
     "Source anchors survive group pruning or are explicitly unavailable; generation receives full unchanged history.",
-    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium."
+    "Comparable usage forecasts require support for every eligible candidate; cold bounds remain visible; no fixed five-percent switching premium.",
+    "Interim policy (#6722): admission by a data-derived table (admission-table.json, built offline by build_admission_table.py from the R81 reviewed-demand view) replaces the catalog task/max_demand/preference tables and qualification-policy.json for product routing; those files remain for the greeting rule and the lab suites. The output ceiling (8000 default, 32000 bound, measured allowance equality) is removed: an absent cap is the provider default."
   ]
 }
