@@ -216,7 +216,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     router = compiled_router()
     catalog = router.catalog
     visible = effective_models(models, project_id)
-    runtime_variants, exclusions = qualified_inventory(visible, catalog, project_id=project_id)
+    alternates = {}
+    runtime_variants, exclusions = qualified_inventory(visible, catalog, project_id=project_id, alternates=alternates)
     inventory_revision = fingerprint([model_binding(m) for m in visible.values()])
     output_schema = request.get('output_schema')
     if output_schema is not None and not isinstance(output_schema, dict):
@@ -243,49 +244,57 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
-    for vid, model in runtime_variants.items():
+    rebound = {}
+    for vid, bound in list(runtime_variants.items()):
         variant = catalog['variants'][vid]
         contract = variant.get('calibration_contract')
         variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
-        if contract:
-            native = not model.get('openai_compatible', False) and is_anthropic(model, variant)
-            transport = 'anthropic_messages' if native else 'chat_completions'
-            reasons = []
-            if transport != contract['transport']:
-                reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
-            if variant_cap != contract['output_allowance']:
-                reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
-            if output_schema is not None:
-                reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
-            if explicit['mode'] == 'explicit' and 'reasoning_fields' not in contract:
-                reasons.append('CALIBRATION_EXPLICIT_EFFORT_UNMEASURED')
-            if variant['effort'] is not None and model.get('supports_reasoning') is False:
-                reasons.append('CONFIGURATION_REASONING_DISABLED')
-            if reasons:
-                # Missing evidence for this configuration is not model
-                # incapability or a provider-family ban. Keep it observable.
-                contract_exclusions[vid] = {'reasons': reasons,
-                    'configured_transport': transport, 'measured_transport': contract['transport']}
+        for model in [bound] + [visible[name] for name in alternates.get(vid, ())]:
+            if contract:
+                native = not model.get('openai_compatible', False) and is_anthropic(model, variant)
+                transport = 'anthropic_messages' if native else 'chat_completions'
+                reasons = []
+                if transport != contract['transport']:
+                    reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
+                if variant_cap != contract['output_allowance']:
+                    reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
+                if output_schema is not None:
+                    reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
+                if explicit['mode'] == 'explicit' and 'reasoning_fields' not in contract:
+                    reasons.append('CALIBRATION_EXPLICIT_EFFORT_UNMEASURED')
+                if variant['effort'] is not None and model.get('supports_reasoning') is False:
+                    reasons.append('CONFIGURATION_REASONING_DISABLED')
+                if reasons:
+                    # Missing evidence for this configuration is not model
+                    # incapability or a provider-family ban. Keep it observable.
+                    contract_exclusions[vid] = {'reasons': reasons,
+                        'configured_transport': transport, 'measured_transport': contract['transport']}
+                    break
+            if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
+                break
+            # The current native Anthropic SDK uses bounded enabled-thinking for
+            # this frozen pool. Its budget must fit inside Auto's total allowance.
+            if (is_anthropic(model, variant) and variant['effort'] and not model.get('openai_compatible')
+                    and not (contract and 'reasoning_fields' in contract)):
+                thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
+                if variant_cap <= thinking_budget:
+                    break
+            if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
+                break
+            if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
+                break
+            # Only an unpriced deployment falls back to its next ranked duplicate (#6826).
+            if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
                 continue
-        if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
-            continue
-        # The current native Anthropic SDK uses bounded enabled-thinking for
-        # this frozen pool. Its budget must fit inside Auto's total allowance.
-        if (is_anthropic(model, variant) and variant['effort'] and not model.get('openai_compatible')
-                and not (contract and 'reasoning_fields' in contract)):
-            thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
-            if variant_cap <= thinking_budget:
+            if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
                 continue
-        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
-            continue
-        if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
-            continue
-        if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
-            continue
-        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
-            continue
-        allowed.append(vid)
-        output_caps[vid] = variant_cap
+            allowed.append(vid)
+            output_caps[vid] = variant_cap
+            if model is not bound:
+                runtime_variants[vid] = model
+                rebound[vid] = {'deployment': model['name'], 'rebound_from': bound['name'],
+                                'reason': 'BOUND_DEPLOYMENT_UNPRICED'}
+            break
     # Classifier identity is the configured deployment (project, else platform),
     # never request text or a catalog literal. Missing settings fail closed.
     ref = settings.get('classifier')
@@ -366,7 +375,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
                           'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
-                          'excluded': exclusions, 'unmeasured_contracts': contract_exclusions}
+                          'excluded': exclusions, 'unmeasured_contracts': contract_exclusions,
+                          'rebound': rebound}
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']
     selected = decision['selection']

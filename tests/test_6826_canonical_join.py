@@ -84,11 +84,69 @@ def test_websearch_and_non_chat_deployments_never_join():
 
 
 def test_duplicate_loser_is_listed_with_the_selected_winner_never_merged():
-    models = inventory(item('global.openai.gpt-5.6-luna'), item('gpt-5.6-luna-2026-07-09'))
+    models = inventory(item('gpt-5.6-luna-2026-07-09'), item('gpt-5.6-luna-2026-07-09-copy'))
     available, exclusions = qualified_inventory(models, CATALOG, project_id=7)
     assert {m['name'] for m in available.values()} == {'gpt-5.6-luna-2026-07-09'}
-    assert exclusions == [{'model': 'global.openai.gpt-5.6-luna', 'model_project_id': 7,
+    assert exclusions == [{'model': 'gpt-5.6-luna-2026-07-09-copy', 'model_project_id': 7,
                            'reason': 'DUPLICATE_CANONICAL_DEPLOYMENT', 'selected': 'gpt-5.6-luna-2026-07-09'}]
+
+
+def test_measured_deployment_name_wins_over_a_shorter_duplicate():
+    # dev-vm: Bedrock global.openai.gpt-5.6-luna (measured, priced) beside DIAL gpt-5.6-luna-2026-07-09.
+    models = inventory(item('global.openai.gpt-5.6-luna'), item('gpt-5.6-luna-2026-07-09'))
+    alternates = {}
+    available, exclusions = qualified_inventory(models, CATALOG, project_id=7, alternates=alternates)
+    assert {m['name'] for m in available.values()} == {'global.openai.gpt-5.6-luna'}
+    assert exclusions == [{'model': 'gpt-5.6-luna-2026-07-09', 'model_project_id': 7,
+                           'reason': 'DUPLICATE_CANONICAL_DEPLOYMENT', 'selected': 'global.openai.gpt-5.6-luna'}]
+    assert alternates == {'luna-default': ['gpt-5.6-luna-2026-07-09'], 'luna-high': ['gpt-5.6-luna-2026-07-09']}
+
+
+def duplicated_luna(args):
+    """Fixture inventory plus the DIAL Luna duplicate; Costs prices only one of them."""
+    luna = next(m for m in args['models'] if m['name'] == 'global.openai.gpt-5.6-luna')
+    args['models'].append({**luna, 'name': 'gpt-5.6-luna-2026-07-09'})
+    args['price_snapshot']['entries'].append(dict(next(e for e in args['price_snapshot']['entries']
+        if e['model_name'] == 'global.openai.gpt-5.6-luna'), model_name='gpt-5.6-luna-2026-07-09'))
+    return args
+
+
+def cheap_luna(args):
+    for entry in args['price_snapshot']['entries']:
+        if 'luna' in entry['model_name']:
+            entry.update(input_cost_per_token='.00000005', output_cost_per_token='.0000001')
+    return args
+
+
+def test_shortest_unpriced_duplicate_no_longer_drops_luna():
+    args = cheap_luna(duplicated_luna(fixture()))
+    args['price_snapshot']['entries'] = [e for e in args['price_snapshot']['entries']
+                                         if e['model_name'] != 'gpt-5.6-luna-2026-07-09']
+    result = resolve(request('Tell me a joke about bears.'), complete=lambda *a, **k: pytest.fail('Joke classified'), **args)
+    assert result['trace']['selection']['variant'] == 'luna-default'
+    assert result['config']['model_name'] == 'global.openai.gpt-5.6-luna'
+    assert result['trace']['inventory']['rebound'] == {}
+
+
+def test_unpriced_measured_deployment_rebinds_to_a_priced_alternate():
+    args = cheap_luna(duplicated_luna(fixture()))
+    args['price_snapshot']['entries'] = [e for e in args['price_snapshot']['entries']
+                                         if e['model_name'] != 'global.openai.gpt-5.6-luna']
+    args['settings']['classifier']['name'] = 'gpt-5.6-luna-2026-07-09'
+    result = resolve(request('Tell me a joke about bears.'), complete=lambda *a, **k: pytest.fail('Joke classified'), **args)
+    assert result['trace']['selection']['variant'] == 'luna-default'
+    assert result['config']['model_name'] == 'gpt-5.6-luna-2026-07-09'
+    assert result['trace']['inventory']['rebound']['luna-default'] == {
+        'deployment': 'gpt-5.6-luna-2026-07-09', 'rebound_from': 'global.openai.gpt-5.6-luna',
+        'reason': 'BOUND_DEPLOYMENT_UNPRICED'}
+
+
+def test_non_price_gate_failure_does_not_try_alternates():
+    args = cheap_luna(duplicated_luna(fixture()))
+    next(m for m in args['models'] if m['name'] == 'global.openai.gpt-5.6-luna')['context_window'] = 1000
+    result = resolve(request('Tell me a joke about bears.'), complete=lambda *a, **k: pytest.fail('Joke classified'), **args)
+    assert result['trace']['selection']['variant'] != 'luna-default'
+    assert result['trace']['inventory']['rebound'] == {}
 
 
 @pytest.mark.parametrize('winner,loser', [

@@ -59,9 +59,11 @@ Catalog and calibration variants declare `canonical_model` next to the exact
 measured name (#6826). Inventory items carrying a Configurations `identity` join
 a variant by canonical identity (chat kind, D6 request contract; web-search
 deployments never join); items without `identity` join by exact name. One
-deployment is bound per variant (`inventory.select_deployment`: explicit identity,
-project-owned, preferred contract, shortest, lexicographic); losers appear as
-`DUPLICATE_CANONICAL_DEPLOYMENT` with the selected winner. A canonical match only
+deployment is bound per variant (`inventory.rank_deployments`: explicit identity,
+project-owned, preferred contract, the measured deployment name, shortest,
+lexicographic); losers appear as `DUPLICATE_CANONICAL_DEPLOYMENT` with the selected
+winner. If the bound deployment has no price, admission retries the price gates on the
+ranked losers and records `inventory.rebound` (`rebound_from`). A canonical match only
 joins an existing measured contract; it never adds quality evidence. The classifier
 is the configured deployment from `settings['classifier']` (project, else platform),
 resolved by name and owner in the visible inventory and called without effort.

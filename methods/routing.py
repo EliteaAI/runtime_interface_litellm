@@ -9,6 +9,7 @@ from ..routing.inventory import effective_models, model_binding, qualified_inven
 from ..utils.metering import meter_llm_call
 
 UNRESOLVED = 'Auto cannot resolve this request under the current profile'
+MAX_PRICE_NAMES = 64  # Costs get_routing_prices bound.
 
 
 def routing_prices(rpc, names, canonical_by_name):
@@ -37,7 +38,8 @@ class Method:
         models = snapshot['items']
         inventory = effective_models(models, project_id)
         router = compiled_router()
-        variants, _ = qualified_inventory(inventory, router.catalog, project_id=project_id)
+        alternates = {}
+        variants, _ = qualified_inventory(inventory, router.catalog, project_id=project_id, alternates=alternates)
         # Quote discovered qualified bindings and the configured classifier only;
         # unqualified inventory can exceed the bounded Costs RPC.
         names = {model['name'] for model in variants.values()}
@@ -45,6 +47,11 @@ class Method:
         if isinstance(classifier, dict) and classifier.get('name') in inventory:
             names.add(classifier['name'])
         names = sorted(names)
+        # Ranked duplicates price a fallback for an unpriced bound deployment;
+        # winners first, within the Costs bound.
+        for name in (n for vid in variants for n in alternates.get(vid, ())):
+            if len(names) < MAX_PRICE_NAMES and name not in names:
+                names.append(name)
         canonical = {name: inventory[name]['identity']['canonical'] for name in names
                      if isinstance((inventory[name].get('identity') or {}).get('canonical'), str)}
         prices = routing_prices(context.rpc_manager.timeout(10), names, canonical)

@@ -262,3 +262,19 @@ def test_preflight_422_passes_configurations_classifier_reason(relay, monkeypatc
         'model': {'name': 'luna', 'project_id': 1}})
     assert preflight_method(relay, monkeypatch)() == ({
         'error': 'Classifier model luna is no longer available to this project', 'reason': 'CLASSIFIER_UNAVAILABLE'}, 422)
+
+
+def test_preflight_prices_winners_first_then_ranked_alternates_within_the_costs_bound(relay, monkeypatch):
+    calls = []
+    def prices(names, canonical_by_name=None):
+        calls.append(names)
+        return relay.args['price_snapshot']
+    relay.context.rpc_manager.timeout(10).costs_get_routing_prices = prices
+    luna = next(m for m in relay.models if m['name'] == 'global.openai.gpt-5.6-luna')
+    relay.models.extend({**luna, 'name': f'gpt-5.6-luna-2026-07-{i:02d}'} for i in range(80))
+    preflight_method(relay, monkeypatch)()
+    [names] = calls
+    assert len(names) == 64
+    assert names[:5] == sorted({'global.openai.gpt-5.6-luna', 'gpt-5.4', 'gpt-5.4-mini',
+                                'eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'eu.anthropic.claude-sonnet-4-6'})
+    assert names[5:] == [f'gpt-5.6-luna-2026-07-{i:02d}' for i in range(59)]
