@@ -69,9 +69,7 @@ class FamilyClassifier(AvailabilityClassifier):
             return unknown('Active instructions exceed the qualified classifier view; conservative baseline required'), {'schema_valid':False,'called':False,'error':'ACTIVE_INSTRUCTIONS_TRUNCATED'}
         descriptor,info=super().classify(view)
         if info.get('schema_valid'):
-            raw=info['response']['message'].get('content') or ''
-            raw=re.sub(r'^```(?:json)?\s*|\s*```$', '',raw.strip())
-            parsed=json.loads(raw)
+            parsed=info['parsed']
             family=parsed.get('task_family','unknown')
             descriptor['task_family']=family if family in FAMILIES else 'unknown'
             try:

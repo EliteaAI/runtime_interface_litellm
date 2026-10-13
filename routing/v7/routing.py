@@ -140,6 +140,37 @@ def validate_descriptor(value, view):
 
 
 CONFIGURED_CLASSIFIER = "configured-classifier"
+_LEADING_FENCE = re.compile(r"^```(?:json)?\s*", re.I)
+
+
+def decode_classifier_json(text):
+    """Return (object, trailing_chars) for the first JSON object in a response.
+
+    Models often wrap the object in a fence and append prose after it, so the
+    first complete object is the contract and everything after it is ignored.
+    ``trailing_chars`` counts what followed the object, excluding whitespace and
+    a bare closing fence.
+    """
+    text = (text if isinstance(text, str) else "").lstrip("\ufeff").strip()
+    text = _LEADING_FENCE.sub("", text, count=1)
+    start = text.find("{")
+    if start < 0:
+        raise ValueError("Classifier response is not a JSON object")
+    try:
+        value, end = json.JSONDecoder().raw_decode(text, start)
+    except ValueError as e:
+        raise ValueError("Classifier response is not a JSON object") from e
+    if not isinstance(value, dict):
+        raise ValueError("Classifier response is not a JSON object")
+    rest = text[end:].strip()
+    if rest.startswith("```"):
+        rest = rest[3:].strip()
+    return value, len(rest)
+
+
+def parse_classifier_json(text):
+    """Parse the first JSON object from a classifier response; see above."""
+    return decode_classifier_json(text)[0]
 
 
 class Classifier:
@@ -160,10 +191,9 @@ class Classifier:
         try:
             if result["finish_reason"] != "stop":
                 raise ValueError("Classifier response incomplete")
-            text = (result["message"].get("content") or "").strip()
-            if text.startswith("```"):
-                text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
-            descriptor = validate_descriptor(json.loads(text), view)
+            parsed, trailing = decode_classifier_json(result["message"].get("content"))
+            info.update(parsed=parsed, trailing_chars=trailing)
+            descriptor = validate_descriptor(dict(parsed), view)
         except (ValueError, KeyError) as e:
             info.update(schema_valid=False, error=str(e))
             descriptor = unknown("Classifier result invalid; baseline required")

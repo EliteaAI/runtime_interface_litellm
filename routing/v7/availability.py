@@ -96,9 +96,7 @@ class AvailabilityClassifier(DispatchClassifier):
         descriptor, info=super().classify(view)
         if not info.get('schema_valid'):
             return descriptor, info
-        raw=(info['response']['message'].get('content') or '').strip()
-        raw=re.sub(r'^```(?:json)?\s*|\s*```$', '', raw)
-        obj=json.loads(raw)
+        obj=info['parsed']
         status=obj.get('input_status')
         ids=obj.get('retrieval_source_ids')
         error=availability_error(obj,descriptor,view)

@@ -9,7 +9,7 @@
     "routing.py": {
       "source": "autorouting_impl/poc/routing.py",
       "sha256": "5fe57360f055e4ba2cea83baa85d3824442a9f842c50875b037802a5093a914c",
-      "product_sha256": "8927cb18359eaeebe2e7e4a3bb3fee0cd35a6679c008719e25a0f27dc2ce3f6a"
+      "product_sha256": "91e24f72245feee173e237284e0656c6655e91a68e8f025e9f67757598efe4cc"
     },
     "catalog.json": {
       "source": "autorouting_impl/poc/catalog.json",
@@ -44,7 +44,7 @@
     "coordinator.py": {
       "source": "autorouting_impl/poc/router_v6/coordinator.py",
       "sha256": "e335e78133aa4a733e79cb84f2be14a6e524363502c1dadbfdc6c00fb2a04022",
-      "product_sha256": "e1d290ab415bb0be4ab6bef56f0868899b1e401abe5d3baef106a5e5623186e7"
+      "product_sha256": "7fec262e5d5f5f754c082ac9ba0275ed87f389cd44be52441873cf71b59e7c49"
     },
     "fallback.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/next_candidate.py",
@@ -54,12 +54,12 @@
     "availability.py": {
       "source": "autorouting_impl/experiments/trajectory-v6/tool_availability_candidate.py",
       "sha256": "b4129fdcf69a769cda12f52a5cfc8c8d22604a3254b0cb610e0a402bee48b5b0",
-      "product_sha256": "784a3677f02b401c5bb60dfb5d37affdfb1b606cf845698eda332577e64189fb"
+      "product_sha256": "0691c7ef907a5a8e601e0c26567fd3d8abdd29e5b6965ade3f7f8f4aba4c35d5"
     },
     "candidate.py": {
       "source": "autorouting_impl/experiments/diversity-v7/candidate.py",
       "sha256": "0c8f1446bbef4fbfaff1f94c7aeba27596ef06de8ba8cd573ffc2dd45aa6804a",
-      "product_sha256": "bdf2af3792fdfb683c10400bded1c645c20f4c010d82edb8acbae51e67e4add7"
+      "product_sha256": "12b0cb960fda0cc5622a09780ad8129d6d7f12211f1d1d73d4db86ca163f8710"
     },
     "qualification-policy.json": {
       "source": "autorouting_impl/experiments/diversity-v7/qualification-policy.json",
