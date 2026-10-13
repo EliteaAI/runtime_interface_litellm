@@ -144,7 +144,7 @@ def test_compatible_opus_is_reported_as_unmeasured_transport_not_incapable():
     result = resolve(request('Reformat supplied records A=1 B=2.'),
                      complete=lambda *a, **k: classified(), **args)
     gap = result['trace']['inventory']['unmeasured_contracts']['opus5-default']
-    assert gap == {'reasons': ['CALIBRATION_TRANSPORT_UNMEASURED'],
+    assert gap == {'reasons': ['CALIBRATION_TRANSPORT_UNMEASURED'], 'deployment': 'eu.anthropic.claude-opus-5',
                    'configured_transport': 'chat_completions',
                    'measured_transport': 'anthropic_messages'}
     assert DATA['variants']['opus5-default']['model'] not in result['trace']['inventory']['excluded']
