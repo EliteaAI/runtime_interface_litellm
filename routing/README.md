@@ -101,7 +101,7 @@ out-of-bounds values are `POLICY_INVALID`.
 | `selector` | `{artifact: null, tau: 0.85, abstain: true}` | installed artifact id; `tau` 0.5..0.99; `abstain` bool |
 | `pool` | `null` (every admitted deployment) | 1..256 canonical ids or exact deployment names |
 | `fallback` | `null` | `{name, project_id}` |
-| `output` | `{default_allowance: 8000, min_cap: 256, max_cap: 32000}` | 256 <= min <= default <= max <= 128000 |
+| `output` | `{default_allowance: 8000, min_cap: 256, max_cap: 32000}` | 256 <= min <= max <= 128000; default 256..128000, clamped into [min, max] |
 | `thinking_budget_tokens` | `{low: 2048, medium: 4096, high: 9092}` | ints, strictly increasing |
 | `greeting_rule` | `true` | bool |
 | `classifier` | `{enabled: false}` | bool; no runtime effect in V5 v1 (ablation only) |
@@ -110,7 +110,17 @@ out-of-bounds values are `POLICY_INVALID`.
   runs, the trace has no `v5` and pins carry the code revision exactly as before.
 - Invalid policy: Auto never refuses for it. The literals apply, legacy runs and
   `trace.v5.reason == 'POLICY_INVALID'`.
-- `pool` and the other values apply to the legacy path too (hard gates are shared).
+- A merge can leave `default_allowance` outside a lowered `[min_cap, max_cap]`; it is
+  clamped and listed in `trace.v5.clamped` (`['output.default_allowance']`).
+- Activation guard: `shadow_mode: false` without an installed, trained (non-stub)
+  `selector.artifact` runs shadow with `trace.v5.reason == 'ACTIVATION_WITHOUT_ARTIFACT'`.
+- Shadow purity: in shadow mode `pool` restricts only the V5 candidates (they show
+  `POOL` gate failures); the executed legacy decision is unchanged. In active mode the
+  pool is a hard gate. Output caps/allowance and thinking budgets are operational
+  values and apply in both modes.
+- `tests/fixtures/policy-merge-cases.json` lists the merged shapes Configurations can
+  serve and the Gateway's handling (clamped / refused / shadow with reason); the
+  Configurations tests reuse it.
 
 **Hard gates** (`routing/gates.py`) are shared by both paths: available, chat kind,
 pool, calibration contract, explicit effort, Anthropic thinking budget, context
@@ -124,20 +134,25 @@ Tokens(ceil(request_bytes / 4), min(head expected_output_tokens, cap)))`. The ch
 candidate with `p_pass >= tau` wins (`SELECTED`); an exact cost tie keeps the
 previous turn's variant (incumbent). None qualifies: `policy.fallback` resolved among
 the gated deployments, lowest effort first (`FALLBACK_NO_QUALIFIED`), else
-`NO_QUALIFIED_MODELS`. Abstention (`selector.abstain`, default true): when the
+`NO_QUALIFIED_MODELS`. A configured fallback that cannot be used is reported in
+`trace.v5.fallback = {deployment, project_id, gated}` with reason `FALLBACK_GATED`
+(visible, but a hard gate failed, e.g. `OUTPUT_CAP`, `POOL`,
+`NO_CALIBRATED_MODEL_CONTRACT`) or `FALLBACK_UNAVAILABLE` (not in the visible
+inventory); in active mode these are the 422 reasons. Abstention (`selector.abstain`, default true): when the
 artifact's `metrics.noise_band` (default 0.0) is > 0 and at least two heads qualify
 with a `p_pass` spread <= the band, the cheapest is not chosen: the fallback is
 (`ABSTAIN_WITHIN_NOISE`), else the qualified head with the highest `p_pass`
 (`ABSTAIN_HIGHEST_P`). `trace.v5` carries `noise_band`, `p_spread` and the outcome. A standalone social turn without instructions takes the
 cheapest gated deployment without scoring (`GREETING_RULE`). A missing or invalid
-artifact is `SELECTOR_UNAVAILABLE` (fallback when configured).
+artifact at runtime is `SELECTOR_UNAVAILABLE` (fallback when configured).
 
 **Shadow/active** (`routing/service.py`). `shadow_mode: true`: the legacy decision is
 executed and `trace.v5 = {selector_id, selector_sha256, tau, candidates, chosen,
 reason, shadow, legacy_choice, policy_revision}`; a V5 defect is traced as `V5_ERROR`
-and never breaks Auto. `shadow_mode: false`: the V5 choice is executed, no LLM
-classifier is called or required; `SELECTOR_UNAVAILABLE`/`NO_QUALIFIED_MODELS` are a
-422 `{error, reason}` only when no fallback can be used. An artifact flagged `stub` is
+and never breaks Auto. `shadow_mode: false` with a trained artifact: the V5 choice is
+executed, no LLM classifier is called or required; `SELECTOR_UNAVAILABLE`,
+`NO_QUALIFIED_MODELS`, `FALLBACK_GATED` or `FALLBACK_UNAVAILABLE` are a 422
+`{error, reason}` only when no fallback can be used. An artifact flagged `stub` is
 never executed. Every pin and checkpoint carries `policy_revision = <code revision>
 +policy-<sha256(effective policy, artifact id@sha256)>`; resolve renewal and the
 relay refuse a pin issued under another policy. The preflight emits the

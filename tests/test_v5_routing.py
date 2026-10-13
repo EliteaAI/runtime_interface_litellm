@@ -76,7 +76,7 @@ def test_partial_policy_is_merged_per_key_with_defaults():
     {'fallback': {'name': 'x'}}, {'fallback': {'name': '', 'project_id': 1}},
     {'fallback': {'name': 'x', 'project_id': 0}}, {'fallback': {'name': 'x', 'project_id': 1, 'effort': 'low'}},
     {'output': {'min_cap': 255}}, {'output': {'max_cap': 128001}}, {'output': {'default_allowance': 255}},
-    {'output': {'min_cap': 4000, 'default_allowance': 3000}}, {'output': {'max_cap': 7999}},
+    {'output': {'min_cap': 4000, 'max_cap': 3000}},
     {'output': {'default_allowance': 8000.0}},
     {'thinking_budget_tokens': {'low': -1}}, {'thinking_budget_tokens': {'low': 5000}},
     {'thinking_budget_tokens': {'max': 1}}, {'classifier': {'enabled': 'false'}}, [],
@@ -201,18 +201,49 @@ def test_gate_report_lists_every_failure():
     assert result['failed'] == ['AVAILABLE', 'CHAT', 'POOL', 'CONTEXT_WINDOW', 'OUTPUT_CAP', 'PRICE']
 
 
-def test_pool_admits_canonical_ids_or_exact_names_in_both_paths():
-    args = fixture()
-    args['settings']['policy'] = policy(pool=['openai/gpt-5-6-luna'])
+def test_shadow_pool_never_narrows_the_executed_legacy_choice():
+    """Shadow purity: the pool restricts V5 candidates only (shown as POOL failures)."""
+    for prompt, complete in (('Hi', no_classifier), (PROVE, classify_design)):
+        args = fixture()
+        legacy = resolve(request(prompt), complete=complete, **args)
+        args['settings']['policy'] = policy(pool=['gpt-5.4-mini'])
+        shadow = resolve(request(prompt), complete=complete, **args)
+        assert shadow['config'] == legacy['config']
+        assert shadow['trace']['selection'] == legacy['trace']['selection']
+        assert shadow['trace']['inventory']['admitted_variants'] == legacy['trace']['inventory']['admitted_variants']
+        v5_trace = shadow['trace']['v5']
+        rows = {c['variant']: c for c in v5_trace['candidates']}
+        assert rows['luna-default']['gates'] == ['POOL'] and rows['mini-low']['gates'] == []
+        if prompt == 'Hi':
+            assert v5_trace['chosen']['deployment'] == 'gpt-5.4-mini'
+        else:  # the stub has no mini head; the gpt-5.4 fallback is outside the pool
+            assert v5_trace['reason'] == 'FALLBACK_GATED' and v5_trace['fallback']['gated'] == ['POOL']
+
+
+def test_active_pool_admits_canonical_ids_or_exact_names(trained):
+    args = fixture(); args['settings'].pop('classifier')
+    active = dict(shadow_mode=False, selector={'artifact': trained, 'tau': 0.85}, fallback=None)
+    args['settings']['policy'] = policy(pool=['openai/gpt-5-6-luna'], **active)
     result = resolve(request(), complete=no_classifier, **args)
     assert result['config']['model_name'] == 'global.openai.gpt-5.6-luna'
     assert result['trace']['inventory']['admitted_variants'] == 1
-    args['settings']['policy'] = policy(pool=['gpt-5.4-mini'])
+    args['settings']['policy'] = policy(pool=['gpt-5.4-mini'], **active)
     assert resolve(request(), complete=no_classifier, **args)['config']['model_name'] == 'gpt-5.4-mini'
-    args['settings']['policy'] = policy(pool=['openai/not-deployed'])
+    args['settings']['policy'] = policy(pool=['openai/not-deployed'], **active)
     with pytest.raises(RoutingUnavailable) as exc:
         resolve(request(), complete=no_classifier, **args)
     assert exc.value.reason == 'NO_QUALIFIED_MODELS'
+
+
+def test_merged_allowance_above_a_lowered_cap_is_clamped_and_traced():
+    value = validate({'output': {'default_allowance': 8000, 'max_cap': 4000}})
+    assert value['output']['default_allowance'] == 4000 and value['clamped'] == ['output.default_allowance']
+    assert validate({'output': {'default_allowance': 300, 'min_cap': 512}})['output']['default_allowance'] == 512
+    assert validate({})['clamped'] == []
+    args = fixture(); args['settings']['policy'] = policy(output={'default_allowance': 8000, 'max_cap': 4000})
+    result = resolve(request(), complete=no_classifier, **args)
+    assert result['config']['max_tokens'] == 4000
+    assert result['trace']['v5']['clamped'] == ['output.default_allowance']
 
 
 def test_output_values_come_from_policy():
@@ -274,7 +305,24 @@ def test_no_qualified_and_no_fallback_reports_no_qualified_models():
     trace = decide(SUMMARY, tau=0.99)
     assert trace['chosen'] is None and trace['reason'] == 'NO_QUALIFIED_MODELS'
     trace = decide(SUMMARY, tau=0.99, fallback={'name': 'gpt-5.4', 'project_id': 8})
-    assert trace['chosen'] is None and trace['reason'] == 'NO_QUALIFIED_MODELS'
+    assert trace['chosen'] is None and trace['reason'] == 'FALLBACK_UNAVAILABLE'
+    assert trace['fallback'] == {'deployment': 'gpt-5.4', 'project_id': 8, 'gated': []}
+
+
+def test_gated_fallback_is_observable():
+    args = fixture()
+    next(m for m in args['models'] if m['name'] == 'gpt-5.4')['max_output_tokens'] = 1000
+    trace = decide(SUMMARY, tau=0.99, fallback={'name': 'gpt-5.4', 'project_id': 7}, args=args)
+    assert trace['chosen'] is None and trace['reason'] == 'FALLBACK_GATED'
+    assert trace['fallback'] == {'deployment': 'gpt-5.4', 'project_id': 7, 'variant': 'gpt54-low',
+                                 'gated': ['OUTPUT_CAP']}
+    # An abstention with a gated fallback still answers, and shows why.
+    args = fixture()
+    haiku = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'
+    next(m for m in args['models'] if m['name'] == haiku)['max_output_tokens'] = 1000
+    trace = decide(SUMMARY, loader=banded(0.1), fallback={'name': haiku, 'project_id': 7}, args=args)
+    assert trace['reason'] == 'ABSTAIN_HIGHEST_P' and trace['chosen']['variant'] == 'gpt54-medium'
+    assert trace['fallback']['gated'] == ['OUTPUT_CAP']
 
 
 def test_greeting_rule_takes_cheapest_gated_deployment_without_scoring():
@@ -425,9 +473,24 @@ def test_active_state_token_carries_the_v5_incumbent(trained):
     assert again['config'] == first['config']
 
 
-def test_active_with_stub_or_missing_selector_uses_fallback_else_refuses(trained):
+@pytest.mark.parametrize('artifact_id', [None, 'selector-v5-stub', 'selector-v5-absent'])
+def test_activation_without_a_trained_artifact_runs_shadow(artifact_id):
+    args = fixture()
+    legacy = resolve(request(SUMMARY), complete=classify_design, **args)
+    args['settings']['policy'] = policy(shadow_mode=False, selector={'artifact': artifact_id, 'tau': 0.85})
+    assert runtime_policy(args['settings'])[1:] == ('shadow', 'ACTIVATION_WITHOUT_ARTIFACT')
+    result = resolve(request(SUMMARY), complete=classify_design, **args)
+    assert result['config'] == legacy['config']
+    assert result['trace']['v5']['reason'] == 'ACTIVATION_WITHOUT_ARTIFACT'
+    assert result['trace']['v5']['shadow'] is True
+    shadow = copy.deepcopy(args['settings']); shadow['policy']['shadow_mode'] = True
+    assert routing_policy_revision(compiled_router(), args['settings']) != routing_policy_revision(compiled_router(), shadow)
+
+
+def test_active_runtime_selector_failure_falls_back_else_refuses(trained, monkeypatch):
     args = fixture(); args['settings'].pop('classifier')
-    args['settings']['policy'] = policy(shadow_mode=False, selector={'artifact': 'selector-v5-absent', 'tau': 0.85})
+    args['settings']['policy'] = policy(shadow_mode=False, selector={'artifact': trained, 'tau': 0.85})
+    monkeypatch.setattr(v5, 'installed', lambda _: (_ for _ in ()).throw(ValueError('corrupt')))
     result = resolve(request(SUMMARY), complete=no_classifier, **args)
     assert result['trace']['v5']['reason'] == 'SELECTOR_UNAVAILABLE'
     assert result['config']['model_name'] == 'gpt-5.4'
@@ -435,11 +498,26 @@ def test_active_with_stub_or_missing_selector_uses_fallback_else_refuses(trained
     with pytest.raises(RoutingUnavailable) as exc:
         resolve(request(SUMMARY), complete=no_classifier, **args)
     assert exc.value.reason == 'SELECTOR_UNAVAILABLE'
-    args['settings']['policy'] = policy(shadow_mode=False, fallback=None,
-                                        selector={'artifact': trained, 'tau': 0.99})
+
+
+@pytest.mark.parametrize('fallback,model_change,code,message', [
+    (None, None, 'NO_QUALIFIED_MODELS', 'No qualified model'),
+    ({'name': 'gpt-5.4', 'project_id': 7}, {'max_output_tokens': 1000}, 'FALLBACK_GATED',
+     'The Auto fallback gpt-5.4 is not admitted for this request: OUTPUT_CAP'),
+    ({'name': 'custom-chat', 'project_id': 7}, None, 'FALLBACK_GATED',
+     'The Auto fallback custom-chat is not admitted for this request: NO_CALIBRATED_MODEL_CONTRACT'),
+    ({'name': 'gone', 'project_id': 7}, None, 'FALLBACK_UNAVAILABLE',
+     'The Auto fallback gone is not available to this project'),
+])
+def test_active_refusals_name_the_blocking_fallback(trained, fallback, model_change, code, message):
+    args = fixture(); args['settings'].pop('classifier')
+    args['models'].append({'name': 'custom-chat', 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000})
+    if model_change:
+        next(m for m in args['models'] if m['name'] == 'gpt-5.4').update(model_change)
+    args['settings']['policy'] = policy(shadow_mode=False, fallback=fallback, selector={'artifact': trained, 'tau': 0.99})
     with pytest.raises(RoutingUnavailable) as exc:
         resolve(request(SUMMARY), complete=no_classifier, **args)
-    assert exc.value.reason == 'NO_QUALIFIED_MODELS'
+    assert exc.value.reason == code and str(exc.value).startswith(message)
 
 
 def test_active_greeting_rule_still_applies(trained):

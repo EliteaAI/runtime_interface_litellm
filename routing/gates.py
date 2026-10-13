@@ -77,8 +77,11 @@ def evaluate(vid, variant, model, *, cap, size, output_schema, explicit, prices,
             'cap': variant_cap, 'failed': failed, 'contract': contract_report}
 
 
-def admit(runtime_variants, catalog, *, cap, size, output_schema, explicit, prices, policy):
-    """Returns (allowed, output_caps, contract_exclusions, report) in inventory order."""
+def admit(runtime_variants, catalog, *, cap, size, output_schema, explicit, prices, policy, enforce_pool=True):
+    """Returns (allowed, output_caps, contract_exclusions, report) in inventory order.
+
+    `enforce_pool=False` (shadow mode) still reports POOL failures in `report`
+    for the V5 candidate set but does not narrow the executed legacy set."""
     allowed, output_caps, contract_exclusions, report = [], {}, {}, {}
     for vid, model in runtime_variants.items():
         result = evaluate(vid, catalog['variants'][vid], model, cap=cap, size=size, output_schema=output_schema,
@@ -86,7 +89,7 @@ def admit(runtime_variants, catalog, *, cap, size, output_schema, explicit, pric
         report[vid] = result
         if result['contract'] is not None:
             contract_exclusions[vid] = result['contract']
-        if not result['failed']:
+        if not [gate for gate in result['failed'] if enforce_pool or gate != 'POOL']:
             allowed.append(vid)
             output_caps[vid] = result['cap']
     return allowed, output_caps, contract_exclusions, report

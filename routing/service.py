@@ -52,7 +52,7 @@ def routing_policy_revision(router, settings):
     policy, mode, error = runtime_policy(settings)
     if mode is None:
         return router.revision
-    if error:
+    if error == 'POLICY_INVALID':
         return router.revision+'+policy-'+_policy_digest({'error': error})
     artifact = policy['selector']['artifact']
     try:
@@ -60,6 +60,8 @@ def routing_policy_revision(router, settings):
         selector = f"{artifact}@{installed(artifact).sha256}"
     except ValueError:
         selector = artifact
+    if error:  # ACTIVATION_WITHOUT_ARTIFACT: valid values, shadow execution.
+        selector = f'{selector}!{error}'
     return router.revision+'+policy-'+_policy_digest(policy, selector)
 
 
@@ -207,6 +209,20 @@ def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, p
         raise RoutingUnavailable('Invalid or foreign routing checkpoint') from exc
 
 
+def _v5_refusal(v5_trace):
+    """Active mode chose nothing: name the configured fallback when it is the blocker."""
+    fallback = v5_trace.get('fallback')
+    if v5_trace['reason'] == 'FALLBACK_GATED':
+        return RoutingUnavailable(f"The Auto fallback {fallback['deployment']} is not admitted for this request: "
+                                  f"{', '.join(fallback['gated'])}"[:512], 'FALLBACK_GATED')
+    if v5_trace['reason'] == 'FALLBACK_UNAVAILABLE':
+        return RoutingUnavailable(f"The Auto fallback {fallback['deployment']} is not available to this project"[:512],
+                                  'FALLBACK_UNAVAILABLE')
+    if v5_trace['reason'] == 'SELECTOR_UNAVAILABLE':
+        return RoutingUnavailable('The configured Auto selector is unavailable', 'SELECTOR_UNAVAILABLE')
+    return RoutingUnavailable('No qualified model fits the request and pricing contract', 'NO_QUALIFIED_MODELS')
+
+
 def _configured_classifier(settings, visible, prices):
     # Classifier identity is the configured deployment (project, else platform),
     # never request text or a catalog literal. Missing settings fail closed.
@@ -291,8 +307,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Invalid Auto reasoning selection')
     allowed, output_caps, contract_exclusions, gate_report = admit(
         runtime_variants, catalog, cap=cap, size=size, output_schema=output_schema, explicit=explicit,
-        prices=prices, policy=policy)
+        prices=prices, policy=policy, enforce_pool=policy_mode == 'active')
     active = policy_mode == 'active'
+    # Shadow keeps the legacy set unnarrowed by the pool; V5 candidates honour it.
+    v5_allowed = [vid for vid in allowed if not gate_report[vid]['failed']]
     classifier, ref = (None, None) if active else _configured_classifier(settings, visible, prices)
     if not allowed:
         raise RoutingUnavailable('No qualified model fits the request and pricing contract', 'NO_QUALIFIED_MODELS')
@@ -331,17 +349,15 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             apply_observation(session, restored_state, request.get('observation'), messages,
                               router.gateway, catalog, tools, revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
-            v5_inputs = dict(policy=policy, mode=policy_mode, report=gate_report, allowed=allowed,
+            v5_inputs = dict(policy=policy, mode=policy_mode, report=gate_report, allowed=v5_allowed,
                              runtime_variants=runtime_variants, catalog=catalog, output_caps=output_caps,
+                             inventory=visible,
                              prices=prices, messages=messages, tools=tools, output_schema=output_schema, size=size,
                              runtime_context=runtime_context, previous=previous)
             if active:
                 v5_trace = v5.decide(**v5_inputs)
                 if v5_trace['chosen'] is None:
-                    code = 'SELECTOR_UNAVAILABLE' if v5_trace['reason'] == 'SELECTOR_UNAVAILABLE' else 'NO_QUALIFIED_MODELS'
-                    raise RoutingUnavailable('No qualified model fits the request and pricing contract'
-                                             if code == 'NO_QUALIFIED_MODELS' else
-                                             'The configured Auto selector is unavailable', code)
+                    raise _v5_refusal(v5_trace)
                 chosen = v5_trace['chosen']
                 decision = {'action': 'generate', 'descriptor': None, 'classifier': None, 'budget': {},
                             'policy_revision': revision,
@@ -375,6 +391,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         trace['classifier'] = {'called': False, 'classifier_variant': None}
     if policy_mode is not None:
         if policy_error:
+            # POLICY_INVALID (literals applied) or ACTIVATION_WITHOUT_ARTIFACT
+            # (valid values, shadow execution): legacy runs, V5 is not computed.
             v5_trace = {'reason': policy_error, 'shadow': True, 'chosen': None, 'candidates': []}
         elif not active:
             # Shadow: observe the V5 choice; the legacy decision is executed.
@@ -388,6 +406,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             'variant': decision['selection']['variant'], 'deployment': runtime_variants[decision['selection']['variant']]['name'],
             'effort': decision['selection']['effort']}
         v5_trace['policy_revision'] = revision
+        v5_trace['clamped'] = list(policy.get('clamped', []))
         trace['v5'] = v5_trace
     entries = price_snapshot['entries']
     trace['prices'] = {'match': {e['model_name']: e.get('match', 'exact') for e in entries},

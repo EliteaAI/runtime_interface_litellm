@@ -52,7 +52,10 @@ def _ref(value, field):
 
 def validate(raw):
     """Return the complete effective policy. Missing keys take defaults (a partial
-    project override is merged per key); unknown keys and bad types refuse."""
+    project override is merged per key); unknown keys, bad types and values
+    outside the platform bounds refuse. What a valid merge can still produce
+    (an allowance outside a lowered cap range) is clamped and listed in
+    `clamped` for the trace."""
     if not isinstance(raw, dict):
         raise PolicyError('policy must be an object')
     unknown = set(raw) - set(DEFAULT_POLICY)
@@ -90,7 +93,12 @@ def validate(raw):
     out = value['output']
     _int(out['min_cap'], PLATFORM_MIN_CAP, PLATFORM_MAX_CAP, 'output.min_cap')
     _int(out['max_cap'], out['min_cap'], PLATFORM_MAX_CAP, 'output.max_cap')
-    _int(out['default_allowance'], out['min_cap'], out['max_cap'], 'output.default_allowance')
+    _int(out['default_allowance'], PLATFORM_MIN_CAP, PLATFORM_MAX_CAP, 'output.default_allowance')
+    value['clamped'] = []
+    if not out['min_cap'] <= out['default_allowance'] <= out['max_cap']:
+        # e.g. platform allowance 8000 with a project max_cap of 4000.
+        out['default_allowance'] = min(max(out['default_allowance'], out['min_cap']), out['max_cap'])
+        value['clamped'].append('output.default_allowance')
     budgets = value['thinking_budget_tokens']
     for effort in ('low', 'medium', 'high'):
         _int(budgets[effort], 0, MAX_THINKING_BUDGET, f'thinking_budget_tokens.{effort}')
@@ -127,6 +135,8 @@ def runtime_policy(settings):
     mode: None when Configurations sent no policy (legacy only, identical to
     main); 'shadow' or 'active' otherwise. An invalid policy never refuses
     Auto: it runs today's literals in legacy mode and reports POLICY_INVALID.
+    Activation needs an installed, trained artifact; otherwise the (valid)
+    policy runs in shadow and reports ACTIVATION_WITHOUT_ARTIFACT.
     """
     if not isinstance(settings, dict) or settings.get('policy') is None:
         return copy.deepcopy(DEFAULT_POLICY), None, None
@@ -134,4 +144,11 @@ def runtime_policy(settings):
         policy = effective_policy(settings)
     except ValueError as exc:
         return copy.deepcopy(DEFAULT_POLICY), 'shadow', getattr(exc, 'reason', None) or 'POLICY_INVALID'
-    return policy, 'shadow' if policy['shadow_mode'] else 'active', None
+    if policy['shadow_mode']:
+        return policy, 'shadow', None
+    from .selector import installed
+    try:
+        trained = not installed(policy['selector']['artifact']).stub
+    except ValueError:
+        trained = False
+    return (policy, 'active', None) if trained else (policy, 'shadow', 'ACTIVATION_WITHOUT_ARTIFACT')

@@ -34,10 +34,19 @@ def test_relay_accepts_a_pin_under_the_same_policy_and_rejects_a_changed_one(rel
 @pytest.mark.parametrize('budgets,expected', [
     (None, 409),  # default 2048 = "low"; the pin (provider default, no effort) refuses it
     ({'low': 1000, 'medium': 1500, 'high': 3000}, None)])  # 2048 names no effort under this policy
-def test_relay_thinking_budget_map_follows_the_policy(relay, budgets, expected):
+def test_relay_thinking_budget_map_follows_the_policy(relay, budgets, expected, tmp_path, monkeypatch):
     service = importlib.import_module('plugin_under_test.routing.service')
+    selector = importlib.import_module('plugin_under_test.routing.selector')
+    value = json.loads((selector.ARTIFACT_DIR/'selector-v5-stub.json').read_text())
+    value['id'] = 'selector-v5-t1'; value['sha256'] = selector.canonical_sha256(value)
+    (tmp_path/'t1.json').write_text(json.dumps(value))
+    (tmp_path/'MANIFEST.json').write_text(json.dumps({'artifacts': {'selector-v5-t1': {
+        'file': 't1.json', 'sha256': value['sha256'], 'stub': False}}}))
+    monkeypatch.setattr(selector, 'ARTIFACT_DIR', tmp_path)
     haiku = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'
-    relay.args['settings']['policy'] = {**POLICY, 'pool': [haiku],
+    # Active mode: the pool narrows the gates, the greeting rule takes the only deployment.
+    relay.args['settings']['policy'] = {**POLICY, 'shadow_mode': False, 'pool': [haiku], 'fallback': None,
+                                        'selector': {'artifact': 'selector-v5-t1', 'tau': 0.85},
                                         **({'thinking_budget_tokens': budgets} if budgets else {})}
     result = service.resolve(request(), complete=lambda *a, **k: pytest.fail('classified'), **relay.args)
     config = result['config']
