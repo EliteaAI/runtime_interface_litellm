@@ -1,14 +1,47 @@
 """Caller-owned conversation state with explicit checkpoint serialization.
 
 Only user messages or trusted application events create/cancel pending actions.
-Provider cache estimates never survive checkpoint restoration without fresh use.
+Provider cache observations survive restoration without refreshing their age.
 """
-import copy,json,re,threading,time,uuid
+import copy,json,math,re,threading,time,uuid
 from .retrieval import ContextIndex,digest
 
 CONTINUE=re.compile(r'(?:go|proceed|continue|start(?: coding)?)[.! ]*',re.I)
 READY=re.compile(r'\b(?:ready to (?:code|implement)|wait for my (?:go|confirmation).*?(?:code|implement)|(?:code|implement).*?wait for my (?:go|confirmation))\b',re.I|re.S)
 CANCEL=re.compile(r'(?:please\s+)?(?:cancel|forget|drop)\s+(?:all(?:\s+pending)?\s+tasks|(?:the |my )?(?:pending )?(?:task|implementation|plan))[.! ]*',re.I)
+CACHE_STATE_REVISION='bounded-cache-checkpoint-3-unknown-counters-default-5m'
+# Default provider-cache evidence window. One-hour caching requires a separate
+# verified request contract; restoring a checkpoint never extends this window.
+CACHE_TTL_SECONDS = 300
+MAX_CACHE_BYTES=64_000
+
+
+def valid_time(value):
+    return type(value) in (int,float) and math.isfinite(value) and value>=0
+
+
+def bounded_cache(rows):
+    """Optional advisory state may be dropped; task/intent state must survive."""
+    if not isinstance(rows,list):return []
+    kept=[];seen=set();size=2
+    for row in reversed(rows[-64:]):
+        if not isinstance(row,dict):continue
+        try:
+            if not valid_time(row['observed_at']):continue
+            if type(row['epoch']) is not int or row['epoch']<0:continue
+            if type(row['read_tokens']) is not int or row['read_tokens']<0:continue
+            if row['observed_write_tokens'] is not None and (type(row['observed_write_tokens']) is not int or row['observed_write_tokens']<0):continue
+            if row['observed_read_tokens'] is not None and (type(row['observed_read_tokens']) is not int or row['observed_read_tokens']<0):continue
+            if any(not isinstance(row[k],str) or len(row[k])>256 for k in ('variant','identity')):continue
+            if not isinstance(row['message_hashes'],list) or not row['message_hashes']:continue
+            if any(not isinstance(h,str) or not re.fullmatch('[0-9a-f]{64}',h) for h in row['message_hashes']):continue
+            if row['returned_model'] is not None and (not isinstance(row['returned_model'],str) or len(row['returned_model'])>256):continue
+            key=digest([row[k] for k in ('identity','epoch','message_hashes','observed_at')])
+            encoded=json.dumps(row,allow_nan=False).encode()
+            if key in seen or size+len(encoded)+2>MAX_CACHE_BYTES:continue
+        except (KeyError,TypeError,ValueError):continue
+        seen.add(key);size+=len(encoded)+2;kept.append(copy.deepcopy(row))
+    return list(reversed(kept))
 
 def message_digest(message):
     return digest({k:message.get(k)for k in ['role','content','tool_calls','tool_call_id']})
@@ -40,19 +73,44 @@ class Session:
             return self.epoch
 
     def record_pending(self,messages,decision,result,policy_revision,answer_index=None):
+        if not messages:return
         prompt=messages[-1].get('content','')
-        if messages[-1]['role']!='user' or not isinstance(prompt,str) or not READY.search(prompt) or result.get('finish_reason')!='stop':return
+        if messages[-1]['role']!='user' or not isinstance(prompt,str) or result.get('finish_reason')!='stop':return
         answer=result.get('message',{}).get('content')
         if not answer or decision.get('action')=='clarify':return
+        link=(decision.get('descriptor') or {}).get('task_continuity')
+        action=link['action'] if link else ('defer' if READY.search(prompt) else 'independent')
+        if action in {'independent','resume'}:return
         rid=f'm{len(messages)-1}';aid=f'm{len(messages) if answer_index is None else answer_index}'
         with self.lock:
+            sources={rid:message_digest(messages[-1]),aid:message_digest(result['message']|{'role':'assistant'})}
+            if action in {'amend','cancel','replace'}:
+                item=self.intents.get(link['task_id'])
+                if not item or item['status']!='awaiting_user' or item['epoch']!=self.epoch or item['policy_revision']!=policy_revision:return
+                if action=='amend':
+                    item['source_digests'].update(sources)
+                    item['source_ids']=sorted(item['source_digests'],key=lambda x:int(x[1:]))
+                    return
+                item['status']='cancelled' if action=='cancel' else 'superseded'
+                if action=='cancel':return
             # One intent per explicit source request; retries do not duplicate it.
             key=message_digest(messages[-1])
             if any(i['request_digest']==key for i in self.intents.values()):return
             self.register_pending({'id':uuid.uuid4().hex,'request_digest':key,'status':'awaiting_user',
-                'source_ids':[rid,aid], 'source_digests':{rid:key,aid:message_digest({'role':'assistant','content':answer})},
-                'next_task':'Implement the design in the explicitly requested prior task', 'next_demand':'deep',
+                'source_ids':[rid,aid], 'source_digests':sources,
+                'next_task':link['summary'] if link else 'Perform the deferred deliverable in the prior user request',
                 'decision':copy.deepcopy(decision),'policy_revision':policy_revision,'epoch':self.epoch})
+
+    def pending_index(self,messages,policy_revision):
+        """Small source index for semantic task linking; no implicit resume."""
+        with self.lock:
+            active=[i for i in self.intents.values() if i['status']=='awaiting_user'
+                    and i['epoch']==self.epoch and i['policy_revision']==policy_revision]
+            valid=[i for i in active if all(int(r[1:])<len(messages)-1 and
+                    message_digest(messages[int(r[1:])])==h for r,h in i['source_digests'].items())]
+            # Omission is explicit. The index never implies a unique target.
+            rows=[{'id':i['id'],'summary':i['next_task'][:400],'source_ids':list(i['source_ids'])} for i in valid[-8:]]
+            return rows,len(valid)-len(rows)
 
     def register_pending(self,intent):
         """Trusted application event adapter. Never expose directly to tool text."""
@@ -105,15 +163,18 @@ class Session:
 
     def checkpoint(self):
         with self.lock:
-            return json.loads(json.dumps({'version':1,'id':self.id,'epoch':self.epoch,'history_hashes':self.history_hashes,
+            return json.loads(json.dumps({'version':3,'id':self.id,'epoch':self.epoch,'history_hashes':self.history_hashes,
                 'access_revision':getattr(self,'access_revision','local-authorized-v1'),'intents':self.intents,
-                'evidence_sets':self.evidence_sets}))
+                'evidence_sets':self.evidence_sets,'cache':bounded_cache(self.cache)}))
 
     @classmethod
     def restore(cls,value):
-        if value.get('version')!=1:raise ValueError('Unsupported routing checkpoint')
+        if value.get('version') not in (1,2,3):raise ValueError('Unsupported routing checkpoint')
         s=cls(value['id'])
         for k in ['epoch','history_hashes','access_revision','intents','evidence_sets']:setattr(s,k,copy.deepcopy(value[k]))
+        # V2 imputed absent writes as zero; its optional cache evidence cannot
+        # distinguish unknown from observed zero. Preserve task state, stay cold.
+        if value['version']==3:s.cache=bounded_cache(value.get('cache',[]))
         return s
 
 
@@ -124,25 +185,27 @@ def cache_identity(gateway,variant,tools,cap):
 
 
 def observe_cache(session,gateway,variant_id,variant,messages,tools,cap,result,now=None):
+    now=time.time() if now is None else now
+    if not valid_time(now):return
     usage=result.get('usage')or{};detail=usage.get('prompt_tokens_details')or{}
     read=detail.get('cached_tokens',usage.get('cache_read_input_tokens'))
-    write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens',0))
+    write=detail.get('cache_creation_tokens',usage.get('cache_creation_input_tokens'))
     if read is not None and (type(read)is not int or read<0):return
-    if type(write)is not int or write<0:return
+    if write is not None and (type(write)is not int or write<0):return
     if read is None and not write:return  # Unknown is not an observed miss.
-    if type(usage.get('prompt_tokens'))is not int or (read or 0)+write>usage['prompt_tokens']:return
+    if type(usage.get('prompt_tokens'))is not int or (read or 0)+(write or 0)>usage['prompt_tokens']:return
     item={'variant':variant_id,'identity':cache_identity(gateway,variant,tools,cap),
-        'message_hashes':[digest(m) for m in messages],'read_tokens':(read or 0)+write,'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
-        'observed_at':now if now is not None else time.time(),'epoch':session.epoch}
+        'message_hashes':[digest(m) for m in messages],'read_tokens':(read or 0)+(write or 0),'observed_read_tokens':read,'observed_write_tokens':write,'returned_model':result.get('returned_model'),
+        'observed_at':now,'epoch':session.epoch}
     with session.lock:
-        session.cache.append(item);session.cache=session.cache[-64:]
+        session.cache=bounded_cache([*session.cache,item])
 
 
-def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=180,now=None):
+def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=CACHE_TTL_SECONDS,now=None):
     identity=cache_identity(gateway,variant,tools,cap);hashes=[digest(m) for m in messages];now=time.time() if now is None else now
     with session.lock:
         matches=[x for x in session.cache if x['variant']==variant_id and x['identity']==identity and x['epoch']==session.epoch
-                 and 0<=now-x['observed_at']<=ttl and hashes[:len(x['message_hashes'])]==x['message_hashes']]
+                 and 0<=now-x['observed_at']<ttl and hashes[:len(x['message_hashes'])]==x['message_hashes']]
     if not matches:return None
     best=max(matches,key=lambda x:x['read_tokens'])
     observed=[x for x in matches if type(x.get('observed_read_tokens'))is int]
@@ -151,5 +214,5 @@ def cache_quote(session,gateway,variant_id,variant,messages,tools,cap,ttl=180,no
         'compatible_prefix':True,'route_identity_matches':True,'effort_matches':True,'within_ttl':True,
         'variant':variant_id,'returned_model_last_observed':best['returned_model'],
         'historical_read_hits':hits,'historical_observations':len(observed),
-        'observed_read_tokens':best.get('observed_read_tokens',best['read_tokens']),'observed_write_tokens':best.get('observed_write_tokens',0),
+        'observed_read_tokens':best.get('observed_read_tokens',best['read_tokens']),'observed_write_tokens':best.get('observed_write_tokens'),
         'basis':'Observed cache read/write on identical prior request prefix; hidden gateway/provider changes remain uncertain'}

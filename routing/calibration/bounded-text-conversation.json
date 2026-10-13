@@ -1,0 +1,1125 @@
+{
+  "revision": "v14-final-development-r35-bounded-text-conversation",
+  "qualification_policy": {
+    "minimum_templates": 4,
+    "minimum_validation_templates": 4,
+    "minimum_wilson_lower": 0.5,
+    "revision": "uniform-profile-v1"
+  },
+  "source_sha256": "2878855139d3182e75cb3690bc41bfef08ca2bc9df411c610bc4bda8596d5d37",
+  "variants": {
+    "m06-default": {
+      "configuration_fingerprint": "1e303b9ece7a9878cf8640b2044230ff706ad03e276ec7027c520cec3bae8a76",
+      "context_window": 400000,
+      "default_is_disabled_thinking": false,
+      "effort": null,
+      "model": "eu.anthropic.claude-sonnet-4-6",
+      "output_policy": "provider default; optional limits omitted, required native field uses configured maximum",
+      "total_output_allowance": 128000,
+      "transport": "anthropic_messages",
+      "cache_write_mode": "separate",
+      "requested_reasoning_fields": {},
+      "request_contract": {
+        "model": "eu.anthropic.claude-sonnet-4-6",
+        "effort": null,
+        "transport": "anthropic_messages",
+        "output_policy": {
+          "mode": "provider default; optional limits omitted, required native field uses configured maximum",
+          "required_native_maximum": 128000
+        },
+        "tool_contract_revision": "v14-calibration-tools-1",
+        "task_contract_revision": "v14-visible-task-contract-1",
+        "descriptor_revision": "v14-annotation-contract-2",
+        "deployment_fingerprint": "1e303b9ece7a9878cf8640b2044230ff706ad03e276ec7027c520cec3bae8a76"
+      }
+    },
+    "m09-default": {
+      "configuration_fingerprint": "c7884794c7dd8e109c9ff18a1388adf945be30b572067be1955ec171c01500cb",
+      "context_window": 1000000,
+      "default_is_disabled_thinking": false,
+      "effort": null,
+      "model": "global.openai.gpt-5.6-luna",
+      "output_policy": "provider default; optional limits omitted, required native field uses configured maximum",
+      "total_output_allowance": 128000,
+      "transport": "chat_completions",
+      "cache_write_mode": "ordinary_input",
+      "requested_reasoning_fields": {},
+      "request_contract": {
+        "model": "global.openai.gpt-5.6-luna",
+        "effort": null,
+        "transport": "chat_completions",
+        "output_policy": {
+          "mode": "provider default; optional limits omitted, required native field uses configured maximum",
+          "required_native_maximum": null
+        },
+        "tool_contract_revision": "v14-calibration-tools-1",
+        "task_contract_revision": "v14-visible-task-contract-1",
+        "descriptor_revision": "v14-annotation-contract-2",
+        "deployment_fingerprint": "c7884794c7dd8e109c9ff18a1388adf945be30b572067be1955ec171c01500cb"
+      }
+    }
+  },
+  "records": [
+    {
+      "variant": "m06-default",
+      "family": "api_design",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "architecture",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "business_planning",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "classification",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "code",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "content_creation",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "conversation_control",
+      "profile_evidence": [
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "constrained",
+            "verification": "none"
+          },
+          "sample_count": 5,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 1,
+          "delivery_failure": 0,
+          "independent_templates": 5,
+          "wilson95": [
+            0.37553462976252533,
+            0.9637758913675698
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/csv/sonnet/turns/000",
+            "r26/runs/ukrainian/sonnet/turns/000",
+            "r26/runs/extensions/sonnet/turns/000",
+            "r26/runs/outline/sonnet/turns/000",
+            "r26/runs/aggregate/sonnet/turns/000"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 4,
+          "pass": 2,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 2,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.15003898915214947,
+            0.8499610108478506
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/csv/sonnet/turns/002",
+            "r26/runs/extensions/sonnet/turns/002",
+            "r26/runs/run_length/sonnet/turns/000",
+            "r26/runs/pointer/sonnet/turns/002"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "unresolved_measurement"
+        },
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 5,
+          "pass": 2,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 2,
+          "disagreement": 1,
+          "delivery_failure": 0,
+          "independent_templates": 5,
+          "wilson95": [
+            0.11762077423264783,
+            0.769275718723987
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/ukrainian/sonnet/turns/002",
+            "r26/runs/glossary/sonnet/turns/002",
+            "r26/runs/outline/sonnet/turns/002",
+            "r26/runs/aggregate/sonnet/turns/002",
+            "r26/runs/run_length/sonnet/turns/002"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "disputed_assessment"
+        },
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "none"
+          },
+          "sample_count": 2,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 1,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 2,
+          "wilson95": [
+            0.09453120573423074,
+            0.9054687942657693
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/glossary/sonnet/turns/000",
+            "r26/runs/pointer/sonnet/turns/000"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "unresolved_measurement"
+        }
+      ],
+      "validated_pools": [],
+      "sample_count": 16,
+      "pass": 9,
+      "fail": 0,
+      "unknown": 5,
+      "disagreement": 2,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "data_gathering",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "development",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "editing_localization",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "evidence_synthesis",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "extraction",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "performance_analysis",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "quantitative",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "rca",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "requirements",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "security_review",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "test_design",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "tool_workflow",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m06-default",
+      "family": "transformation",
+      "profile_evidence": [
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 16,
+          "pass": 11,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 5,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 8,
+          "wilson95": [
+            0.13684428582359742,
+            0.6942576053973727
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/csv/sonnet/turns/001",
+            "r26/runs/csv/sonnet/turns/003",
+            "r26/runs/ukrainian/sonnet/turns/001",
+            "r26/runs/ukrainian/sonnet/turns/003",
+            "r26/runs/extensions/sonnet/turns/001",
+            "r26/runs/extensions/sonnet/turns/003",
+            "r26/runs/glossary/sonnet/turns/001",
+            "r26/runs/glossary/sonnet/turns/003",
+            "r26/runs/outline/sonnet/turns/001",
+            "r26/runs/outline/sonnet/turns/003",
+            "r26/runs/aggregate/sonnet/turns/001",
+            "r26/runs/aggregate/sonnet/turns/003",
+            "r26/runs/run_length/sonnet/turns/001",
+            "r26/runs/run_length/sonnet/turns/003",
+            "r26/runs/pointer/sonnet/turns/001",
+            "r26/runs/pointer/sonnet/turns/003"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "unresolved_measurement"
+        }
+      ],
+      "validated_pools": [],
+      "sample_count": 16,
+      "pass": 11,
+      "fail": 0,
+      "unknown": 5,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "api_design",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "architecture",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "business_planning",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "classification",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "code",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "content_creation",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "conversation_control",
+      "profile_evidence": [
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "constrained",
+            "verification": "none"
+          },
+          "sample_count": 5,
+          "pass": 5,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 5,
+          "wilson95": [
+            0.5655175352168251,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/csv/luna/turns/000",
+            "r26/runs/ukrainian/luna/turns/000",
+            "r26/runs/extensions/luna/turns/000",
+            "r26/runs/outline/luna/turns/000",
+            "r26/runs/aggregate/luna/turns/000"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 4,
+          "pass": 4,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 4,
+          "wilson95": [
+            0.5101091635454027,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/csv/luna/turns/002",
+            "r26/runs/extensions/luna/turns/002",
+            "r26/runs/aggregate/luna/turns/002",
+            "r26/runs/run_length/luna/turns/002"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        },
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "constrained",
+            "verification": "check"
+          },
+          "sample_count": 2,
+          "pass": 2,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 2,
+          "wilson95": [
+            0.34238022750665303,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/ukrainian/luna/turns/002",
+            "r26/runs/glossary/luna/turns/002"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "none"
+          },
+          "sample_count": 2,
+          "pass": 2,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 2,
+          "wilson95": [
+            0.34238022750665303,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/glossary/luna/turns/000",
+            "r26/runs/pointer/luna/turns/000"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "none"
+          },
+          "sample_count": 1,
+          "pass": 1,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 1,
+          "wilson95": [
+            0.20654931437723745,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/outline/luna/turns/002"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        },
+        {
+          "work_profile": {
+            "work": "explain",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 2,
+          "pass": 2,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 2,
+          "wilson95": [
+            0.34238022750665303,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/run_length/luna/turns/000",
+            "r26/runs/pointer/luna/turns/002"
+          ],
+          "eligible_local_beta": false,
+          "qualification_status": "insufficient_independent_templates"
+        }
+      ],
+      "validated_pools": [],
+      "sample_count": 16,
+      "pass": 16,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [
+        "simple"
+      ],
+      "eligible_local_beta": true
+    },
+    {
+      "variant": "m09-default",
+      "family": "data_gathering",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "development",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "editing_localization",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "evidence_synthesis",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "extraction",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "performance_analysis",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "quantitative",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "rca",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "requirements",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "security_review",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "test_design",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "tool_workflow",
+      "profile_evidence": [],
+      "validated_pools": [],
+      "sample_count": 0,
+      "pass": 0,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [],
+      "eligible_local_beta": false
+    },
+    {
+      "variant": "m09-default",
+      "family": "transformation",
+      "profile_evidence": [
+        {
+          "work_profile": {
+            "work": "transform",
+            "reasoning": "bounded",
+            "evidence": "supplied",
+            "creativity": "none",
+            "verification": "check"
+          },
+          "sample_count": 16,
+          "pass": 16,
+          "fail": 0,
+          "quality_fail": 0,
+          "refused": 0,
+          "unknown": 0,
+          "disagreement": 0,
+          "delivery_failure": 0,
+          "independent_templates": 8,
+          "wilson95": [
+            0.6755924351161198,
+            1
+          ],
+          "demand_coverage": [
+            "simple"
+          ],
+          "compatible_contracts": true,
+          "artifact_ids": [
+            "r26/runs/csv/luna/turns/001",
+            "r26/runs/csv/luna/turns/003",
+            "r26/runs/ukrainian/luna/turns/001",
+            "r26/runs/ukrainian/luna/turns/003",
+            "r26/runs/extensions/luna/turns/001",
+            "r26/runs/extensions/luna/turns/003",
+            "r26/runs/glossary/luna/turns/001",
+            "r26/runs/glossary/luna/turns/003",
+            "r26/runs/outline/luna/turns/001",
+            "r26/runs/outline/luna/turns/003",
+            "r26/runs/aggregate/luna/turns/001",
+            "r26/runs/aggregate/luna/turns/003",
+            "r26/runs/run_length/luna/turns/001",
+            "r26/runs/run_length/luna/turns/003",
+            "r26/runs/pointer/luna/turns/001",
+            "r26/runs/pointer/luna/turns/003"
+          ],
+          "eligible_local_beta": true,
+          "qualification_status": "provisional_qualified"
+        }
+      ],
+      "validated_pools": [],
+      "sample_count": 16,
+      "pass": 16,
+      "fail": 0,
+      "unknown": 0,
+      "disagreement": 0,
+      "delivery_failure": 0,
+      "wilson95": null,
+      "demand_coverage": [
+        "simple"
+      ],
+      "eligible_local_beta": true
+    }
+  ],
+  "excluded_observations": [],
+  "usage_compilation": {
+    "m06-default": {
+      "families": {},
+      "excluded": [],
+      "attempted_trajectories": 0,
+      "included_trajectories": 0
+    },
+    "m09-default": {
+      "families": {},
+      "excluded": [],
+      "attempted_trajectories": 0,
+      "included_trajectories": 0
+    }
+  },
+  "promotion_allowed": false,
+  "request_scope": {
+    "id": "text:reviewed-history-r35-4",
+    "delivery": "text",
+    "execution_contract": "reviewed-history-r35-4",
+    "history": "bounded_conversation",
+    "maximum_user_turns": 4,
+    "tools_sha256": "4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+  },
+  "forecast_validation_required": true,
+  "validated_usage_cohorts": {},
+  "switching_policies": [],
+  "classifier_variant": "m09-default",
+  "baseline_variant": "m09-default"
+}

@@ -3,8 +3,9 @@ import copy
 import json
 from pylon.core.tools import web
 from tools import context, VaultClient
-from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router,
+from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, configured_router,
                                auto_routing_settings)
+from ..routing.bundle import runtime_settings
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
 
@@ -26,6 +27,10 @@ class Method:
     def resolve_auto_routing(self, proxy_target, proxy_auth):
         project_id = proxy_auth['project_id']
         settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, proxy_auth['user']['id'])
+        try:
+            settings = runtime_settings(settings, getattr(getattr(self, 'descriptor', None), 'config', {}), project_id)
+        except ValueError:
+            return {'error': 'Auto calibration bundle is unavailable'}, 503
         if proxy_target['method'] == 'GET':
             return {'enabled': bool(settings['enabled']), 'profile_ref': PROFILE,
                     'surfaces': ['chat', 'agent'], 'revision': settings['revision']}
@@ -36,7 +41,10 @@ class Method:
         snapshot = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, proxy_auth['user']['id'])
         models = snapshot['items']
         inventory = effective_models(models, project_id)
-        router = compiled_router()
+        try:
+            router = configured_router(settings)
+        except (ValueError, KeyError, TypeError):
+            return {'error': 'Auto calibration bundle is unavailable'}, 503
         variants, _ = qualified_inventory(inventory, router.catalog, project_id=project_id)
         # Quote discovered qualified bindings and the configured classifier only;
         # unqualified inventory can exceed the bounded Costs RPC.
@@ -90,7 +98,7 @@ class Method:
 
         try:
             return resolve(proxy_target['json'], project_id=project_id, user_id=proxy_auth['user']['id'],
-                           settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete)
+                           settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete, router=router)
         except RoutingAdmissionDenied as denied:
             return denied.response
         except RoutingUnavailable as exc:

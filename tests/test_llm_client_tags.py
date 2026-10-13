@@ -28,6 +28,8 @@ def _stub_pylon_and_tools():
     #
     tools_stub = types.ModuleType("tools")
     tools_stub.context = types.SimpleNamespace()
+    tools_stub.project_constants = {"PROJECT_USER_NAME_PREFIX": "system_user_"}
+    tools_stub.this = types.SimpleNamespace()
     tools_stub.VaultClient = lambda *a, **kw: types.SimpleNamespace(update_secrets=lambda **kw2: None)
     #
     for name, mod in [

@@ -58,7 +58,10 @@ def validate_binding(binding, models, project_id):
 def _joins(model, variant):
     """Canonical identity joins a measured contract; legacy items join by exact name."""
     identity = model.get('identity')
-    if not isinstance(identity, dict):
+    if (not isinstance(identity, dict) or variant.get('configured_routing_contract')
+            or variant.get('configured_fallback_contract')):
+        # Owner-configured native bindings (selection policy / coverage fallback)
+        # name an exact deployment; admission re-validates its owner and fingerprint.
         return model['name'] == variant['model']
     contract = identity.get('contract', 'default')
     # D6: provider-default variants take default deployments only; effort
