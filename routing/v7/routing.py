@@ -200,10 +200,15 @@ class Classifier:
         return descriptor, info
 
 
-def choose(descriptor, allowed=None, previous=None, min_demand="simple", catalog=None):
+def choose(descriptor, allowed=None, previous=None, min_demand="simple", catalog=None, context=None):
     catalog = catalog or CATALOG
     allowed = set(allowed) if allowed is not None else set(catalog["variants"])
     op = descriptor["operation"]
+    if catalog.get("admission") is not None and op != "greeting":
+        # Product catalogs admit by the data-derived table; the tables below remain for the
+        # greeting rule and for lab catalogs without an admission section.
+        from .admission import choose_admitted
+        return choose_admitted(descriptor, allowed, previous, min_demand, catalog, context)
     floor = max(DEMAND[descriptor["demand"]], DEMAND[min_demand])
     uncertain = descriptor["needs_context"] or descriptor["relation"] == "ambiguous" or op == "other"
     if uncertain:
@@ -340,5 +345,9 @@ class Coordinator:
             "input_digest": hashlib.sha256(json.dumps(messages, sort_keys=True).encode()).hexdigest()}
         return decision
 
+    def admission_context(self):
+        """Per-request facts the admission chooser needs from the gateway; none for lab gateways."""
+        return {}
+
     def select(self, descriptor, allowed=None, previous=None, min_demand="simple"):
-        return choose(descriptor, allowed, previous, min_demand, self.catalog)
+        return choose(descriptor, allowed, previous, min_demand, self.catalog, context=self.admission_context())

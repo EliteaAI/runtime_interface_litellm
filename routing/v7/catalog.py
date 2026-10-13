@@ -3,6 +3,7 @@ import copy,json
 from pathlib import Path
 from .routing import CATALOG
 from .retrieval import digest
+from . import admission as admission_table
 from functools import lru_cache
 
 
@@ -16,9 +17,15 @@ def effort_candidate():
     return json.loads((Path(__file__).parent/'calibration-v12.json').read_text())
 
 
-def compile_catalog(calibration_revision='v12'):
+def compile_catalog(calibration_revision='v12', admission=None):
+    """``admission`` attaches the data-derived admission table (default: the product revision v12).
+
+    Lab callers pass ``admission=False`` (or revision ``v9``) to keep the frozen family cells deciding.
+    """
     if calibration_revision not in {'v9', 'v12'}:
         raise ValueError('Unknown calibration revision')
+    if admission is None:
+        admission = calibration_revision == 'v12'
     value=copy.deepcopy(CATALOG);value['revision']='v6-effort-profiles-1'
     value['calibration_revision'] = calibration_revision
     value['qualification']='Provisional task ceilings; effort transport verified on three fixtures per preset; full-workload qualification still measured separately'
@@ -54,6 +61,12 @@ def compile_catalog(calibration_revision='v12'):
                 'production_promotion_allowed': False}}
         if 'requested_reasoning_fields' in identity:
             value['variants'][vid]['calibration_contract']['reasoning_fields'] = copy.deepcopy(identity['requested_reasoning_fields'])
+    if admission:
+        table = admission_table.load()
+        value['admission'] = {'rule_revision': table['rule_revision'], 'sha256': table['sha256'],
+                              'dataset_sha256': table['dataset_sha256'], 'heads': copy.deepcopy(table['heads'])}
+        value['variants'].update(admission_table.missing_variants(value['admission'], value['variants']))
+        value['revision'] += '+admission-' + table['sha256'][:12]
     return value
 
 

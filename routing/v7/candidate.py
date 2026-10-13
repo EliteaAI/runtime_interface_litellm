@@ -87,8 +87,30 @@ class CalibratedRouter(FixedV6Router):
         self.policy=policy if policy is not None else compiled_policy(self.catalog.get('calibration_revision', 'v12'))
         self.classifier=FamilyClassifier(self.gateway,self.classifier.variant,self.catalog)
         self.revision += '-family-qualification-'+sha({'policy':self.policy,'prompt':FAMILY_PROMPT+PROFILE_PROMPT})[:12]
+        admission=self.catalog.get('admission')
+        if admission is not None:
+            # A new table (or rule) is a new policy: pins issued under the old one are refused.
+            self.revision += '-admission-'+admission['rule_revision']+'-'+admission['sha256'][:12]
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
+        if self.catalog.get('admission') is not None:
+            return self._select_admitted(descriptor,allowed,previous,min_demand)
+        return self._select_family_cells(descriptor,allowed,previous,min_demand)
+
+    def _select_admitted(self,descriptor,allowed,previous,min_demand):
+        """Admission is the data-derived table (demand, optional family), not the family cells above."""
+        result=super().select(descriptor,allowed,previous,min_demand)
+        admission=self.catalog['admission']
+        if descriptor.get('operation')=='greeting':
+            result['family_qualification']={'status':'existing_exact_greeting_rule','promotion':False}
+        else:
+            baseline=result['reason']=='UNCERTAIN_TASK_BASELINE'
+            result['family_qualification']={'family':descriptor.get('task_family','unknown'),
+                'status':'insufficient_evidence_baseline' if baseline else 'admission_table',
+                'rule_revision':admission['rule_revision'],'table_sha256':admission['sha256'],'promotion':False}
+        return result
+
+    def _select_family_cells(self,descriptor,allowed=None,previous=None,min_demand='simple'):
         # V9 defaults are admitted only by the original full-family calibration
         # cell, including its observed demand bands. Unknown/ambiguous work must
         # never reach one through the insufficient-evidence fallback.
