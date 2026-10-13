@@ -139,3 +139,51 @@ def test_family_classifier_failure_through_prose_only_is_unknown():
     descriptor, info = FamilyClassifier(Gateway("I cannot classify this."), CONFIGURED_CLASSIFIER,
                                         compile_catalog()).classify(view())
     assert info["schema_valid"] is False and descriptor["operation"] == "other"
+
+
+HAIKU_ANALYSIS = {
+    "operation": "analysis", "demand": "standard", "relation": "independent", "reference_ids": [],
+    "needs_context": False, "reason": "Ordinary analysis request", "effort_need": "medium",
+    "task_family": "security_review", "input_status": "provided", "retrieval_source_ids": [],
+    "work_profile": {"work": "explain", "reasoning": "multi_step", "evidence": "missing",
+                     "creativity": "constrained", "verification": "none"},
+}
+
+
+def family(obj):
+    content = "```json\n" + json.dumps(obj, indent=2) + "\n```\n\n**Rationale:** prose"
+    return FamilyClassifier(Gateway(content), CONFIGURED_CLASSIFIER, compile_catalog()).classify(view())
+
+
+def test_invalid_profile_enum_keeps_the_validated_descriptor():
+    # Haiku copied input_status "missing" into the evidence enum; the profile is advisory.
+    descriptor, info = family(HAIKU_ANALYSIS)
+    assert info["schema_valid"] is True and "error" not in info
+    assert info["profile_error"] == "WORK_PROFILE_ENUM"
+    assert (descriptor["operation"], descriptor["demand"]) == ("analysis", "standard")
+    assert descriptor["task_family"] == "security_review"
+    assert descriptor["effort_need"] == "medium"
+    assert "work_profile" not in descriptor and "profile_demand_floor" not in descriptor
+
+
+def test_missing_profile_field_is_profile_error_not_descriptor_loss():
+    profile = {k: v for k, v in HAIKU_ANALYSIS["work_profile"].items() if k != "verification"}
+    descriptor, info = family({**HAIKU_ANALYSIS, "work_profile": profile})
+    assert info["schema_valid"] is True and info["profile_error"] == "WORK_PROFILE_FIELDS"
+    assert descriptor["operation"] == "analysis" and descriptor["task_family"] == "security_review"
+    assert "work_profile" not in descriptor
+
+
+def test_valid_profile_is_unchanged_and_raises_the_floor():
+    profile = {**HAIKU_ANALYSIS["work_profile"], "evidence": "supplied", "reasoning": "interacting_constraints"}
+    descriptor, info = family({**HAIKU_ANALYSIS, "work_profile": profile})
+    assert info["schema_valid"] is True and "profile_error" not in info
+    assert descriptor["work_profile"] == profile
+    assert descriptor["profile_demand_floor"] == "deep" and descriptor["demand"] == "deep"
+
+
+def test_trace_classifier_block_exposes_profile_error_and_trailing_chars():
+    import inspect
+    from routing import service
+    src = inspect.getsource(service)
+    assert "'profile_error'" in src and "'trailing_chars'" in src

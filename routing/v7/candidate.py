@@ -75,8 +75,9 @@ class FamilyClassifier(AvailabilityClassifier):
             try:
                 descriptor=apply_profile(descriptor, parsed.get('work_profile'))
             except ValueError as exc:
-                from .routing import unknown
-                return unknown(str(exc)), {**info, 'schema_valid': False, 'error': str(exc)}
+                # The profile is advisory: a defect in it must not discard the
+                # validated mandatory label. Keep the descriptor, drop the profile.
+                info['profile_error']=str(exc)
         return descriptor,info
 
 
