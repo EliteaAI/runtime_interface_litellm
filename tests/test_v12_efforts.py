@@ -47,8 +47,8 @@ def inputs(preset):
     args = fixture()
     contract = DATA['variants'][preset]
     args['models'] = [
-        # Classifier-only: the context window cannot hold a request plus the model's own output maximum.
-        {'name': 'global.openai.gpt-5.6-luna', 'project_id': 7, 'context_window': 1100, 'max_output_tokens': 1024},
+        # Classifier-only: the context window cannot hold the model's own output maximum.
+        {'name': 'global.openai.gpt-5.6-luna', 'project_id': 7, 'context_window': 1000, 'max_output_tokens': 1024},
         {'name': contract['model'], 'project_id': 7, 'context_window': 128000,
          'max_output_tokens': 32000, 'supports_reasoning': True}]
     args['price_snapshot']['entries'].append(dict(model_name=contract['model'],

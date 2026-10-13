@@ -422,7 +422,7 @@ def test_classifier_usage_denial_is_not_a_baseline_fallback():
 
 
 def test_structured_schema_included_in_conservative_admission_bound():
-    req = request();req['output_schema'] = {'description': 'x'*200000}
+    req = request();req['output_schema'] = {'description': 'x'*400000}  # 133,334 estimated tokens > 128,000 window
     with pytest.raises(RoutingUnavailable, match='fits'):
         resolve(req, complete=classifier_design, **fixture())
 
@@ -431,7 +431,7 @@ def test_projected_task_cannot_reduce_full_generation_size_bound():
     req=request();req['generation_input_bytes']=10000
     result=resolve(req,complete=lambda *a,**k:pytest.fail('Greeting classifier called'),**fixture())
     assert result['trace']['selection']['economics']['input_size_proxy']==10000
-    req['generation_input_bytes']=200000
+    req['generation_input_bytes']=400000  # bytes: 133,334 estimated tokens exceed the 128,000-token window
     with pytest.raises(RoutingUnavailable):
         resolve(req,complete=lambda *a,**k:pytest.fail('Classifier called'),**fixture())
     req['generation_input_bytes']=-1

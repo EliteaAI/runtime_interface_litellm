@@ -6,7 +6,7 @@ or grant quality eligibility. A cache quote is advisory and keeps a cold bound.
 import copy
 import json
 from decimal import Decimal, ROUND_CEILING
-from ..pricing import Tokens
+from ..pricing import Tokens, estimated_input_tokens
 from .state import cache_quote
 from .admission import annotate, cell as admission_cell, variant_head
 
@@ -27,7 +27,8 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
         return selection
     eligible = [row['variant'] for row in selection['candidates'] if row['eligible']]
     size = len(json.dumps({'messages': messages, 'tools': tools or [], 'output_schema': getattr(gateway, 'output_schema', None)}, ensure_ascii=False).encode()) + 64*len(messages)
-    size = max(size, getattr(gateway, 'generation_input_bytes', 0))
+    size = max(size, getattr(gateway, 'generation_input_bytes', 0))  # UTF-8 bytes
+    tokens_in = estimated_input_tokens(size)  # prices and context are in tokens
     quotes = {}
     family=selection.get('family_qualification',{}).get('family')
     forecasts={v:forecast(catalog['variants'][v],family,size,getattr(gateway,'output_caps',{}).get(v,cap)) for v in eligible}
@@ -57,21 +58,21 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
         variant_cap = expected[vid][0] if product else getattr(gateway, 'output_caps', {}).get(vid, cap)
         # Price the live deployment bound to this measured variant (#6826).
         model = getattr(gateway, 'deployments', {}).get(vid, catalog['variants'][vid]['model'])
-        cold = gateway.prices.quote(model, Tokens(size, variant_cap))
+        cold = gateway.prices.quote(model, Tokens(tokens_in, variant_cap))
         # V7's upper scenario includes a cache miss/write, without assuming a hit.
         write = (cold if catalog['variants'][vid].get('cache_write_mode') == 'ordinary_input'
-                 else gateway.prices.quote(model, Tokens(0, variant_cap, write=size)))
+                 else gateway.prices.quote(model, Tokens(0, variant_cap, write=tokens_in)))
         if cold['usd'] is None or write['usd'] is None:
             raise ValueError('Auto pricing is incomplete for an eligible model')
         # The cache identity carries the call's own cap (None = provider default), as observed.
         evidence = cache_quote(session, gateway, vid, catalog['variants'][vid], messages, tools, cap if product else variant_cap)
-        read = min(evidence['read_token_upper_bound'], size) if evidence else 0
-        lower = gateway.prices.quote(model, Tokens(size-read, 0, read=read))
+        read = min(evidence['read_token_upper_bound'], tokens_in) if evidence else 0
+        lower = gateway.prices.quote(model, Tokens(tokens_in-read, 0, read=read))
         quotes[vid] = {'lower_usd': lower['usd'], 'cache_evidence': evidence, 'upper_usd': str(max(Decimal(cold['usd']), Decimal(write['usd']))),
                        'price_revision': gateway.prices.revision, 'output_allowance': variant_cap}
         if product:
             quotes[vid]['output_basis']=expected[vid][1]
-        estimate=forecasts[vid] if comparable else {'input_tokens':size,'output_tokens':variant_cap,'calls':1}
+        estimate=forecasts[vid] if comparable else {'input_tokens':tokens_in,'output_tokens':variant_cap,'calls':1}
         est_input,est_output=estimate['input_tokens'],estimate['output_tokens']
         est_cold=gateway.prices.quote(model,Tokens(est_input,est_output))
         est_write=(est_cold if catalog['variants'][vid].get('cache_write_mode')=='ordinary_input'
@@ -110,7 +111,7 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
         reason = 'ADMISSION_P90_EXPENDITURE'
     result = {**selection, **copy.deepcopy(catalog['variants'][chosen]), 'variant': chosen,
             'reason': 'V6_PRICE_AFTER_ELIGIBILITY', 'economics': {'reason': reason, 'quotes': quotes,
-            'output_range': [0, quotes[chosen]['output_allowance']], 'input_size_proxy': size,
+            'output_range': [0, quotes[chosen]['output_allowance']], 'input_size_proxy': size, 'input_tokens_estimate': tokens_in,
             'forecast_comparable':comparable,'forecast_fallback':None if comparable else 'MISSING_OR_OUT_OF_RANGE_USAGE_SUPPORT',
             'switching_policy':'Previous variant breaks equal-cost ties; no fixed percentage premium',
             'input_proxy_kind': 'Serialized UTF-8 bytes plus framing allowance; not exact provider tokens',

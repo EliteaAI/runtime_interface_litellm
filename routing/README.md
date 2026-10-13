@@ -171,3 +171,10 @@ reasons (`ADMISSION_NO_ROW`, `ADMISSION_ROW_OUT`, `CALIBRATION_ALLOWANCE_BELOW_P
 classifier=... descriptor=op/demand/relation/family/effort selection=variant/reason/tier
 model=... cap=... admitted=n/m gate_failures=vid:CODE,... rejections=vid:CODE,...`
 (`refused=<reason>` for a refusal), readable in pylon_main logs.
+
+Input size is measured in UTF-8 bytes (`MAX_REQUEST_BYTES`, `trace.inventory.input_bytes`) but
+context windows and prices are in tokens, so the context-window gate and every price quote use
+`estimated_input_tokens(size) = ceil(size / 3)` (`routing/pricing.py`, trace
+`inventory.input_tokens_estimate` and `input_estimator`). Three bytes per token is conservative:
+English prose is about four, code and JSON about three. The SDK's per-turn runtime-context
+blocks are real prompt content and stay counted.

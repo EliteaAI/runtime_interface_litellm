@@ -47,7 +47,7 @@ def inputs(vid, **metadata):
     # window cannot hold a request plus its own output maximum). The single new generation
     # model must pass the real family and transport gates.
     args['models'] = [{'name': 'global.openai.gpt-5.6-luna', 'project_id': 7,
-                       'context_window': 1100, 'max_output_tokens': 1024},
+                       'context_window': 1000, 'max_output_tokens': 1024},
                      {'name': target, 'project_id': 7, 'context_window': 128000,
                       'max_output_tokens': 32000, **metadata}]
     args['price_snapshot']['entries'].append(dict(model_name=target,

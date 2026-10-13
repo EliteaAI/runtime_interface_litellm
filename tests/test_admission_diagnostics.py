@@ -36,11 +36,24 @@ def test_at_100k_bytes_sol_and_terra_pass_every_gate():
     assert result['trace']['selection']['variant'] in {'terra-default', 'sol-high'}
 
 
-def test_at_170k_bytes_the_context_window_gate_removes_sol_and_terra_but_not_luna():
-    result = local(170_000, operation='design', effort_need='high', relation='return', needs_context=True,
+def test_the_live_223k_byte_history_is_about_74k_tokens_and_admits_sol_and_terra():
+    # Live (1407ac4): input_bytes 223,265 removed every 200k deployment because bytes were compared
+    # with a token window. At three bytes per token it is 74,422 tokens + 32,000 < 200,000.
+    result = local(223_265, operation='design', effort_need='high', relation='followup', needs_context=True,
                    input_status='ambiguous')
     inventory = result['trace']['inventory']
-    assert inventory['input_bytes'] == 170_000
+    assert (inventory['input_bytes'], inventory['input_tokens_estimate']) == (223_265, 74_422)
+    assert inventory['input_estimator'] == {'name': 'utf8_bytes_per_token', 'bytes_per_token': '3'}
+    assert not set(SOL_TERRA) & set(inventory['gate_failures'])
+    selection = result['trace']['selection']
+    assert selection['variant'] in {'terra-default', 'sol-high'} and selection['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+
+
+def test_a_true_overflow_still_fails_the_context_gate_and_the_trace_says_so():
+    result = local(600_000, operation='design', effort_need='high', relation='return', needs_context=True,
+                   input_status='ambiguous')
+    inventory = result['trace']['inventory']
+    assert inventory['input_bytes'] == 600_000 and inventory['input_tokens_estimate'] == 200_000
     for vid in SOL_TERRA:
         assert inventory['gate_failures'][vid] == ['CONTEXT_WINDOW'], vid
     assert not any(v.startswith('luna') for v in inventory['gate_failures'])  # 272k holds 170k + 64k
@@ -52,8 +65,9 @@ def test_at_170k_bytes_the_context_window_gate_removes_sol_and_terra_but_not_lun
     assert selection['admission']['rejections']['sol-high'] == ['outside configured PoC pool']
 
 
-@pytest.mark.parametrize('size,passes', [(168_000, True), (168_001, False)])
-def test_context_window_boundary_is_size_plus_the_32000_deployment_maximum(size, passes):
+@pytest.mark.parametrize('size,passes', [(504_000, True), (504_001, False)])
+def test_context_window_boundary_is_estimated_tokens_plus_the_32000_deployment_maximum(size, passes):
+    # 504,000 bytes / 3 = 168,000 tokens; 168,000 + 32,000 = the 200,000-token window.
     inventory = local(size, operation='design')['trace']['inventory']
     assert ('terra-default' not in inventory['gate_failures']) is passes
 
@@ -85,7 +99,7 @@ def test_output_limit_reasoning_disabled_and_thinking_budget_are_named():
 
 
 def test_only_names_and_numbers_appear_in_gate_failures():
-    inventory = local(170_000)['trace']['inventory']
+    inventory = local(600_000)['trace']['inventory']
     assert all(isinstance(v, list) and all(isinstance(c, str) and c.isupper() for c in v)
                for v in inventory['gate_failures'].values())
 
@@ -125,7 +139,7 @@ SENTINEL = 'SENTINEL-do-not-log-7731 zero trust worker'
 
 def test_log_line_has_the_documented_fields_and_no_request_text():
     args = args_for('luna', 'terra', 'sol', 'gpt54', **LOCAL)
-    req = request(SENTINEL, generation_input_bytes=170_000)
+    req = request(SENTINEL, generation_input_bytes=600_000)
     result = resolve(req, complete=classifier(demand='deep', operation='design', effort_need='high', relation='return',
                                               needs_context=True, input_status='ambiguous',
                                               reason=SENTINEL), **args)
@@ -136,7 +150,8 @@ def test_log_line_has_the_documented_fields_and_no_request_text():
                   'profile_error=-', 'descriptor=design/deep/return/quantitative/high', 'needs_context=True',
                   'input_status=ambiguous', 'selection=gpt54-high/UNCERTAIN_TASK_BASELINE/-',
                   'model=gpt-5.4', 'cap=default', 'gate_failures=', 'sol-high:CONTEXT_WINDOW',
-                  'terra-default:CONTEXT_WINDOW', 'rejections='):
+                  'terra-default:CONTEXT_WINDOW', 'rejections=', 'input_bytes=600000',
+                  'input_tokens_est=200000', 'bytes_per_token=3'):
         assert field in line, field
     assert line.startswith('auto-routing decision ')
     assert f"admitted={result['trace']['inventory']['admitted_variants']}/{result['trace']['inventory']['qualified_variants']}" in line
@@ -165,3 +180,13 @@ def test_refusal_line_keeps_the_prefix_and_names_the_reason():
     assert line == 'auto-routing decision project=7 scope=11111111 refused=NO_QUALIFIED_MODELS'
     assert 'SENTINEL' not in decision_log_line(7, req, refused='ValueError: ' + 'x y\nz')
     assert '\n' not in decision_log_line(7, req, refused='a\nb')
+
+
+# --- prices are quoted in estimated tokens, not bytes ---------------------------------------------------------------------
+def test_ranking_quotes_estimated_input_tokens_not_bytes():
+    args = args_for('luna', **{'prices': {'luna': ('.000001', '0')}})
+    req = request(generation_input_bytes=300_000)
+    economics = resolve(req, complete=classifier(demand='standard'), **args)['trace']['selection']['economics']
+    assert economics['input_size_proxy'] == 300_000 and economics['input_tokens_estimate'] == 100_000
+    assert economics['quotes']['luna-default']['ranking_usd'] == '0.12500000'
+    # 100,000 tokens x the cache-write rate (the dearer cold scenario), not 300,000 bytes x it.

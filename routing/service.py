@@ -12,7 +12,7 @@ import re
 import time
 from contextvars import ContextVar
 from functools import lru_cache
-from .pricing import PriceBook, Tokens
+from .pricing import PriceBook, Tokens, BYTES_PER_TOKEN, INPUT_ESTIMATOR, estimated_input_tokens
 from .context import read_context, digest, context_revision
 from .v7.catalog import compile_catalog
 from .v7.candidate import CalibratedRouter
@@ -136,7 +136,9 @@ def decision_log_line(project_id, request, result=None, refused=None):
             f"model={_tok(config.get('model_name'))} cap={'default' if cap is None else _tok(cap)} "
             f"admitted={_tok(inventory.get('admitted_variants'))}/{_tok(inventory.get('qualified_variants'))} "
             f"gate_failures={_first_codes(inventory.get('gate_failures'))} "
-            f"rejections={_first_codes(admission.get('rejections'))}")
+            f"rejections={_first_codes(admission.get('rejections'))} input_bytes={_tok(inventory.get('input_bytes'))} "
+            f"input_tokens_est={_tok(inventory.get('input_tokens_estimate'))} "
+            f"bytes_per_token={_tok((inventory.get('input_estimator') or {}).get('bytes_per_token'))}")
 
 
 def encode_pin(value, key):
@@ -326,7 +328,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     generation_size = request.get('generation_input_bytes', 0)
     if type(generation_size) is not int or not 0 <= generation_size <= 16_000_000:
         raise RoutingUnavailable('Invalid generation input size bound')
-    size = max(size, generation_size)
+    size = max(size, generation_size)  # UTF-8 bytes; byte-based bounds and the trace use this
+    input_tokens = estimated_input_tokens(size)  # tokens: context-window gate and price quotes
     prior = request.get('prior_pin')
     restored = None
     if prior:
@@ -379,13 +382,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
             if variant_cap <= thinking_budget:
                 return ['THINKING_BUDGET']
-        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
+        if type(model.get('context_window')) is not int or input_tokens+variant_cap > model['context_window']:
             return ['CONTEXT_WINDOW']
         if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
             return ['OUTPUT_LIMIT']
-        if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
+        if prices.quote(model['name'], Tokens(input_tokens, variant_cap))['usd'] is None:
             return ['PRICE']
-        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
+        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=input_tokens))['usd'] is None:
             return ['CACHE_WRITE_PRICE']
         return []
 
@@ -532,7 +535,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                           'no_priced_deployment': signals['no_priced_deployment'],
                           'transport_unmeasured': signals['transport_unmeasured'],
                           'provisional_contracts': provisional_contracts, 'gate_failures': gate_failures,
-                          'input_bytes': size,
+                          'input_bytes': size, 'input_tokens_estimate': input_tokens,
+                          'input_estimator': {'name': INPUT_ESTIMATOR, 'bytes_per_token': str(BYTES_PER_TOKEN)},
                           'low_tier_priced': any(is_low_tier(runtime_variants[v]) for v in allowed)}
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']

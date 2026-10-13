@@ -93,7 +93,7 @@
   ],
   "product_support_files": {
     "__init__.py": "723eef14351555b7d2d67665674ed4b388b9c6631ef3a5a03c80273296b740cf",
-    "economics.py": "c293745bc8aae3147f305f048bffc8349cdfbdd21713c1ad1fbd5c43407462a2",
+    "economics.py": "db15e4125f9f8806e6fb9fdfb2f9c74c3f7da54cf9d5ff6e1824aef134632036",
     "calibration-v9.json": "0667d2ed76d1c9e90701d78611fdba832c04e20816a17e671d46b3fa1736b7b4",
     "calibration-v11-observations.json": "0d78c57251f7e03964d7e06d88b5f94b982f1fa7a0fc96b8fd5e701cee2e0efc",
     "calibration-v12.json": "b8ccfb1ecdc2720af2001b78bc075853ddba9a6267f912af9f8ac2a0560cf559",
