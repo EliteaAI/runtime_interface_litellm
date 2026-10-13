@@ -120,7 +120,7 @@ def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, pre
         info=selection['admission']
         annotate(result,rows[chosen],demand=info['demand'],family=info['family'],
                  admission={'rule_revision':info['rule_revision'],'sha256':info['table_sha256']},
-                 allowance_rejected=info.get('allowance_rejected',()))
+                 allowance_rejected=info.get('allowance_rejected',()),rejections=info.get('rejections'))
         if selection.get('reason')=='UNCERTAIN_CHEAPEST_CLEARING_FLOOR':
             result['reason']='UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
     return result

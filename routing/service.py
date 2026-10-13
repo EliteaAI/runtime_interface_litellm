@@ -8,6 +8,7 @@ import copy
 import hashlib
 import hmac
 import json
+import re
 import time
 from contextvars import ContextVar
 from functools import lru_cache
@@ -94,6 +95,48 @@ class RoutingAdmissionDenied(Exception):
     def __init__(self, response):
         super().__init__('Classifier admission denied')
         self.response = response
+
+
+_TOKEN = re.compile(r'[^A-Za-z0-9_.:/@+-]')
+
+
+def _tok(value, limit=64):
+    """One log token: names and codes only, no whitespace, bounded."""
+    text = '-' if value is None or value == '' else str(value)
+    return _TOKEN.sub('_', text)[:limit] or '-'
+
+
+def _first_codes(mapping):
+    """`vid:CODE,vid:CODE` using each variant's first reason; never free text."""
+    return ','.join(f'{_tok(v)}:{_tok((codes or ["-"])[0])}' for v, codes in sorted((mapping or {}).items())) or '-'
+
+
+def decision_log_line(project_id, request, result=None, refused=None):
+    """One INFO line per Auto resolve (#6722): enough to read a decision from pylon_main logs.
+
+    Built from the trace's names and codes only; request and message text never enter it.
+    """
+    scope = request.get('scope_id') if isinstance(request, dict) else None
+    head = f'auto-routing decision project={_tok(project_id)} scope={_tok(scope if isinstance(scope, str) else None)[:8]}'
+    if result is None:
+        return f'{head} refused={_tok(refused)}'
+    trace = result.get('trace') or {}
+    classifier, selection = trace.get('classifier') or {}, trace.get('selection') or {}
+    descriptor, inventory = trace.get('descriptor') or {}, trace.get('inventory') or {}
+    admission = selection.get('admission') or {}
+    config = result.get('config') or {}
+    cap = config.get('max_tokens')
+    deployment = (classifier.get('deployment') or {}).get('name')
+    shape = '/'.join(_tok(descriptor.get(k)) for k in ('operation', 'demand', 'relation', 'task_family', 'effort_need'))
+    return (f"{head} classifier={_tok(deployment)} schema_valid={classifier.get('schema_valid', '-')} "
+            f"error={_tok(classifier.get('error'))} profile_error={_tok(classifier.get('profile_error'))} "
+            f"descriptor={shape} needs_context={descriptor.get('needs_context', '-')} "
+            f"input_status={_tok(descriptor.get('input_status'))} "
+            f"selection={_tok(selection.get('variant') or trace.get('reason'))}/{_tok(selection.get('reason'))}/{_tok(selection.get('tier'))} "
+            f"model={_tok(config.get('model_name'))} cap={'default' if cap is None else _tok(cap)} "
+            f"admitted={_tok(inventory.get('admitted_variants'))}/{_tok(inventory.get('qualified_variants'))} "
+            f"gate_failures={_first_codes(inventory.get('gate_failures'))} "
+            f"rejections={_first_codes(admission.get('rejections'))}")
 
 
 def encode_pin(value, key):
@@ -351,6 +394,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     # and passes the gates, so a later price row cannot flip an in-flight run.
     pinned = (restored['config']['model_name'], restored['config']['model_project_id']) if restored else None
     rebound, rebound_attempts = {}, {}
+    gate_failures = {}
     for vid, bound in list(runtime_variants.items()):
         variant = catalog['variants'][vid]
         contract = variant.get('calibration_contract')
@@ -384,6 +428,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             # any other gate failure stops the variant.
             if failed[0] not in {'PRICE', 'CACHE_WRITE_PRICE'}:
                 break
+        if vid not in output_caps:
+            # Names only: which gate removed this qualified variant (the last deployment tried).
+            gate_failures[vid] = list(attempts[-1]['failed'])
         if len(candidates) > 1:
             rebound_attempts[vid] = attempts
     # Classifier identity is the configured deployment (project, else platform),
@@ -411,8 +458,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             raise RoutingUnavailable(str(exc)) from exc
         if restored.get('policy_revision') != router.revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
-        allowed = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
-                   and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
+        kept = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
+                and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
+        gate_failures.update({v: ['CHECKPOINT_PIN'] for v in allowed if v not in kept})
+        allowed = kept
         if not allowed:
             raise RoutingUnavailable('The checkpoint model is no longer admitted')
         if restored.get('invocation_id') == invocation_id:
@@ -482,7 +531,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                           'unquoted_alternates': list(price_snapshot.get('unquoted', [])),
                           'no_priced_deployment': signals['no_priced_deployment'],
                           'transport_unmeasured': signals['transport_unmeasured'],
-                          'provisional_contracts': provisional_contracts,
+                          'provisional_contracts': provisional_contracts, 'gate_failures': gate_failures,
+                          'input_bytes': size,
                           'low_tier_priced': any(is_low_tier(runtime_variants[v]) for v in allowed)}
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']

@@ -346,3 +346,25 @@ def test_auto_preflight_rpc_reports_pool_signals_without_a_request(relay):
     assert set(signals) == {'no_priced_deployment', 'transport_unmeasured', 'low_tier_priced'}
     assert list(signals['no_priced_deployment']) == ['openai/gpt-5-6-luna']
     assert signals['transport_unmeasured'] == [] and signals['low_tier_priced'] is False
+
+
+def test_preflight_logs_one_decision_line_per_resolve_without_request_text(relay, monkeypatch):
+    preflight = importlib.import_module('plugin_under_test.methods.routing')
+    lines = []
+    monkeypatch.setattr(preflight, 'log', types.SimpleNamespace(info=lambda msg, *a: lines.append(msg % a if a else msg)))
+    sentinel = 'SENTINEL-7731 never in logs'
+    body = request(sentinel)
+    monkeypatch.setattr(preflight, 'context', relay.context)
+    monkeypatch.setattr(preflight, 'VaultClient', relay.vault)
+    method = preflight.Method(); method.descriptor = types.SimpleNamespace(config={})
+    result = method.resolve_auto_routing({'method': 'POST', 'json': body, 'headers': {}},
+                                         {'project_id': 7, 'user': {'id': 42}})
+    assert result['action'] == 'generate'
+    assert len(lines) == 1 and lines[0].startswith('auto-routing decision project=7 scope=11111111 ')
+    assert 'SENTINEL' not in lines[0] and 'selection=' in lines[0] and 'gate_failures=' in lines[0]
+    body['surface'] = 'pipeline'  # refused before any classifier call
+    out = method.resolve_auto_routing({'method': 'POST', 'json': body, 'headers': {}},
+                                      {'project_id': 7, 'user': {'id': 42}})
+    assert out[1] == 422 and len(lines) == 2
+    assert lines[1].startswith('auto-routing decision project=7 scope=11111111 refused=')
+    assert 'SENTINEL' not in lines[1]

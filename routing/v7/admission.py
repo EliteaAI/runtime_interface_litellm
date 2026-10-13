@@ -93,7 +93,7 @@ def _summary(found):
     return {k: found[k] for k in ('n', 'pass', 'lb90', 'adverse', 'paired_n', 'best_head') if k in found}
 
 
-def annotate(selection, row, *, demand, family, admission, allowance_rejected=()):
+def annotate(selection, row, *, demand, family, admission, allowance_rejected=(), rejections=None):
     """Record the tier of the winning row on the selection (also after economics re-ranks)."""
     selection['tier'] = row['tier']
     selection['provisional'] = row['tier'] == 'provisional'
@@ -102,6 +102,7 @@ def annotate(selection, row, *, demand, family, admission, allowance_rejected=()
         'cell': copy.deepcopy(row['cell']), 'cell_p90_output': row['expected_output_p90'],
         'effective_cap': row['effective_cap'], 'cap_basis': row['cap_basis'],
         'calibration_allowance': row['cap_basis'], 'allowance_rejected': list(allowance_rejected),
+        'rejections': copy.deepcopy(rejections or {}),
         'rule_revision': admission['rule_revision'], 'table_sha256': admission['sha256']}
     return selection
 
@@ -117,6 +118,7 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
     admission = catalog['admission']
     context = context or {}
     tier_caps, caps = context.get('tier_caps') or {}, context.get('caps') or {}
+    pre_rejected = context.get('pre_rejected') or {}
     basis = context.get('cap_basis') or 'provider_default'
     allowed = set(allowed) if allowed is not None else set(catalog['variants'])
     family = descriptor.get('task_family')
@@ -130,7 +132,9 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
     for vid, v in catalog['variants'].items():
         reasons, flags = [], []
         if vid not in allowed:
-            reasons.append('outside configured PoC pool')
+            # Removed before the chooser by the effort filter or the qualification snapshot, else
+            # not admitted by the preflight gates (see trace.inventory.gate_failures).
+            reasons.append(pre_rejected.get(vid, 'outside configured PoC pool'))
         if not v['enabled']:
             reasons.append(v.get('disabled_reason', 'disabled'))
         found = cell(admission, variant_head(v), demand, family)
@@ -152,10 +156,11 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
                      'expected_output_p90': p90, 'effective_cap': effective, 'cap_basis': basis})
     eligible = [r['variant'] for r in rows if r['eligible']]
     rejected = [r['variant'] for r in rows if 'CALIBRATION_ALLOWANCE_BELOW_P90' in r['rejections']]
+    rejections = {r['variant']: list(r['rejections']) for r in rows if r['rejections']}
     base = {'candidates': rows, 'predicted_output_tokens': None, 'currency_cost_estimate': None,
             'quality_status': catalog['qualification']}
     if not eligible:
-        return _baseline(catalog, allowed, rows, base, admission, demand, family, rejected)
+        return _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections)
     eligible.sort(key=lambda vid: (catalog['variants'][vid]['cost_band'],
                                    EFFORT_ORDER[catalog['variants'][vid]['effort']], vid))
     selected = eligible[0]
@@ -165,10 +170,11 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
         selected, reason = previous, 'QUALIFIED_SAME_BAND_STAY'
     result = {'variant': selected, **copy.deepcopy(catalog['variants'][selected]), 'reason': reason, **base}
     return annotate(result, next(r for r in rows if r['variant'] == selected),
-                    demand=demand, family=family, admission=admission, allowance_rejected=rejected)
+                    demand=demand, family=family, admission=admission, allowance_rejected=rejected,
+                    rejections=rejections)
 
 
-def _baseline(catalog, allowed, rows, base, admission, demand, family, rejected):
+def _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections):
     """Nothing clears the floor: the configured baseline family, or an honest refusal."""
     baseline = catalog['variants'][catalog['baseline']]
     usable = [vid for vid, v in catalog['variants'].items()
@@ -180,6 +186,6 @@ def _baseline(catalog, allowed, rows, base, admission, demand, family, rejected)
     result = {'variant': chosen, **copy.deepcopy(catalog['variants'][chosen]), 'reason': 'UNCERTAIN_TASK_BASELINE',
               **base, 'tier': None, 'provisional': False}
     result['admission'] = {'status': 'no_variant_clears_floor', 'demand': demand, 'family': family, 'tier': None,
-                           'flags': [], 'allowance_rejected': rejected,
+                           'flags': [], 'allowance_rejected': rejected, 'rejections': rejections,
                            'rule_revision': admission['rule_revision'], 'table_sha256': admission['sha256']}
     return result

@@ -51,16 +51,21 @@ class Router(Coordinator):
 
     def admission_context(self):
         gateway=self.gateway
+        ctx=self.local.get()or{}
         return {'tier_caps':getattr(gateway,'tier_caps',None)or{},'caps':getattr(gateway,'output_caps',None)or{},
-                'cap_basis':getattr(gateway,'cap_basis','provider_default')}
+                'cap_basis':getattr(gateway,'cap_basis','provider_default'),'pre_rejected':ctx.get('pre_rejected')or{}}
 
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
         ctx=self.local.get()or{};allowed=list(allowed)if allowed is not None else list(self.catalog['variants'])
         need=descriptor.get('effort_need','medium' if descriptor['demand']=='deep' else 'low')
         order={'low':1,'medium':2,'high':3}
-        allowed=[v for v in allowed if self.catalog['variants'][v]['effort']is None or order[self.catalog['variants'][v]['effort']]>=order[need]]
+        pre={}  # names of variants removed before the chooser, for the trace
+        kept=[v for v in allowed if self.catalog['variants'][v]['effort']is None or order[self.catalog['variants'][v]['effort']]>=order[need]]
+        pre.update({v:'EFFORT_NEED_FILTER' for v in allowed if v not in kept})
         family=ctx.get('task_family',descriptor['operation']);contract=ctx.get('task_contract','text-tools-v1')
-        allowed=self.qualifications.allowed(allowed,family,contract)
+        allowed=self.qualifications.allowed(kept,family,contract)
+        pre.update({v:'QUALIFICATION_REJECTED' for v in kept if v not in allowed})
+        ctx['pre_rejected']=pre
         selected=super().select(descriptor,allowed,previous,min_demand)
         selected['qualification_records']=self.qualifications.describe(allowed,family,contract)
         selected['effort_need']=need

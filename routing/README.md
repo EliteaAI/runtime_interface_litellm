@@ -158,3 +158,16 @@ behind an OpenAI-compatible transport is admitted at provisional tier with
 `CALIBRATION_TRANSPORT_UNMEASURED`. Greeting still reads the legacy `tasks` and
 `preferences`; the frozen V9/V12 family cells remain for the lab suites
 (`compile_catalog(admission=False)`).
+
+Diagnostics (names and codes only, never request text): `trace.inventory.gate_failures`
+maps every qualified variant that was not admitted to the gate that removed it
+(`CONTEXT_WINDOW`, `PRICE`, `CACHE_WRITE_PRICE`, `OUTPUT_LIMIT`, `THINKING_BUDGET`,
+`CONFIGURATION_REASONING_DISABLED`, ...) and `trace.inventory.input_bytes` is the size the
+context gate used (`max` of the projected history and the SDK's `generation_input_bytes`).
+`trace.selection.admission.rejections` maps every chooser candidate that was rejected to its
+reasons (`ADMISSION_NO_ROW`, `ADMISSION_ROW_OUT`, `CALIBRATION_ALLOWANCE_BELOW_P90`,
+`EFFORT_NEED_FILTER`, `QUALIFICATION_REJECTED`, `outside configured PoC pool`). Each
+`resolve_auto_routing` call also logs one INFO line `auto-routing decision project=... scope=...
+classifier=... descriptor=op/demand/relation/family/effort selection=variant/reason/tier
+model=... cap=... admitted=n/m gate_failures=vid:CODE,... rejections=vid:CODE,...`
+(`refused=<reason>` for a refusal), readable in pylon_main logs.
