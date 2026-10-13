@@ -18,6 +18,9 @@ from .v7.candidate import CalibratedRouter
 from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
+from .gates import admit, is_anthropic
+from .policy import runtime_policy, policy_revision as _policy_digest
+from . import v5
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
@@ -42,11 +45,31 @@ def auto_routing_settings(rpc, project_id, user_id):
         return rpc.configurations_get_auto_routing_settings(project_id)  # Configurations before #6826.
 
 
-def is_anthropic(model, variant):
-    identity = model.get('identity')
-    if isinstance(identity, dict):
-        return identity.get('vendor') == 'anthropic'
-    return any(x in variant['model'].lower() for x in ('anthropic', 'claude'))
+def routing_policy_revision(router, settings):
+    """Pins and checkpoints bind the code revision plus the effective policy and
+    selector (#6722 V5). Without a policy (older Configurations) it is exactly
+    the code revision, so pins stay identical to main."""
+    policy, mode, error = runtime_policy(settings)
+    if mode is None:
+        return router.revision
+    if error:
+        return router.revision+'+policy-'+_policy_digest({'error': error})
+    artifact = policy['selector']['artifact']
+    try:
+        from .selector import installed
+        selector = f"{artifact}@{installed(artifact).sha256}"
+    except ValueError:
+        selector = artifact
+    return router.revision+'+policy-'+_policy_digest(policy, selector)
+
+
+def pinned_is_anthropic(binding, models, project_id):
+    """Vendor of the pinned deployment from its identity; exact-name heuristic
+    only for inventory items without identity (#6826 follow-up)."""
+    current = effective_models(models, project_id).get(binding['name'])
+    if current is None:
+        raise ValueError('Pinned model configuration changed or is no longer available')
+    return is_anthropic(current, {'model': current['name']})
 
 
 class RoutingAdmissionDenied(Exception):
@@ -184,9 +207,33 @@ def restore_state(token, key, *, project_id, user_id, scope_id, gate_revision, p
         raise RoutingUnavailable('Invalid or foreign routing checkpoint') from exc
 
 
+def _configured_classifier(settings, visible, prices):
+    # Classifier identity is the configured deployment (project, else platform),
+    # never request text or a catalog literal. Missing settings fail closed.
+    ref = settings.get('classifier')
+    if not isinstance(ref, dict) or not isinstance(ref.get('name'), str) or type(ref.get('project_id')) is not int:
+        # Configurations explains why nothing resolved; older plugins omit it.
+        why = settings.get('classifier_reason') if ref is None else None
+        if (isinstance(why, dict) and why.get('code') in CLASSIFIER_REASONS
+                and isinstance(why.get('message'), str) and why['message']):
+            raise RoutingUnavailable(why['message'][:512], why['code'])
+        raise RoutingUnavailable('No Auto classifier model is configured', 'CLASSIFIER_NOT_CONFIGURED')
+    classifier = visible.get(ref['name'])
+    if (classifier is None or classifier['project_id'] != ref['project_id'] or classifier.get('available') is False
+            or (classifier.get('identity') or {}).get('kind', 'chat') != 'chat'):
+        raise RoutingUnavailable(f"The configured Auto classifier {ref['name']} is unavailable", 'CLASSIFIER_UNAVAILABLE')
+    if prices.quote(classifier['name'], Tokens(34000, 900))['usd'] is None:
+        raise RoutingUnavailable('Classifier pricing is unavailable', 'CLASSIFIER_PRICE_UNAVAILABLE')
+    return classifier, ref
+
+
 def resolve(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None):
     if not settings.get('enabled'):
         raise RoutingUnavailable('Auto model selection is disabled for this project')
+    # None: no policy (legacy only, as before #6722 V5); 'shadow': legacy runs,
+    # V5 is traced; 'active': V5 runs. Invalid policy -> today's literals, traced.
+    policy, policy_mode, policy_error = runtime_policy(settings)
+    out_policy = policy['output']
     if not isinstance(request, dict) or len(json.dumps(request).encode()) > MAX_REQUEST_BYTES:
         raise RoutingUnavailable('Routing request exceeds the supported bound')
     scope_id = request.get('scope_id')
@@ -201,8 +248,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if request.get('surface') not in {'chat', 'agent'}:
         raise RoutingUnavailable('Auto is unavailable for this execution surface')
     cap = request.get('output_cap')
-    if 'output_cap' in request and (type(cap) is not int or not 256 <= cap <= 32000):
-        raise RoutingUnavailable('Auto output allowance must be between 256 and 32000 tokens')
+    if 'output_cap' in request and (type(cap) is not int or not out_policy['min_cap'] <= cap <= out_policy['max_cap']):
+        raise RoutingUnavailable(f"Auto output allowance must be between {out_policy['min_cap']} and "
+                                 f"{out_policy['max_cap']} tokens")
     messages = request.get('messages')
     if not isinstance(messages, list) or not messages or len(messages) > 4096:
         raise RoutingUnavailable('Auto requires a bounded task history')
@@ -228,80 +276,24 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     size = max(size, generation_size)
     prior = request.get('prior_pin')
     restored = None
+    revision = routing_policy_revision(router, settings)
     if prior:
         restored = decode_pin(prior, signing_key, project_id=project_id, user_id=user_id,
             settings=settings, now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
-        if restored.get('policy_revision') != router.revision:
+        if restored.get('policy_revision') != revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
         # An omitted cap renews the original run contract, never the new-turn
         # default. A user-specified cap can narrow it but cannot enlarge it.
         if cap is None:
             cap = restored['config']['max_tokens']
-    allowed = []
-    output_caps = {}
-    contract_exclusions = {}
     explicit = selection.get('reasoning', {})
     if explicit.get('mode') not in {'auto', 'explicit'}:
         raise RoutingUnavailable('Invalid Auto reasoning selection')
-    for vid, model in runtime_variants.items():
-        variant = catalog['variants'][vid]
-        contract = variant.get('calibration_contract')
-        variant_cap = cap if cap is not None else (contract['output_allowance'] if contract else 8000)
-        if contract:
-            native = not model.get('openai_compatible', False) and is_anthropic(model, variant)
-            transport = 'anthropic_messages' if native else 'chat_completions'
-            reasons = []
-            if transport != contract['transport']:
-                reasons.append('CALIBRATION_TRANSPORT_UNMEASURED')
-            if variant_cap != contract['output_allowance']:
-                reasons.append('CALIBRATION_OUTPUT_ALLOWANCE_UNMEASURED')
-            if output_schema is not None:
-                reasons.append('CALIBRATION_STRUCTURED_OUTPUT_UNMEASURED')
-            if explicit['mode'] == 'explicit' and 'reasoning_fields' not in contract:
-                reasons.append('CALIBRATION_EXPLICIT_EFFORT_UNMEASURED')
-            if variant['effort'] is not None and model.get('supports_reasoning') is False:
-                reasons.append('CONFIGURATION_REASONING_DISABLED')
-            if reasons:
-                # Missing evidence for this configuration is not model
-                # incapability or a provider-family ban. Keep it observable.
-                contract_exclusions[vid] = {'reasons': reasons,
-                    'configured_transport': transport, 'measured_transport': contract['transport']}
-                continue
-        if explicit['mode'] == 'explicit' and variant['effort'] != explicit.get('preset'):
-            continue
-        # The current native Anthropic SDK uses bounded enabled-thinking for
-        # this frozen pool. Its budget must fit inside Auto's total allowance.
-        if (is_anthropic(model, variant) and variant['effort'] and not model.get('openai_compatible')
-                and not (contract and 'reasoning_fields' in contract)):
-            thinking_budget = {'low': 2048, 'medium': 4096, 'high': 9092}[variant['effort']]
-            if variant_cap <= thinking_budget:
-                continue
-        if type(model.get('context_window')) is not int or size+variant_cap > model['context_window']:
-            continue
-        if type(model.get('max_output_tokens')) is not int or variant_cap > model['max_output_tokens']:
-            continue
-        if prices.quote(model['name'], Tokens(size, variant_cap))['usd'] is None:
-            continue
-        if variant.get('cache_write_mode') != 'ordinary_input' and prices.quote(model['name'], Tokens(0, variant_cap, write=size))['usd'] is None:
-            continue
-        allowed.append(vid)
-        output_caps[vid] = variant_cap
-    # Classifier identity is the configured deployment (project, else platform),
-    # never request text or a catalog literal. Missing settings fail closed.
-    ref = settings.get('classifier')
-    if not isinstance(ref, dict) or not isinstance(ref.get('name'), str) or type(ref.get('project_id')) is not int:
-        # Configurations explains why nothing resolved; older plugins omit it.
-        why = settings.get('classifier_reason') if ref is None else None
-        if (isinstance(why, dict) and why.get('code') in CLASSIFIER_REASONS
-                and isinstance(why.get('message'), str) and why['message']):
-            raise RoutingUnavailable(why['message'][:512], why['code'])
-        raise RoutingUnavailable('No Auto classifier model is configured', 'CLASSIFIER_NOT_CONFIGURED')
-    classifier = visible.get(ref['name'])
-    if (classifier is None or classifier['project_id'] != ref['project_id'] or classifier.get('available') is False
-            or (classifier.get('identity') or {}).get('kind', 'chat') != 'chat'):
-        raise RoutingUnavailable(f"The configured Auto classifier {ref['name']} is unavailable", 'CLASSIFIER_UNAVAILABLE')
-    if prices.quote(classifier['name'], Tokens(34000, 900))['usd'] is None:
-        raise RoutingUnavailable('Classifier pricing is unavailable', 'CLASSIFIER_PRICE_UNAVAILABLE')
+    allowed, output_caps, contract_exclusions, gate_report = admit(
+        runtime_variants, catalog, cap=cap, size=size, output_schema=output_schema, explicit=explicit,
+        prices=prices, policy=policy)
+    active = policy_mode == 'active'
+    classifier, ref = (None, None) if active else _configured_classifier(settings, visible, prices)
     if not allowed:
         raise RoutingUnavailable('No qualified model fits the request and pricing contract', 'NO_QUALIFIED_MODELS')
     if prior:
@@ -309,7 +301,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             validate_binding(restored.get('model_binding'), models, project_id)
         except ValueError as exc:
             raise RoutingUnavailable(str(exc)) from exc
-        if restored.get('policy_revision') != router.revision:
+        if restored.get('policy_revision') != revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
         allowed = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
                    and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
@@ -327,9 +319,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                     'trace': {'reason': 'REAUTHORIZED_CHECKPOINT_PIN'}}
     runtime_context = read_context(request, key=signing_key, project_id=project_id, user_id=user_id, now=now)
     restored_state = restore_state(request.get('state_token'), signing_key, project_id=project_id,
-        user_id=user_id, scope_id=scope_id, gate_revision=settings['revision'], policy_revision=router.revision)
+        user_id=user_id, scope_id=scope_id, gate_revision=settings['revision'], policy_revision=revision)
     context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size, 'output_caps': output_caps,
-                                  'classifier': {'model': classifier['name'], 'effort': None},
+                                  'classifier': {'model': classifier['name'], 'effort': None} if classifier else None,
                                   'deployments': {vid: m['name'] for vid, m in runtime_variants.items()}})
     try:
         key = f'{project_id}:{user_id}:{scope_id}'
@@ -337,29 +329,66 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                          restored_state['checkpoint'] if restored_state else None) as entry:
             session = entry['session']
             apply_observation(session, restored_state, request.get('observation'), messages,
-                              router.gateway, catalog, tools, router.revision)
+                              router.gateway, catalog, tools, revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
-            decision = router.resolve(messages, output_cap=cap if cap is not None else 8000, tools=tools, allowed=allowed,
-                session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
-                hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
+            v5_inputs = dict(policy=policy, mode=policy_mode, report=gate_report, allowed=allowed,
+                             runtime_variants=runtime_variants, catalog=catalog, output_caps=output_caps,
+                             prices=prices, messages=messages, tools=tools, output_schema=output_schema, size=size,
+                             runtime_context=runtime_context, previous=previous)
+            if active:
+                v5_trace = v5.decide(**v5_inputs)
+                if v5_trace['chosen'] is None:
+                    code = 'SELECTOR_UNAVAILABLE' if v5_trace['reason'] == 'SELECTOR_UNAVAILABLE' else 'NO_QUALIFIED_MODELS'
+                    raise RoutingUnavailable('No qualified model fits the request and pricing contract'
+                                             if code == 'NO_QUALIFIED_MODELS' else
+                                             'The configured Auto selector is unavailable', code)
+                chosen = v5_trace['chosen']
+                decision = {'action': 'generate', 'descriptor': None, 'classifier': None, 'budget': {},
+                            'policy_revision': revision,
+                            'selection': {'variant': chosen['variant'], 'model': runtime_variants[chosen['variant']]['name'],
+                                          'effort': chosen['effort'], 'reason': 'V5_'+v5_trace['reason']}}
+            else:
+                decision = router.resolve(messages, output_cap=cap if cap is not None else out_policy['default_allowance'],
+                    tools=tools, allowed=allowed, session=session, previous=previous,
+                    access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
+                    hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
             cap = output_caps[decision['selection']['variant']]
             decision['budget']['completion_cap'] = cap
             state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
                 project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
-                policy_revision=router.revision), signing_key)
+                policy_revision=revision), signing_key)
             publish(entry, state_token)
     finally:
         _REQUEST.reset(context_token)
 
     trace = {k: copy.deepcopy(decision.get(k)) for k in ('descriptor', 'policy_revision', 'routing_ms', 'budget')}
     trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in ('variant', 'reason', 'family_qualification', 'economics')}
-    classifier_info = decision.get('classifier') or {}
-    trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
-    trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
-    trace['classifier']['called'] = classifier_info.get('called', bool(classifier_info))
-    trace['classifier']['classifier_variant'] = CONFIGURED_CLASSIFIER
-    trace['classifier']['deployment'] = {'name': classifier['name'], 'project_id': classifier['project_id'],
-                                         'source': ref.get('source')}
+    if classifier is not None:
+        classifier_info = decision.get('classifier') or {}
+        trace['classifier'] = {k: classifier_info.get(k) for k in ('classifier_variant', 'schema_valid', 'error') if k in classifier_info}
+        trace['classifier']['finish_reason'] = (classifier_info.get('response') or {}).get('finish_reason')
+        trace['classifier']['called'] = classifier_info.get('called', bool(classifier_info))
+        trace['classifier']['classifier_variant'] = CONFIGURED_CLASSIFIER
+        trace['classifier']['deployment'] = {'name': classifier['name'], 'project_id': classifier['project_id'],
+                                             'source': ref.get('source')}
+    else:
+        trace['classifier'] = {'called': False, 'classifier_variant': None}
+    if policy_mode is not None:
+        if policy_error:
+            v5_trace = {'reason': policy_error, 'shadow': True, 'chosen': None, 'candidates': []}
+        elif not active:
+            # Shadow: observe the V5 choice; the legacy decision is executed.
+            # A shadow defect is reported, never allowed to break legacy Auto.
+            try:
+                v5_trace = v5.decide(**v5_inputs)
+            except Exception as exc:  # pylint: disable=W0703
+                v5_trace = {'reason': 'V5_ERROR', 'error': type(exc).__name__, 'shadow': True,
+                            'chosen': None, 'candidates': []}
+        v5_trace['legacy_choice'] = None if active else {
+            'variant': decision['selection']['variant'], 'deployment': runtime_variants[decision['selection']['variant']]['name'],
+            'effort': decision['selection']['effort']}
+        v5_trace['policy_revision'] = revision
+        trace['v5'] = v5_trace
     entries = price_snapshot['entries']
     trace['prices'] = {'match': {e['model_name']: e.get('match', 'exact') for e in entries},
                        'aliases': {e['model_name']: e['matched_name'] for e in entries if e.get('match') == 'alias'}}
@@ -384,12 +413,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
         trace['calibration_contract'] = {
             'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
-            'status': 'provisional_local_beta', 'production_promotion_allowed': False,
-            'family': decision['descriptor']['task_family'],
-            'cell': contract['families'][decision['descriptor']['task_family']]}
+            'status': 'provisional_local_beta', 'production_promotion_allowed': False}
+        if decision['descriptor'] is not None:  # V5 decisions carry no task family.
+            trace['calibration_contract'].update(family=decision['descriptor']['task_family'],
+                cell=contract['families'][decision['descriptor']['task_family']])
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
-           'model_binding': model_binding(model), 'policy_revision': router.revision,
+           'model_binding': model_binding(model), 'policy_revision': revision,
            'expires_at': int(time.time() if now is None else now)+3600}
     return {'action': 'generate', 'config': config, 'pin': encode_pin(pin, signing_key), 'trace': trace,
             'invocation_id': invocation_id, 'scope_id': scope_id, 'state_token': state_token, 'expires_at': pin['expires_at']}

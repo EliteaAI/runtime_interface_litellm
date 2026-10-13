@@ -7,6 +7,7 @@ from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmi
                                auto_routing_settings)
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
+from ..utils.routing_trace import emit_shadow_decision
 
 UNRESOLVED = 'Auto cannot resolve this request under the current profile'
 
@@ -41,6 +42,8 @@ class Method:
         # Quote discovered qualified bindings and the configured classifier only;
         # unqualified inventory can exceed the bounded Costs RPC.
         names = {model['name'] for model in variants.values()}
+        # The policy (#6722 V5) travels inside `settings`; its fallback is one of
+        # these qualified bindings, so no extra price entry is needed for it.
         classifier = settings.get('classifier')
         if isinstance(classifier, dict) and classifier.get('name') in inventory:
             names.add(classifier['name'])
@@ -89,8 +92,10 @@ class Method:
                 self.stream_node.remove_stream(response_id)
 
         try:
-            return resolve(proxy_target['json'], project_id=project_id, user_id=proxy_auth['user']['id'],
-                           settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete)
+            result = resolve(proxy_target['json'], project_id=project_id, user_id=proxy_auth['user']['id'],
+                             settings=settings, models=models, price_snapshot=prices, signing_key=key, complete=complete)
+            emit_shadow_decision(result, project_id=project_id, user_id=proxy_auth['user']['id'])
+            return result
         except RoutingAdmissionDenied as denied:
             return denied.response
         except RoutingUnavailable as exc:

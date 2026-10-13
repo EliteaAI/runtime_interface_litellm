@@ -88,6 +88,68 @@ A new external invocation may obtain a current binding. Install the matching SDK
 update, which preserves absent-cap provenance and enforces the signed measured
 transport. No routing table or database migration is required.
 
+## V5 selector and policy (#6722)
+
+**Policy** (`routing/policy.py`). Configurations serves the effective policy as
+`settings['policy']` (platform default deep-merged with the project override, covered
+by `revision`). The Gateway validates it strictly: unknown keys, wrong types and
+out-of-bounds values are `POLICY_INVALID`.
+
+| Key | Default (= the literal before V5) | Bounds |
+|---|---|---|
+| `shadow_mode` | `true` | bool |
+| `selector` | `{artifact: null, tau: 0.85}` | installed artifact id; `tau` 0.5..0.99 |
+| `pool` | `null` (every admitted deployment) | 1..256 canonical ids or exact deployment names |
+| `fallback` | `null` | `{name, project_id}` |
+| `output` | `{default_allowance: 8000, min_cap: 256, max_cap: 32000}` | 256 <= min <= default <= max <= 128000 |
+| `thinking_budget_tokens` | `{low: 2048, medium: 4096, high: 9092}` | ints, strictly increasing |
+| `greeting_rule` | `true` | bool |
+| `classifier` | `{enabled: false}` | bool; no runtime effect in V5 v1 (ablation only) |
+
+- No `policy` key (older Configurations): the literals above apply, no V5 code
+  runs, the trace has no `v5` and pins carry the code revision exactly as before.
+- Invalid policy: Auto never refuses for it. The literals apply, legacy runs and
+  `trace.v5.reason == 'POLICY_INVALID'`.
+- `pool` and the other values apply to the legacy path too (hard gates are shared).
+
+**Hard gates** (`routing/gates.py`) are shared by both paths: available, chat kind,
+pool, calibration contract, explicit effort, Anthropic thinking budget, context
+window, output cap, price, cache-write price. Each deployment-variant reports every
+failed gate; the trace lists them per candidate.
+
+**Decision** (`routing/v5.py`). Candidates are the gated catalog deployment-variants.
+Each maps to a selector head `<identity.canonical>|<effort or default>`; without a
+head it is `NO_SELECTOR_HEAD`. Expected cost = `PriceBook.quote(deployment,
+Tokens(ceil(request_bytes / 4), min(head expected_output_tokens, cap)))`. The cheapest
+candidate with `p_pass >= tau` wins (`SELECTED`); an exact cost tie keeps the
+previous turn's variant (incumbent). None qualifies: `policy.fallback` resolved among
+the gated deployments, lowest effort first (`FALLBACK_NO_QUALIFIED`), else
+`NO_QUALIFIED_MODELS`. A standalone social turn without instructions takes the
+cheapest gated deployment without scoring (`GREETING_RULE`). A missing or invalid
+artifact is `SELECTOR_UNAVAILABLE` (fallback when configured).
+
+**Shadow/active** (`routing/service.py`). `shadow_mode: true`: the legacy decision is
+executed and `trace.v5 = {selector_id, selector_sha256, tau, candidates, chosen,
+reason, shadow, legacy_choice, policy_revision}`; a V5 defect is traced as `V5_ERROR`
+and never breaks Auto. `shadow_mode: false`: the V5 choice is executed, no LLM
+classifier is called or required; `SELECTOR_UNAVAILABLE`/`NO_QUALIFIED_MODELS` are a
+422 `{error, reason}` only when no fallback can be used. An artifact flagged `stub` is
+never executed. Every pin and checkpoint carries `policy_revision = <code revision>
++policy-<sha256(effective policy, artifact id@sha256)>`; resolve renewal and the
+relay refuse a pin issued under another policy. The preflight emits the
+`auto_routing_shadow_decision` tracing span (tracer `auto-routing`) with ids, scores
+and costs only, never request text.
+
+**Installing an artifact.** Put `selector-v5-<id>.json` (schema
+`elitea-auto-selector/1`, `sha256` = sha256 of the canonical JSON without that field:
+sorted keys, `(',', ':')` separators, no NaN) into `routing/selector/`, add
+`{"<id>": {"file": "...", "sha256": "...", "stub": false}}` to
+`routing/selector/MANIFEST.json`, and set `policy.selector.artifact` to the id. The
+loader refuses size > 2 MB, unknown schema, out-of-bounds weights, and any hash
+mismatch with the file or the manifest. `selector-v5-stub` is a two-head wiring stub
+(never trained). Until WP-1 lands, `routing/selector.py` carries an interim scorer
+(feature hashing documented in its docstring) that WP-1's `scorer.py` replaces.
+
 Run standalone routing/relay tests without importing the Pylon plugin lifecycle:
 
 ```sh
