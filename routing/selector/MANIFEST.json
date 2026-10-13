@@ -2,7 +2,7 @@
   "artifacts": {
     "selector-v5-stub": {
       "file": "selector-v5-stub.json",
-      "sha256": "199ad84945696a7afbf148745542af093d92f40c209f733674b56c51897071b0",
+      "sha256": "354aff2b3ffc04cbf33606403be8a1478d16b61065c51ee41b60a3be362db3ce",
       "stub": true
     }
   },

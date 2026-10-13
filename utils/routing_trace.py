@@ -20,6 +20,7 @@ def shadow_record(v5_trace, *, project_id, user_id, invocation_id, executed):
         "selector_id": v5_trace.get("selector_id"), "selector_sha256": v5_trace.get("selector_sha256"),
         "policy_revision": v5_trace.get("policy_revision"), "tau": v5_trace.get("tau"),
         "reason": v5_trace.get("reason"), "shadow": v5_trace.get("shadow"),
+        "noise_band": v5_trace.get("noise_band"), "p_spread": v5_trace.get("p_spread"),
         "v5_choice": v5_trace.get("chosen"), "legacy_choice": v5_trace.get("legacy_choice"),
         "executed": executed,
         "candidates": [{k: c.get(k) for k in CANDIDATE_FIELDS if k in c} for c in v5_trace.get("candidates", [])],
@@ -39,6 +40,7 @@ def emit_shadow_decision(result, *, project_id, user_id):
         span = trace.get_tracer(TRACER_NAME).start_span(name=EVENT, attributes={
             "auto.event": EVENT, "project.id": int(project_id), "user.id": int(user_id),
             "auto.reason": str(record["reason"]), "auto.shadow": bool(record["shadow"]),
+            "auto.noise_band": str(record["noise_band"]), "auto.p_spread": str(record["p_spread"]),
             "auto.selector_id": str(record["selector_id"]), "auto.policy_revision": str(record["policy_revision"]),
             "auto.record": json.dumps(record, sort_keys=True, separators=(",", ":"), default=str),
         })

@@ -12,7 +12,7 @@ import re
 DEFAULT_POLICY = {
     'version': 1,
     'shadow_mode': True,
-    'selector': {'artifact': None, 'tau': 0.85},
+    'selector': {'artifact': None, 'tau': 0.85, 'abstain': True},
     'pool': None,
     'fallback': None,
     'output': {'default_allowance': 8000, 'min_cap': 256, 'max_cap': 32000},
@@ -26,7 +26,7 @@ PLATFORM_MAX_CAP = 128000
 MAX_THINKING_BUDGET = 128000
 MAX_POOL_ENTRIES = 256
 ARTIFACT_ID = re.compile(r'^[a-z0-9][a-z0-9.-]{0,127}$')
-NESTED = {'selector': {'artifact', 'tau'}, 'output': {'default_allowance', 'min_cap', 'max_cap'},
+NESTED = {'selector': {'artifact', 'tau', 'abstain'}, 'output': {'default_allowance', 'min_cap', 'max_cap'},
           'thinking_budget_tokens': {'low', 'medium', 'high'}, 'classifier': {'enabled'}}
 
 
@@ -79,6 +79,8 @@ def validate(raw):
     if type(tau) not in (int, float) or not 0.5 <= tau <= 0.99:
         raise PolicyError('selector.tau must be between 0.5 and 0.99')
     value['selector']['tau'] = float(tau)
+    if type(value['selector']['abstain']) is not bool:
+        raise PolicyError('selector.abstain must be boolean')
     pool = value['pool']
     if pool is not None:
         if (not isinstance(pool, list) or not 1 <= len(pool) <= MAX_POOL_ENTRIES

@@ -70,10 +70,11 @@
   },
   "id": "selector-v5-stub",
   "metrics": {
+    "noise_band": 0.0,
     "note": "Stub for Gateway wiring tests only; never trained. Active mode refuses stub artifacts."
   },
   "schema": "elitea-auto-selector/1",
-  "sha256": "199ad84945696a7afbf148745542af093d92f40c209f733674b56c51897071b0",
+  "sha256": "354aff2b3ffc04cbf33606403be8a1478d16b61065c51ee41b60a3be362db3ce",
   "training": {
     "dataset_sha256": null,
     "holdout_lineages": 0,

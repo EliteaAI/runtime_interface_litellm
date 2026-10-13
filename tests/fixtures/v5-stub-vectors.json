@@ -1,6 +1,6 @@
 {
   "artifact": "selector-v5-stub",
-  "artifact_sha256": "199ad84945696a7afbf148745542af093d92f40c209f733674b56c51897071b0",
+  "artifact_sha256": "354aff2b3ffc04cbf33606403be8a1478d16b61065c51ee41b60a3be362db3ce",
   "note": "Gateway-generated interim vectors for the stub artifact; WP-1 test_vectors.json replaces them.",
   "vectors": [
     {

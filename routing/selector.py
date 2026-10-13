@@ -105,6 +105,12 @@ class Selector:
                 'a': _finite(calibration.get('a'), 'calibration'), 'b': _finite(calibration.get('b'), 'calibration'),
                 'intercept': _finite(output.get('intercept'), 'output intercept'),
                 'coef': _sparse(output.get('coef'), size, 'output coef'), 'floor': floor}
+        metrics = artifact.get('metrics', {})
+        band = metrics.get('noise_band', 0.0) if isinstance(metrics, dict) else None
+        if type(band) not in (int, float) or not 0.0 <= band <= 1.0:
+            raise ValueError('Selector metrics.noise_band must be between 0 and 1')
+        # p_pass spread among qualified heads that the fit cannot distinguish.
+        self.noise_band = float(band)
         self.id, self.sha256 = artifact['id'], artifact['sha256']
         self.dim, self.numeric, self.lowercase = dim, tuple(numeric), spec['lowercase']
         self.word_ngrams, self.char_ngrams = grams['word_ngrams'], grams['char_ngrams']

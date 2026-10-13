@@ -65,6 +65,7 @@ def test_preflight_emits_shadow_event_without_prompt_text(relay, monkeypatch):
     assert result['action'] == 'generate' and result['trace']['v5']['reason'] == 'GREETING_RULE'
     [(name, attributes)] = spans
     assert name == 'auto_routing_shadow_decision' and attributes['project.id'] == 7
+    assert attributes['auto.noise_band'] == '0.0' and 'auto.p_spread' in attributes
     record = json.loads(attributes['auto.record'])
     assert record['legacy_choice']['variant'] == result['trace']['selection']['variant']
     assert record['executed'] == result['config']['model_name']

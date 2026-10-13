@@ -43,6 +43,11 @@ def _fallback(ref, allowed, runtime_variants, catalog):
                default=None)
 
 
+def _most_likely(entries, order):
+    """Highest calibrated p_pass; then cheaper; then inventory order."""
+    return min(entries, key=lambda e: (-e['p_pass'], Decimal(e['expected_cost_usd']), order[e['variant']]))['variant']
+
+
 def _cheapest(entries, previous, order):
     """Lowest expected cost; an exact tie keeps the incumbent (cache), then inventory order."""
     return min(entries, key=lambda e: (Decimal(e['expected_cost_usd']), e['variant'] != previous,
@@ -53,11 +58,13 @@ def decide(*, policy, mode, report, allowed, runtime_variants, catalog, output_c
            tools, output_schema, size, runtime_context=None, previous=None, loader=installed):
     tau = policy['selector']['tau']
     trace = {'selector_id': policy['selector']['artifact'], 'tau': tau, 'shadow': mode != 'active',
+             'abstain': policy['selector']['abstain'], 'noise_band': None, 'p_spread': None,
              'candidates': [], 'chosen': None, 'reason': None}
     selector, selector_error = None, None
     try:
         selector = loader(policy['selector']['artifact'])
-        trace.update(selector_sha256=selector.sha256, selector_stub=getattr(selector, 'stub', False))
+        trace.update(selector_sha256=selector.sha256, selector_stub=getattr(selector, 'stub', False),
+                     noise_band=selector.noise_band)
         if mode == 'active' and getattr(selector, 'stub', False):
             selector, selector_error = None, 'SELECTOR_UNAVAILABLE'  # Never execute an untrained stub.
     except ValueError:
@@ -104,7 +111,18 @@ def decide(*, policy, mode, report, allowed, runtime_variants, catalog, output_c
                 entry['ineligible'] = 'BELOW_TAU'
             else:
                 qualified.append(entry)
-        if qualified:
+        if len(qualified) >= 2:
+            trace['p_spread'] = round(max(e['p_pass'] for e in qualified)-min(e['p_pass'] for e in qualified), 6)
+        if (policy['selector']['abstain'] and selector.noise_band > 0 and trace['p_spread'] is not None
+                and trace['p_spread'] <= selector.noise_band):
+            # The qualified heads are indistinguishable within the fit's noise:
+            # "cheapest that qualifies" is not evidence. Use the configured
+            # fallback, else the most likely qualified head.
+            chosen = _fallback(policy['fallback'], allowed, runtime_variants, catalog)
+            reason = 'ABSTAIN_WITHIN_NOISE'
+            if chosen is None:
+                chosen, reason = _most_likely(qualified, order), 'ABSTAIN_HIGHEST_P'
+        elif qualified:
             chosen, reason = _cheapest(qualified, incumbent, order), 'SELECTED'
         else:
             reason = 'FALLBACK_NO_QUALIFIED'

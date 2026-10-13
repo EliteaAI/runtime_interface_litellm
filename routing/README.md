@@ -98,7 +98,7 @@ out-of-bounds values are `POLICY_INVALID`.
 | Key | Default (= the literal before V5) | Bounds |
 |---|---|---|
 | `shadow_mode` | `true` | bool |
-| `selector` | `{artifact: null, tau: 0.85}` | installed artifact id; `tau` 0.5..0.99 |
+| `selector` | `{artifact: null, tau: 0.85, abstain: true}` | installed artifact id; `tau` 0.5..0.99; `abstain` bool |
 | `pool` | `null` (every admitted deployment) | 1..256 canonical ids or exact deployment names |
 | `fallback` | `null` | `{name, project_id}` |
 | `output` | `{default_allowance: 8000, min_cap: 256, max_cap: 32000}` | 256 <= min <= default <= max <= 128000 |
@@ -124,7 +124,11 @@ Tokens(ceil(request_bytes / 4), min(head expected_output_tokens, cap)))`. The ch
 candidate with `p_pass >= tau` wins (`SELECTED`); an exact cost tie keeps the
 previous turn's variant (incumbent). None qualifies: `policy.fallback` resolved among
 the gated deployments, lowest effort first (`FALLBACK_NO_QUALIFIED`), else
-`NO_QUALIFIED_MODELS`. A standalone social turn without instructions takes the
+`NO_QUALIFIED_MODELS`. Abstention (`selector.abstain`, default true): when the
+artifact's `metrics.noise_band` (default 0.0) is > 0 and at least two heads qualify
+with a `p_pass` spread <= the band, the cheapest is not chosen: the fallback is
+(`ABSTAIN_WITHIN_NOISE`), else the qualified head with the highest `p_pass`
+(`ABSTAIN_HIGHEST_P`). `trace.v5` carries `noise_band`, `p_spread` and the outcome. A standalone social turn without instructions takes the
 cheapest gated deployment without scoring (`GREETING_RULE`). A missing or invalid
 artifact is `SELECTOR_UNAVAILABLE` (fallback when configured).
 

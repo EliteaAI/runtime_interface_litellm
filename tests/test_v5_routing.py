@@ -63,7 +63,7 @@ def test_absent_policy_is_todays_literals_and_no_v5_mode():
 
 def test_partial_policy_is_merged_per_key_with_defaults():
     value = validate({'selector': {'tau': 0.9}, 'output': {'max_cap': 64000}})
-    assert value['selector'] == {'artifact': None, 'tau': 0.9}
+    assert value['selector'] == {'artifact': None, 'tau': 0.9, 'abstain': True}
     assert value['output'] == {'default_allowance': 8000, 'min_cap': 256, 'max_cap': 64000}
     assert value['greeting_rule'] is True and value['shadow_mode'] is True
 
@@ -71,7 +71,7 @@ def test_partial_policy_is_merged_per_key_with_defaults():
 @pytest.mark.parametrize('raw', [
     {'unknown': 1}, {'version': 2}, {'version': True}, {'shadow_mode': 'no'}, {'greeting_rule': 1},
     {'selector': {'tau': 0.49}}, {'selector': {'tau': 0.991}}, {'selector': {'tau': True}},
-    {'selector': {'artifact': '../x'}}, {'selector': {'extra': 1}},
+    {'selector': {'artifact': '../x'}}, {'selector': {'extra': 1}}, {'selector': {'abstain': 'yes'}},
     {'pool': []}, {'pool': 'gpt-5.4'}, {'pool': [1]}, {'pool': ['x']*257},
     {'fallback': {'name': 'x'}}, {'fallback': {'name': '', 'project_id': 1}},
     {'fallback': {'name': 'x', 'project_id': 0}}, {'fallback': {'name': 'x', 'project_id': 1, 'effort': 'low'}},
@@ -227,13 +227,14 @@ def test_output_values_come_from_policy():
 
 # ---------------------------------------------------------------- V5 decision (pure)
 
-def decide(prompt, *, tau=0.85, fallback=None, previous=None, loader=None, greeting_rule=True, args=None, mode='shadow'):
+def decide(prompt, *, tau=0.85, fallback=None, previous=None, loader=None, greeting_rule=True, args=None, mode='shadow',
+           abstain=True):
     args = args or fixture()
     catalog = compiled_router().catalog
     visible = effective_models(args['models'], 7)
     runtime, _ = qualified_inventory(visible, catalog, project_id=7)
     prices = PriceBook(args['price_snapshot']['entries'], source_revision='p')
-    pol = validate(policy(selector={'artifact': 'selector-v5-stub', 'tau': tau}, fallback=fallback,
+    pol = validate(policy(selector={'artifact': 'selector-v5-stub', 'tau': tau, 'abstain': abstain}, fallback=fallback,
                           greeting_rule=greeting_rule))
     allowed, caps, _, report = admit(runtime, catalog, cap=None, size=500, output_schema=None,
                                      explicit={'mode': 'auto'}, prices=prices, policy=pol)
@@ -301,6 +302,47 @@ def test_incumbent_wins_only_an_exact_cost_tie():
                               'effort': 'low', 'incumbent': True}
     # A cheaper qualified candidate beats an incumbent that is not tied.
     assert decide(SUMMARY, previous='gpt54-medium')['chosen']['variant'] == 'luna-default'
+
+
+def banded(band):
+    value = artifact()
+    value['metrics']['noise_band'] = band
+    value['sha256'] = sel.canonical_sha256(value)
+    loaded = sel.Selector(value)
+    return lambda _: loaded
+
+
+# SUMMARY: luna p=0.871332 (cheaper), gpt54-medium p=0.964385 -> spread 0.093053 at tau 0.85.
+@pytest.mark.parametrize('band,abstain,fallback,expected,reason', [
+    (0.0, True, {'name': 'gpt-5.4', 'project_id': 7}, 'luna-default', 'SELECTED'),      # band 0 never abstains
+    (0.09, True, {'name': 'gpt-5.4', 'project_id': 7}, 'luna-default', 'SELECTED'),     # spread > band
+    (0.1, True, {'name': 'gpt-5.4', 'project_id': 7}, 'gpt54-low', 'ABSTAIN_WITHIN_NOISE'),
+    (0.1, True, None, 'gpt54-medium', 'ABSTAIN_HIGHEST_P'),
+    (0.1, True, {'name': 'gpt-5.4', 'project_id': 8}, 'gpt54-medium', 'ABSTAIN_HIGHEST_P'),  # unresolvable
+    (0.1, False, {'name': 'gpt-5.4', 'project_id': 7}, 'luna-default', 'SELECTED'),     # abstain disabled
+])
+def test_abstention_within_the_noise_band(band, abstain, fallback, expected, reason):
+    trace = decide(SUMMARY, loader=banded(band), fallback=fallback, abstain=abstain)
+    assert (trace['chosen']['variant'], trace['reason']) == (expected, reason)
+    assert trace['noise_band'] == band and trace['abstain'] is abstain
+    assert trace['p_spread'] == pytest.approx(0.093053, abs=1e-6)
+
+
+def test_a_single_qualified_head_has_no_spread_and_never_abstains():
+    trace = decide(PROVE, loader=banded(1.0), fallback={'name': 'gpt-5.4', 'project_id': 7})
+    assert trace['p_spread'] is None
+    assert (trace['chosen']['variant'], trace['reason']) == ('gpt54-medium', 'SELECTED')
+
+
+def test_noise_band_is_bounded_and_defaults_to_zero():
+    value = artifact(); value['metrics'].pop('noise_band')
+    value['sha256'] = sel.canonical_sha256(value)
+    assert sel.Selector(value).noise_band == 0.0
+    for bad in (-0.1, 1.1, True, '0.1'):
+        value['metrics']['noise_band'] = bad
+        value['sha256'] = sel.canonical_sha256(value)
+        with pytest.raises(ValueError):
+            sel.Selector(value)
 
 
 def test_selector_unavailable_uses_fallback_or_reports():
