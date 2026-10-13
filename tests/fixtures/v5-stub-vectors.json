@@ -1,0 +1,107 @@
+{
+  "artifact": "selector-v5-stub",
+  "artifact_sha256": "354aff2b3ffc04cbf33606403be8a1478d16b61065c51ee41b60a3be362db3ce",
+  "note": "Gateway-generated interim vectors for the stub artifact; WP-1 test_vectors.json replaces them.",
+  "vectors": [
+    {
+      "input": {
+        "has_output_schema": false,
+        "history_turns": 0,
+        "input_bytes": 120,
+        "request_text": "Hi",
+        "tools_count": 0
+      },
+      "nonzero_features": 6,
+      "scores": {
+        "openai/gpt-5-4|medium": {
+          "expected_output_tokens": 845,
+          "p_pass": 0.969083758501
+        },
+        "openai/gpt-5-6-luna|default": {
+          "expected_output_tokens": 317,
+          "p_pass": 0.941600708048
+        }
+      }
+    },
+    {
+      "input": {
+        "has_output_schema": false,
+        "history_turns": 2,
+        "input_bytes": 900,
+        "request_text": "Summarise this paragraph about apples in two sentences.",
+        "tools_count": 0
+      },
+      "nonzero_features": 162,
+      "scores": {
+        "openai/gpt-5-4|medium": {
+          "expected_output_tokens": 978,
+          "p_pass": 0.964385299515
+        },
+        "openai/gpt-5-6-luna|default": {
+          "expected_output_tokens": 367,
+          "p_pass": 0.871332424194
+        }
+      }
+    },
+    {
+      "input": {
+        "has_output_schema": true,
+        "history_turns": 0,
+        "input_bytes": 4000,
+        "request_text": "Please prove the crash recovery architecture is correct",
+        "tools_count": 3
+      },
+      "nonzero_features": 162,
+      "scores": {
+        "openai/gpt-5-4|medium": {
+          "expected_output_tokens": 978,
+          "p_pass": 0.96315396037
+        },
+        "openai/gpt-5-6-luna|default": {
+          "expected_output_tokens": 367,
+          "p_pass": 0.836259096758
+        }
+      }
+    },
+    {
+      "input": {
+        "has_output_schema": false,
+        "history_turns": 5,
+        "input_bytes": 0,
+        "request_text": "Ünïcode   whitespace\tand CASE are Normalised — prove it",
+        "tools_count": 1
+      },
+      "nonzero_features": 159,
+      "scores": {
+        "openai/gpt-5-4|medium": {
+          "expected_output_tokens": 978,
+          "p_pass": 0.963114819119
+        },
+        "openai/gpt-5-6-luna|default": {
+          "expected_output_tokens": 367,
+          "p_pass": 0.870340471109
+        }
+      }
+    },
+    {
+      "input": {
+        "has_output_schema": false,
+        "history_turns": 0,
+        "input_bytes": 10,
+        "request_text": "",
+        "tools_count": 0
+      },
+      "nonzero_features": 5,
+      "scores": {
+        "openai/gpt-5-4|medium": {
+          "expected_output_tokens": 800,
+          "p_pass": 0.970687769249
+        },
+        "openai/gpt-5-6-luna|default": {
+          "expected_output_tokens": 300,
+          "p_pass": 0.952574126822
+        }
+      }
+    }
+  ]
+}

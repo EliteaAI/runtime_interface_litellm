@@ -1,0 +1,10 @@
+{
+  "artifacts": {
+    "selector-v5-stub": {
+      "file": "selector-v5-stub.json",
+      "sha256": "354aff2b3ffc04cbf33606403be8a1478d16b61065c51ee41b60a3be362db3ce",
+      "stub": true
+    }
+  },
+  "schema": "elitea-auto-selector-manifest/1"
+}

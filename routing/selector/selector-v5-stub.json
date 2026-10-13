@@ -1,0 +1,86 @@
+{
+  "created_at": "2026-10-13T00:00:00Z",
+  "features": {
+    "char_ngrams": [
+      3,
+      5
+    ],
+    "hashing_dim": 1024,
+    "lowercase": true,
+    "numeric": [
+      "log_request_chars",
+      "history_turns",
+      "tools_count",
+      "has_output_schema",
+      "log_input_bytes"
+    ],
+    "word_ngrams": [
+      1,
+      2
+    ]
+  },
+  "heads": {
+    "openai/gpt-5-4|medium": {
+      "bias": 3.5,
+      "calibration": {
+        "a": 1.0,
+        "b": 0.0
+      },
+      "output_tokens": {
+        "coef": {
+          "1024": 0.05
+        },
+        "floor": 64,
+        "intercept": 6.684612
+      },
+      "provider": "openai",
+      "support": {
+        "lineages": 0,
+        "rows": 0
+      },
+      "weights": {
+        "1024": -0.05,
+        "549": -0.5
+      }
+    },
+    "openai/gpt-5-6-luna|default": {
+      "bias": 3.0,
+      "calibration": {
+        "a": 1.0,
+        "b": 0.0
+      },
+      "output_tokens": {
+        "coef": {
+          "1024": 0.05
+        },
+        "floor": 64,
+        "intercept": 5.703782
+      },
+      "provider": "openai",
+      "support": {
+        "lineages": 0,
+        "rows": 0
+      },
+      "weights": {
+        "1024": -0.2,
+        "164": -4.0,
+        "549": -4.0
+      }
+    }
+  },
+  "id": "selector-v5-stub",
+  "metrics": {
+    "noise_band": 0.0,
+    "note": "Stub for Gateway wiring tests only; never trained. Active mode refuses stub artifacts."
+  },
+  "schema": "elitea-auto-selector/1",
+  "sha256": "354aff2b3ffc04cbf33606403be8a1478d16b61065c51ee41b60a3be362db3ce",
+  "training": {
+    "dataset_sha256": null,
+    "holdout_lineages": 0,
+    "label_policy": "stub-not-trained",
+    "rows_used": 0,
+    "split": "none",
+    "waves": []
+  }
+}

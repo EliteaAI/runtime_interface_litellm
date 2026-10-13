@@ -88,6 +88,111 @@ A new external invocation may obtain a current binding. Install the matching SDK
 update, which preserves absent-cap provenance and enforces the signed measured
 transport. No routing table or database migration is required.
 
+## V5 selector and policy (#6722)
+
+**Policy** (`routing/policy.py`). Configurations serves the effective policy as
+`settings['policy']` (platform default deep-merged with the project override, covered
+by `revision`). The Gateway validates it strictly: unknown keys, wrong types and
+out-of-bounds values are `POLICY_INVALID`.
+
+| Key | Default (= the literal before V5) | Bounds |
+|---|---|---|
+| `shadow_mode` | `true` | bool |
+| `selector` | `{artifact: null, tau: 0.85, abstain: true}` | installed artifact id; `tau` 0.5..0.99; `abstain` bool |
+| `pool` | `null` (every admitted deployment) | 1..256 canonical ids or exact deployment names |
+| `fallback` | `null` | `{name, project_id}` |
+| `output` | `{default_allowance: 8000, min_cap: 256, max_cap: 32000}` | 256 <= min <= max <= 128000; default 256..128000, clamped into [min, max] |
+| `thinking_budget_tokens` | `{low: 2048, medium: 4096, high: 9092}` | ints, strictly increasing (see activation blockers) |
+| `greeting_rule` | `true` | bool |
+| `classifier` | `{enabled: false}` | bool; no runtime effect in V5 v1 (ablation only) |
+
+- No `policy` key (older Configurations): the literals above apply, no V5 code
+  runs, the trace has no `v5` and pins carry the code revision exactly as before.
+- Invalid policy: Auto never refuses for it. The literals apply, legacy runs and
+  `trace.v5.reason == 'POLICY_INVALID'`.
+- A merge can leave `default_allowance` outside a lowered `[min_cap, max_cap]`; it is
+  clamped and listed in `trace.v5.clamped` (`['output.default_allowance']`).
+- Activation guard: `shadow_mode: false` without an installed, trained (non-stub)
+  `selector.artifact` runs shadow with `trace.v5.reason == 'ACTIVATION_WITHOUT_ARTIFACT'`.
+- Activation preflight (once per resolve, before executing V5): the configured
+  fallback must be a catalog-joined, pool-admitted, priced deployment, and at least one
+  pool deployment must have a selector head. Otherwise the request runs shadow with
+  `ACTIVATION_PREFLIGHT_FAILED` and `trace.v5.preflight = {cause: FALLBACK_NOT_ADMITTABLE
+  | NO_HEAD_FOR_POOL, ...}` instead of a 422 per request.
+- Shadow purity: shadow mode executes today's literals for everything the legacy path
+  runs (request cap bounds, default allowance, thinking budgets, no pool). The policy's
+  values apply only inside the V5 computation and `trace.v5` (a request cap outside the
+  policy bounds is traced as `REQUEST_CAP_OUTSIDE_POLICY`). Only active mode executes
+  policy values. Pins issued under a policy carry a signed `routing_mode`
+  (`active`/`shadow`); the relay applies policy thinking budgets to active pins only.
+- `tests/fixtures/policy-merge-cases.json` lists the merged shapes Configurations can
+  serve and the Gateway's handling (clamped / refused / shadow with reason), in a
+  format meant for reuse by the Configurations tests (not yet consumed there).
+
+**Hard gates** (`routing/gates.py`) are shared by both paths: available, chat kind,
+pool, calibration contract, measured contract allowance above `output.max_cap`
+(`CONTRACT_ALLOWANCE_ABOVE_CAP`; a measured allowance is never clamped), explicit
+effort, Anthropic thinking budget, context window, output cap, price, cache-write
+price. Each deployment-variant reports every
+failed gate; the trace lists them per candidate.
+
+**Decision** (`routing/v5.py`). Candidates are the gated catalog deployment-variants.
+Each maps to a selector head `<identity.canonical>|<effort or default>`; without a
+head it is `NO_SELECTOR_HEAD`. Expected cost = `PriceBook.quote(deployment,
+Tokens(ceil(request_bytes / 4), min(head expected_output_tokens, cap)))`. The cheapest
+candidate with `p_pass >= tau` wins (`SELECTED`); an exact cost tie keeps the
+previous turn's variant (incumbent). None qualifies: `policy.fallback` resolved among
+the gated deployments, lowest effort first (`FALLBACK_NO_QUALIFIED`), else
+`NO_QUALIFIED_MODELS`. A configured fallback that cannot be used is reported in
+`trace.v5.fallback = {deployment, project_id, gated}` with reason `FALLBACK_GATED`
+(visible, but a hard gate failed, e.g. `OUTPUT_CAP`, `POOL`,
+`NO_CALIBRATED_MODEL_CONTRACT`) or `FALLBACK_UNAVAILABLE` (not in the visible
+inventory); in active mode these are the 422 reasons. Abstention (`selector.abstain`, default true): when the
+artifact's `metrics.noise_band` (default 0.0) is > 0 and at least two heads qualify
+with a `p_pass` spread <= the band, the cheapest is not chosen: the fallback is
+(`ABSTAIN_WITHIN_NOISE`), else the qualified head with the highest `p_pass`
+(`ABSTAIN_HIGHEST_P`). `trace.v5` carries `noise_band`, `p_spread` and the outcome. A standalone social turn without instructions takes the
+cheapest gated deployment without scoring (`GREETING_RULE`). A missing or invalid
+installed artifact at runtime is `SELECTOR_UNAVAILABLE` (fallback when configured).
+
+**Shadow/active** (`routing/service.py`). `shadow_mode: true`: the legacy decision is
+executed and `trace.v5 = {selector_id, selector_sha256, tau, candidates, chosen,
+reason, shadow, legacy_choice, policy_revision}`; a V5 defect is traced as `V5_ERROR`
+and never breaks Auto. `shadow_mode: false` with a trained artifact: the V5 choice is
+executed, no LLM classifier is called or required; `SELECTOR_UNAVAILABLE`,
+`NO_QUALIFIED_MODELS`, `FALLBACK_GATED` or `FALLBACK_UNAVAILABLE` are a 422
+`{error, reason}` only when no fallback can be used. An artifact flagged `stub` is
+never executed. Every pin and checkpoint carries `policy_revision = <code revision>
++policy-<sha256(effective policy, artifact id@sha256)>`; resolve renewal and the
+relay refuse a pin issued under another policy. A continuation never switches
+models: the V5 candidate set is narrowed to the pinned deployment and effort exactly
+like the legacy set. The preflight emits the `auto_routing_shadow_decision` tracing
+span (tracer `auto-routing`) with ids, scores, expected output tokens and costs, the
+stub flag, `abstain`, `fallback`, `clamped`, `preflight` and `features_sha256`
+(sha256 of the hashed feature vector; never request text). Refused requests emit it
+too (`reason: LEGACY_REFUSED | ACTIVE_REFUSED`, `refusal_reason`, `v5_reason`), so
+the shadow data is not conditioned on legacy success.
+
+**Activation blockers** (keep `shadow_mode: true` until resolved):
+- SDK thinking budgets: the SDK still hard-codes `{low: 2048, medium: 4096, high:
+  9092}` (`elitea_sdk/runtime/clients/client.py`). An active policy with other budgets
+  makes every native Anthropic enabled-thinking call with a budget-derived effort a 409
+  effort mismatch at the relay. Keep the default budgets until the SDK reads them from
+  the binding. Budgets below Anthropic's 1,024 minimum are also not refused yet.
+- A trained WP-1 artifact (the shipped `selector-v5-stub` is never executed).
+- Active mode bypasses the legacy router's cache economics; the incumbent wins only an
+  exact cost tie and there is no tool-support gate yet.
+
+**Installing an artifact.** Put `selector-v5-<id>.json` (schema
+`elitea-auto-selector/1`, `sha256` = sha256 of the canonical JSON without that field:
+sorted keys, `(',', ':')` separators, no NaN) into `routing/selector/`, add
+`{"<id>": {"file": "...", "sha256": "...", "stub": false}}` to
+`routing/selector/MANIFEST.json`, and set `policy.selector.artifact` to the id. The
+loader refuses size > 2 MB, unknown schema, out-of-bounds weights, and any hash
+mismatch with the file or the manifest. `selector-v5-stub` is a two-head wiring stub
+(never trained). Until WP-1 lands, `routing/selector.py` carries an interim scorer
+(feature hashing documented in its docstring) that WP-1's `scorer.py` replaces.
+
 Run standalone routing/relay tests without importing the Pylon plugin lifecycle:
 
 ```sh

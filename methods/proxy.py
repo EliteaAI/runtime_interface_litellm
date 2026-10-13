@@ -409,23 +409,32 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             routing_invocation = proxy_target['headers'].get('X-Elitea-Routing-Invocation')
             proxy_target['headers'].remove('X-Elitea-Routing-Invocation')
             auto_binding = proxy_auth.get('_auto_model_binding')
+            routing_inventory = None
             if routing_pin:
-                from ..routing.service import decode_pin, RoutingUnavailable, auto_routing_settings
+                from ..routing.service import (decode_pin, RoutingUnavailable, auto_routing_settings,
+                                               compiled_router, routing_policy_revision, pinned_is_anthropic)
+                from ..routing.policy import runtime_policy, DEFAULT_POLICY
                 try:
                     settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, user_id)
                     pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
                     if routing_invocation != pin.get('invocation_id'):
                         raise RoutingUnavailable('Routing invocation mismatch')
-                    from ..routing.service import compiled_router
-                    if pin.get('policy_revision') != compiled_router().revision:
+                    # Covers the code revision plus the effective policy/selector (#6722 V5).
+                    if pin.get('policy_revision') != routing_policy_revision(compiled_router(), settings):
                         raise RoutingUnavailable('Pinned routing policy changed')
                     auto_binding = pin.get('model_binding')
                     if not auto_binding:
                         raise RoutingUnavailable('Routing binding requires renewal')
+                    # One inventory read serves the vendor check and the binding check below.
+                    routing_inventory = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, user_id)
                     body = proxy_target.get('json') or {}
                     effort = body.get('reasoning_effort') or (body.get('reasoning') or {}).get('effort') or (body.get('output_config') or {}).get('effort')
-                    if effort is None and 'anthropic' in pin['config']['model_name'] and (body.get('thinking') or {}).get('type') == 'enabled':
-                        effort = {2048: 'low', 4096: 'medium', 9092: 'high'}.get(body['thinking'].get('budget_tokens'))
+                    if (effort is None and (body.get('thinking') or {}).get('type') == 'enabled'
+                            and pinned_is_anthropic(auto_binding, routing_inventory['items'], project_id)):
+                        # Policy budgets are executed only by active-mode pins (signed field).
+                        budgets = (runtime_policy(settings)[0] if pin.get('routing_mode') == 'active'
+                                   else DEFAULT_POLICY)['thinking_budget_tokens']
+                        effort = {v: k for k, v in budgets.items()}.get(body['thinking'].get('budget_tokens'))
                     if effort != pin['config']['reasoning_effort']:
                         raise RoutingUnavailable('Pinned reasoning effort mismatch')
                     if body.get('model') != pin['config']['model_name']:
@@ -454,7 +463,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             if auto_binding:
                 from ..routing.inventory import validate_binding
                 try:
-                    inventory = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, user_id)
+                    inventory = routing_inventory or context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, user_id)
                     validate_binding(auto_binding, inventory['items'], project_id)
                     if raw_model != auto_binding['name']:
                         raise ValueError('Auto model binding mismatch')

@@ -1,0 +1,577 @@
+{
+  "cases": [
+    {
+      "description": "Platform default as served (PLAN 3.2 example).",
+      "gateway": {
+        "clamped": [],
+        "error": null,
+        "mode": "shadow"
+      },
+      "name": "platform_default",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "Project lowers max_cap below the platform allowance 8000.",
+      "gateway": {
+        "clamped": [
+          "output.default_allowance"
+        ],
+        "error": null,
+        "mode": "shadow",
+        "output": {
+          "default_allowance": 4000,
+          "max_cap": 4000,
+          "min_cap": 256
+        }
+      },
+      "name": "lowered_project_max_cap",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 4000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "Project raises min_cap above the platform allowance 8000.",
+      "gateway": {
+        "clamped": [
+          "output.default_allowance"
+        ],
+        "error": null,
+        "mode": "shadow",
+        "output": {
+          "default_allowance": 10000,
+          "max_cap": 32000,
+          "min_cap": 10000
+        }
+      },
+      "name": "raised_project_min_cap",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 10000
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "min_cap at the platform floor 256.",
+      "gateway": {
+        "clamped": [],
+        "error": null,
+        "mode": "shadow"
+      },
+      "name": "min_cap_floor",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "min_cap below the platform floor.",
+      "gateway": {
+        "clamped": [],
+        "error": "POLICY_INVALID",
+        "mode": "shadow"
+      },
+      "name": "min_cap_below_floor",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 128
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "max_cap above the platform bound 128000.",
+      "gateway": {
+        "clamped": [],
+        "error": "POLICY_INVALID",
+        "mode": "shadow"
+      },
+      "name": "max_cap_above_platform",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 200000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "low == medium is ambiguous for the relay.",
+      "gateway": {
+        "clamped": [],
+        "error": "POLICY_INVALID",
+        "mode": "shadow"
+      },
+      "name": "equal_thinking_budgets",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 2048
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "Project pool of canonical ids and exact names.",
+      "gateway": {
+        "clamped": [],
+        "error": null,
+        "mode": "shadow"
+      },
+      "name": "project_pool",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": [
+          "openai/gpt-5-4",
+          "global.openai.gpt-5.6-luna"
+        ],
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "selector.abstain false.",
+      "gateway": {
+        "clamped": [],
+        "error": null,
+        "mode": "shadow"
+      },
+      "name": "abstain_disabled",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": false,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "fallback null.",
+      "gateway": {
+        "clamped": [],
+        "error": null,
+        "mode": "shadow"
+      },
+      "name": "no_fallback",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": null,
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "shadow_mode false with selector.artifact null.",
+      "gateway": {
+        "clamped": [],
+        "error": "ACTIVATION_WITHOUT_ARTIFACT",
+        "mode": "shadow"
+      },
+      "name": "active_without_artifact",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": null,
+          "tau": 0.85
+        },
+        "shadow_mode": false,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "shadow_mode false naming the untrained stub.",
+      "gateway": {
+        "clamped": [],
+        "error": "ACTIVATION_WITHOUT_ARTIFACT",
+        "mode": "shadow"
+      },
+      "name": "active_with_stub_artifact",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": false,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "shadow_mode false naming an artifact that is not installed.",
+      "gateway": {
+        "clamped": [],
+        "error": "ACTIVATION_WITHOUT_ARTIFACT",
+        "mode": "shadow"
+      },
+      "name": "active_with_unknown_artifact",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-unknown",
+          "tau": 0.85
+        },
+        "shadow_mode": false,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    },
+    {
+      "description": "shadow_mode false with an installed trained artifact.",
+      "gateway": {
+        "clamped": [],
+        "error": null,
+        "mode": "active"
+      },
+      "name": "active_with_trained_artifact",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-t1",
+          "tau": 0.85
+        },
+        "shadow_mode": false,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      },
+      "requires_installed": "selector-v5-t1"
+    },
+    {
+      "description": "A key the Gateway does not know.",
+      "gateway": {
+        "clamped": [],
+        "error": "POLICY_INVALID",
+        "mode": "shadow"
+      },
+      "name": "unknown_key",
+      "policy": {
+        "classifier": {
+          "enabled": false
+        },
+        "extra": 1,
+        "fallback": {
+          "name": "gpt-5.4",
+          "project_id": 1
+        },
+        "greeting_rule": true,
+        "output": {
+          "default_allowance": 8000,
+          "max_cap": 32000,
+          "min_cap": 256
+        },
+        "pool": null,
+        "selector": {
+          "abstain": true,
+          "artifact": "selector-v5-stub",
+          "tau": 0.85
+        },
+        "shadow_mode": true,
+        "thinking_budget_tokens": {
+          "high": 9092,
+          "low": 2048,
+          "medium": 4096
+        },
+        "version": 1
+      }
+    }
+  ],
+  "note": "Merged effective policies Configurations can serve as settings['policy'], with the Gateway's handling. gateway.mode/error = routing.policy.runtime_policy(); clamped = fields the Gateway clamps; output = effective output after clamping. requires_installed: the case needs that artifact installed as a trained (non-stub) artifact.",
+  "schema": "elitea-auto-policy-merge-cases/1"
+}
