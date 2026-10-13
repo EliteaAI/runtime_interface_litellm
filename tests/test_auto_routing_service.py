@@ -17,7 +17,10 @@ CANONICAL = {
     'global.openai.gpt-5.6-terra': 'openai/gpt-5-6-terra', 'gpt-5.4': 'openai/gpt-5-4',
     'gpt-5.4-mini': 'openai/gpt-5-4-mini', 'eu.anthropic.claude-haiku-4-5-20251001-v1:0': 'anthropic/claude-haiku-4-5',
     'eu.anthropic.claude-sonnet-4-6': 'anthropic/claude-sonnet-4-6', 'eu.anthropic.claude-opus-4-7': 'anthropic/claude-opus-4-7',
-    'eu.anthropic.claude-opus-4-8': 'anthropic/claude-opus-4-8', 'eu.anthropic.claude-opus-5': 'anthropic/claude-opus-5'}
+    'eu.anthropic.claude-opus-4-8': 'anthropic/claude-opus-4-8', 'eu.anthropic.claude-opus-5': 'anthropic/claude-opus-5',
+    # Heads added to the catalog from the admission table (#6722).
+    'global.anthropic.claude-sonnet-5-5': 'anthropic/claude-sonnet-5-5',
+    'global.anthropic.claude-opus-5-5': 'anthropic/claude-opus-5-5'}
 
 
 def identity(canonical, contract='default', source='rule', kind='chat'):
@@ -56,8 +59,9 @@ def test_exact_greeting_has_no_classifier_call_and_signed_native_config():
     pin = decode_pin(result['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=101)
     assert calls == []
     assert pin['config'] == result['config']
-    assert result['config']['routing_total_output_cap'] is True
-    assert result['config']['max_tokens'] == 8000
+    # No ceiling is invented (#6722): an absent cap is the provider default.
+    assert result['config']['routing_total_output_cap'] is False
+    assert result['config']['max_tokens'] is None
 
 
 def test_trusted_joke_rule_qualifies_full_content_creation_cohort_without_classifier():
@@ -74,14 +78,15 @@ def test_trusted_joke_rule_qualifies_full_content_creation_cohort_without_classi
     assert result['config']['model_name']=='global.openai.gpt-5.6-luna'
 
 
-def test_untrusted_creative_without_family_still_uses_conservative_baseline():
+def test_creative_without_family_is_admitted_by_the_pooled_demand_row():
     from routing.v7.candidate import CalibratedRouter
     from routing.v7.routing import rules
     desc=rules({'latest':{'text':'Tell me a joke about bears.'}})
     desc.pop('task_family')
     chosen=CalibratedRouter(object(), 'luna-default').select(desc)
-    assert chosen['variant']=='gpt54-medium'
-    assert chosen['family_qualification']['status']=='insufficient_evidence_baseline'
+    # Admission is a table over demand; a missing family only forgoes the optional refinement.
+    assert chosen['variant']=='luna-default' and chosen['tier']=='eligible' and chosen['provisional'] is False
+    assert chosen['family_qualification']['status']=='admission_table'
 
 
 @pytest.mark.parametrize('prompt,active', [('Tell me a joke about bears. Also prove crash recovery.', ''),

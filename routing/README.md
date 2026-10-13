@@ -81,9 +81,11 @@ the remedy "add a Costs price alias for <name>"), `transport_unmeasured` (canoni
 whose every variant has a contract their deployments' transport cannot meet) and
 `low_tier_priced` (the trace reports whether a low-tier deployment is admitted for this
 request; the RPC whether one is priced). DIAL serves Anthropic models as
-OpenAI-compatible, so every Anthropic calibration contract (`anthropic_messages`) fails
-`CALIBRATION_TRANSPORT_UNMEASURED` there; only the uncontracted `sonnet-default` stays
-eligible, and measured Anthropic evidence is unusable on DIAL by policy. A canonical match only
+OpenAI-compatible, so every Anthropic calibration contract (`anthropic_messages`) does not
+match their transport there. Since #6722 that is no longer a hard gate: such a variant is
+admitted at provisional tier with `CALIBRATION_TRANSPORT_UNMEASURED` in the trace
+(`inventory.provisional_contracts`, `selection.admission.flags`), and `transport_unmeasured`
+keeps listing the canonical model as a readiness signal. A canonical match only
 joins an existing measured contract; it never adds quality evidence. The classifier
 is the configured deployment from `settings['classifier']` (project, else platform),
 resolved by name and owner in the visible inventory and called without effort.
@@ -126,3 +128,33 @@ actor-aware discovery, shared-only retention, configuration revocation/replaceme
 no-call greetings, same-run renewal, exact-owner relay and existing manual/Usage
 behavior. Live acceptance is separate from these tests and from model-quality
 calibration.
+
+## Interim admission table and output ceiling (#6722)
+
+Product routing admits by `v7/admission-table.json`, not by the catalog `tasks`,
+`max_demand` and `preferences` tables or `qualification-policy.json`. The table is
+generated offline from the R81 reviewed-demand view by `v7/build_admission_table.py`
+(stdlib; the dataset is an input and is never committed):
+
+```sh
+python routing/v7/build_admission_table.py /path/to/dataset-r81/dataset.jsonl --generated-at YYYY-MM-DD
+python -m pytest --rootdir=tests tests/test_admission_table_builder.py -q   # pinned digest, numbers
+```
+
+Per canonical head (`vendor/family|effort`) and demand it holds counts, a one-sided 90%
+Jeffreys lower bound, a paired adverse count against the best head, a tier (`eligible`,
+`provisional` at deep only, `out`) and the cell's p90 output tokens. A head or demand
+without a row is out. The chooser takes the cheapest admitted variant by the economics
+ranking; a provisional winner is flagged in `trace.selection`. An uncertain descriptor
+goes to the cheapest variant that clears the deep floor and only to the baseline when
+nothing does. `trace.policy` names the table digest and rule revision; the digest is part
+of `policy_revision`, so a new table refuses pins issued under the old one.
+
+An absent `output_cap` is the provider default (`config.max_tokens` is `None`): the cap
+is never defaulted or bounded above except by the model's own `max_output_tokens`. A
+cap below the cell's p90 output rejects that variant (`CALIBRATION_ALLOWANCE_BELOW_P90`),
+and ranking prices the cell p90, never the provider maximum. An Anthropic deployment
+behind an OpenAI-compatible transport is admitted at provisional tier with
+`CALIBRATION_TRANSPORT_UNMEASURED`. Greeting still reads the legacy `tasks` and
+`preferences`; the frozen V9/V12 family cells remain for the lab suites
+(`compile_catalog(admission=False)`).

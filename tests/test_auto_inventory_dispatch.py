@@ -108,7 +108,7 @@ def test_preflight_reads_actor_inventory_and_keeps_shared_only_candidates(relay,
         {'project_id': 7, 'user': {'id': 42}})
     assert result['action'] == 'generate'
     assert result['trace']['inventory']['discovered'] == 5
-    assert result['trace']['inventory']['qualified_variants'] == 8
+    assert result['trace']['inventory']['qualified_variants'] == 9
     assert relay.seen == [(7, 42)]
 
 
@@ -163,24 +163,40 @@ def test_preflight_missing_or_malformed_classifier_is_reason_coded(relay, monkey
     assert preflight_method(relay, monkeypatch)()[0]['reason'] == 'CLASSIFIER_NOT_CONFIGURED'
 
 
-def measured_request(relay, variant):
+@pytest.fixture
+def frozen_cells(monkeypatch):
+    # Measured wire contracts (transport, reasoning fields, envelope) are exercised through the
+    # frozen V9/V12 family-cell policy; the product catalog admits by the data-derived table.
+    service = importlib.import_module('plugin_under_test.routing.service')
+    catalog = importlib.import_module('plugin_under_test.routing.v7.catalog')
+    router = service.GenerationRouter(service.ClassifierTransport(), service.CONFIGURED_CLASSIFIER,
+                                      catalog=catalog.compile_catalog(admission=False))
+    monkeypatch.setattr(service, 'compiled_router', lambda: router)
+
+
+def measured_request(relay, variant, output_cap=None):
     from test_v9_candidate import inputs, classified
     data = inputs(variant)
     relay.models[:] = data['models']
     relay.args['price_snapshot'] = data['price_snapshot']
     service = importlib.import_module('plugin_under_test.routing.service')
-    result = service.resolve(request('Transform these records A=1 B=2.'),
-                             complete=lambda *a, **k: classified(), **relay.args)
+    req = request('Transform these records A=1 B=2.')
+    if output_cap is not None:
+        req['output_cap'] = output_cap
+    result = service.resolve(req, complete=lambda *a, **k: classified(), **relay.args)
     config = result['config']
+    body = {'model': config['model_name']}
+    if config['max_tokens'] is not None:  # None is the provider default: no limit is sent
+        body['max_tokens'] = config['max_tokens']
     target = {'endpoint': '/v1/messages' if config['routing_transport']=='anthropic_messages' else '/v1/chat/completions',
         'headers': relay.proxy.Headers({'X-Elitea-Routing-Pin': result['pin'],
                                        'X-Elitea-Routing-Invocation': 'a'*64}),
-        'json': {'model': config['model_name'], 'max_tokens': config['max_tokens']}, 'data': None}
+        'json': body, 'data': None}
     return target, {'type': 'token', 'user': {'id': 42, 'name': 'user'}}
 
 
 @pytest.mark.parametrize('variant', ['terra-default','sol-default','opus5-default','opus48-default','opus47-default'])
-def test_new_measured_contract_exact_native_dispatch(relay,variant):
+def test_new_measured_contract_exact_native_dispatch(relay,frozen_cells,variant):
     target,auth=measured_request(relay,variant)
     assert relay.method.prepare_request(target,auth) is None
     relay.lookup.assert_called_once()
@@ -188,11 +204,11 @@ def test_new_measured_contract_exact_native_dispatch(relay,variant):
 
 
 @pytest.mark.parametrize('change', [ {'endpoint':'/v1/responses'}, {'endpoint':'/v1/chat/completions'},
-    {'body':{'max_tokens':8000}}, {'body':{'max_tokens':33000}},
+    {'body':{'max_tokens':33000}}, {'body':{'max_completion_tokens':'many'}},
     {'body':{'thinking':{'type':'adaptive'}}}, {'body':{'thinking':{'type':'disabled'}}},
     {'body':{'thinking':{'type':'enabled','budget_tokens':4096}}},
     {'body':{'reasoning':{'summary':'auto'}}}, {'body':{'reasoning_effort':'high'}}])
-def test_measured_default_contract_cannot_change_transport_allowance_or_thinking(relay,change):
+def test_measured_default_contract_cannot_change_transport_allowance_or_thinking(relay,frozen_cells,change):
     target,auth=measured_request(relay,'opus5-default')
     if 'endpoint' in change:target['endpoint']=change['endpoint']
     target['json'].update(change.get('body',{}))
@@ -201,10 +217,26 @@ def test_measured_default_contract_cannot_change_transport_allowance_or_thinking
     relay.metering.assert_not_called()
 
 
+@pytest.mark.parametrize('body', [{}, {'max_tokens': 8000}, {'max_tokens': 32000}, {'max_completion_tokens': 256}])
+def test_provider_default_pin_accepts_no_limit_or_any_limit_up_to_the_model_maximum(relay,frozen_cells,body):
+    target,auth=measured_request(relay,'opus5-default')
+    target['json'].update(body)
+    assert relay.method.prepare_request(target,auth) is None
+    relay.lookup.assert_called_once()
+
+
+@pytest.mark.parametrize('body,accepted', [({'max_tokens': 8000}, True), ({'max_tokens': 7999}, False),
+                                           ({'max_tokens': 8001}, False), ({}, False)])
+def test_explicit_cap_pin_still_requires_exactly_its_cap(relay,frozen_cells,body,accepted):
+    target,auth=measured_request(relay,'opus5-default',output_cap=8000)
+    target['json'].pop('max_tokens');target['json'].update(body)
+    assert (relay.method.prepare_request(target,auth) is None) is accepted
+
+
 @pytest.mark.parametrize('preset,field', [('terra-high','reasoning'),('opus5-high','thinking'),
     ('opus5-high','output_config'),('terra-high','max_tokens'),('terra-high','model')])
 @pytest.mark.parametrize('scope', ['additional_drop_params','model_drop_params'])
-def test_parameter_drops_cannot_change_measured_auto_contract(relay,preset,field,scope):
+def test_parameter_drops_cannot_change_measured_auto_contract(relay,frozen_cells,preset,field,scope):
     from test_v12_efforts import inputs, descriptor, DATA
     service=importlib.import_module('plugin_under_test.routing.service')
     data=inputs(preset)
@@ -212,6 +244,7 @@ def test_parameter_drops_cannot_change_measured_auto_contract(relay,preset,field
     contract=DATA['variants'][preset]
     cell=next(r for r in DATA['records'] if r['variant']==preset and r['eligible_local_beta'])
     req=request('Analyze supplied evidence');req['selection']['reasoning']={'mode':'explicit','preset':contract['effort']}
+    req['output_cap']=32000  # a pinned cap is part of the envelope that drops must not undo
     import json
     desc=descriptor(cell['family'],cell['demand_coverage'][0],contract['effort'])
     result=service.resolve(req,complete=lambda *a,**k:{'message':{'content':json.dumps(desc)},'finish_reason':'stop'},**relay.args)

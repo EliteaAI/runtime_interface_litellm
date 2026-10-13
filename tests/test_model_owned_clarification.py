@@ -91,7 +91,11 @@ def test_multiple_pending_go_does_not_claim_an_intent_or_generate_router_text():
     assert decision['descriptor']['needs_context'] is True
     assert 'clarification' not in decision
     assert all(i['status'] == 'awaiting_user' for i in session.intents.values())
-    assert decision['selection']['model'] == 'gpt-5.4'
+    # Uncertain work goes to a variant that clears the deep floor, never to an unconditional baseline.
+    selection = decision['selection']
+    assert selection['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+    assert selection['admission']['demand'] == 'deep' and selection['tier'] in {'eligible', 'provisional'}
+    assert selection['provisional'] is (selection['tier'] == 'provisional')
 
 
 def test_uncertainty_cannot_escape_explicit_effort_or_available_pool():
