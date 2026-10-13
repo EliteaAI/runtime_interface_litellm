@@ -33,9 +33,7 @@ class DispatchClassifier:
     def classify(self,view):
         descriptor,info=(self.tools if 'evidence_coverage' in view else self.text).classify(view)
         if info.get('schema_valid'):
-            raw=(info['response']['message'].get('content')or'').strip()
-            if raw.startswith('```'):raw=re.sub(r'^```(?:json)?\s*|\s*```$','',raw)
-            requested=json.loads(raw).get('effort_need')
+            requested=info['parsed'].get('effort_need')
             descriptor['effort_need']=requested if requested in {'low','medium','high'} else ('medium' if descriptor['demand']=='deep' else 'low')
         return descriptor,info
 
