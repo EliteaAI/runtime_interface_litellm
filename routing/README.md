@@ -62,8 +62,28 @@ deployments never join); items without `identity` join by exact name. One
 deployment is bound per variant (`inventory.rank_deployments`: explicit identity,
 project-owned, preferred contract, the measured deployment name, shortest,
 lexicographic); losers appear as `DUPLICATE_CANONICAL_DEPLOYMENT` with the selected
-winner. If the bound deployment has no price, admission retries the price gates on the
-ranked losers and records `inventory.rebound` (`rebound_from`). A canonical match only
+winner. Price never enters the ranking, so the binding is a function of the inventory.
+If the bound deployment fails the price or cache-write price gate, admission runs every
+gate on the next ranked duplicate and binds the first that passes
+(`inventory.rebound`, `rebound_from`); every tried deployment and its failed gate is in
+`inventory.rebound_attempts`, and `unmeasured_contracts` names the deployment it came from.
+Any other gate failure on a duplicate stops the variant; further duplicates are not tried.
+The preflight quotes winners and the classifier first and duplicates only up to the
+64-name Costs bound; duplicates beyond it are listed in `inventory.unquoted_alternates`
+and count as unpriced. A renewal (prior pin) keeps its pinned deployment while it is
+still a ranked candidate and passes the gates, so a later price row cannot flip an
+in-flight run (`rebound.reason: PINNED_DEPLOYMENT`).
+
+Pool signals, request-independent, in `trace.inventory` and from the RPC
+`runtime_interface_litellm_auto_preflight(project_id, user_id)` (Configurations readiness
+will consume it in a follow-up): `no_priced_deployment` (canonical model -> deployments with
+the remedy "add a Costs price alias for <name>"), `transport_unmeasured` (canonical models
+whose every variant has a contract their deployments' transport cannot meet) and
+`low_tier_priced` (the trace reports whether a low-tier deployment is admitted for this
+request; the RPC whether one is priced). DIAL serves Anthropic models as
+OpenAI-compatible, so every Anthropic calibration contract (`anthropic_messages`) fails
+`CALIBRATION_TRANSPORT_UNMEASURED` there; only the uncontracted `sonnet-default` stays
+eligible, and measured Anthropic evidence is unusable on DIAL by policy. A canonical match only
 joins an existing measured contract; it never adds quality evidence. The classifier
 is the configured deployment from `settings['classifier']` (project, else platform),
 resolved by name and owner in the visible inventory and called without effort.

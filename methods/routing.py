@@ -4,7 +4,8 @@ import json
 from pylon.core.tools import web
 from tools import context, VaultClient
 from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router,
-                               auto_routing_settings)
+                               auto_routing_settings, deployment_signals)
+from ..routing.pricing import PriceBook
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
 from ..utils.metering import meter_llm_call
 
@@ -20,6 +21,42 @@ def routing_prices(rpc, names, canonical_by_name):
         except TypeError:
             pass  # Costs before #6826 accepts exact names only.
     return rpc.costs_get_routing_prices(names)
+
+
+def routing_price_snapshot(rpc, inventory, catalog, project_id, classifier=None):
+    """Join the inventory and quote its bound deployments, the classifier and,
+    within the Costs bound, ranked duplicates. Returns (variants, alternates, snapshot);
+    `snapshot['unquoted']` lists alternates beyond the bound (treated as unpriced)."""
+    alternates = {}
+    variants, _ = qualified_inventory(inventory, catalog, project_id=project_id, alternates=alternates)
+    # Unqualified inventory can exceed the bounded Costs RPC and is never quoted.
+    names = {model['name'] for model in variants.values()}
+    if isinstance(classifier, dict) and classifier.get('name') in inventory:
+        names.add(classifier['name'])
+    names, unquoted = sorted(names), []
+    # Ranked duplicates price a fallback for an unpriced bound deployment;
+    # winners first, within the Costs bound.
+    for name in (n for vid in variants for n in alternates.get(vid, ())):
+        if name not in names and name not in unquoted:
+            (names if len(names) < MAX_PRICE_NAMES else unquoted).append(name)
+    canonical = {name: inventory[name]['identity']['canonical'] for name in names
+                 if isinstance((inventory[name].get('identity') or {}).get('canonical'), str)}
+    snapshot = routing_prices(rpc, names, canonical)
+    return variants, alternates, {**snapshot, 'unquoted': unquoted}
+
+
+def auto_preflight(rpc, project_id, user_id):
+    """Request-independent pool health from the same actor inventory and price
+    snapshot as the Auto preflight (`runtime_interface_litellm_auto_preflight`).
+
+    Configurations readiness will consume this in a follow-up (DIAL-only and
+    no-priced-low-tier warnings). Names only, never credentials.
+    """
+    inventory = effective_models(rpc.configurations_get_routing_models(project_id, user_id)['items'], project_id)
+    catalog = compiled_router().catalog
+    variants, alternates, snapshot = routing_price_snapshot(rpc, inventory, catalog, project_id)
+    prices = PriceBook(snapshot['entries'], source_revision=snapshot['revision'])
+    return deployment_signals(catalog, variants, alternates, inventory, prices)
 
 
 class Method:
@@ -38,23 +75,8 @@ class Method:
         models = snapshot['items']
         inventory = effective_models(models, project_id)
         router = compiled_router()
-        alternates = {}
-        variants, _ = qualified_inventory(inventory, router.catalog, project_id=project_id, alternates=alternates)
-        # Quote discovered qualified bindings and the configured classifier only;
-        # unqualified inventory can exceed the bounded Costs RPC.
-        names = {model['name'] for model in variants.values()}
-        classifier = settings.get('classifier')
-        if isinstance(classifier, dict) and classifier.get('name') in inventory:
-            names.add(classifier['name'])
-        names = sorted(names)
-        # Ranked duplicates price a fallback for an unpriced bound deployment;
-        # winners first, within the Costs bound.
-        for name in (n for vid in variants for n in alternates.get(vid, ())):
-            if len(names) < MAX_PRICE_NAMES and name not in names:
-                names.append(name)
-        canonical = {name: inventory[name]['identity']['canonical'] for name in names
-                     if isinstance((inventory[name].get('identity') or {}).get('canonical'), str)}
-        prices = routing_prices(context.rpc_manager.timeout(10), names, canonical)
+        _, _, prices = routing_price_snapshot(context.rpc_manager.timeout(10), inventory, router.catalog,
+                                              project_id, settings.get('classifier'))
         key = VaultClient(project_id).get_secrets().get('project_llm_key')
         if not key:
             return {'error': 'Auto model selection is unavailable'}, 503

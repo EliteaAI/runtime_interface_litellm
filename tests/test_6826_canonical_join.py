@@ -318,3 +318,69 @@ def test_older_configurations_without_classifier_reason_keeps_not_configured_tex
     with pytest.raises(RoutingUnavailable) as raised:
         resolve(request(), complete=lambda *a, **k: pytest.fail('No classifier call'), **args)
     assert (raised.value.reason, str(raised.value)) == ('CLASSIFIER_NOT_CONFIGURED', 'No Auto classifier model is configured')
+
+
+def test_renewal_keeps_the_pinned_rebound_deployment_after_the_measured_name_gets_a_price():
+    args = cheap_luna(duplicated_luna(fixture()))
+    measured = next(e for e in args['price_snapshot']['entries'] if e['model_name'] == 'global.openai.gpt-5.6-luna')
+    args['price_snapshot']['entries'].remove(measured)
+    args['settings']['classifier']['name'] = 'gpt-5.6-luna-2026-07-09'
+    first = resolve(request('Tell me a joke about bears.'), complete=lambda *a, **k: pytest.fail('Joke classified'), **args)
+    assert first['config']['model_name'] == 'gpt-5.6-luna-2026-07-09'
+    args['price_snapshot']['entries'].append(measured)  # Costs fix or an admin price row lands mid-run.
+    req = request('Tell me a joke about bears.'); req['prior_pin'] = first['pin']
+    renewed = resolve(req, complete=lambda *a, **k: pytest.fail('Pinned run reclassified'), **args)
+    assert renewed['trace'] == {'reason': 'REAUTHORIZED_CHECKPOINT_PIN'}
+    assert renewed['config']['model_name'] == 'gpt-5.6-luna-2026-07-09'
+    # Without a pin the deterministic measured binding applies again.
+    fresh = resolve(request('Tell me a joke about bears.'), complete=lambda *a, **k: pytest.fail('Joke classified'), **args)
+    assert fresh['config']['model_name'] == 'global.openai.gpt-5.6-luna'
+
+
+def sol_pair(args, *, measured_priced, alternate=None):
+    base = {'project_id': 7, 'context_window': 128000, 'max_output_tokens': 32000, 'identity': identity('openai/gpt-5-6-sol')}
+    args['models'] += [{**base, 'name': 'global.openai.gpt-5.6-sol'}, {**base, 'name': 'gpt-5.6-sol-2026-07-09', **(alternate or {})}]
+    template = args['price_snapshot']['entries'][0]
+    names = ['gpt-5.6-sol-2026-07-09'] + (['global.openai.gpt-5.6-sol'] if measured_priced else [])
+    args['price_snapshot']['entries'] += [dict(template, model_name=n) for n in names]
+    return args
+
+
+def test_rebound_attempts_keep_the_bound_price_failure_visible():
+    args = sol_pair(fixture(), measured_priced=False, alternate={'supports_reasoning': False})
+    result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
+    inventory_trace = result['trace']['inventory']
+    assert inventory_trace['rebound_attempts']['sol-high'] == [
+        {'deployment': 'global.openai.gpt-5.6-sol', 'failed': ['PRICE']},
+        {'deployment': 'gpt-5.6-sol-2026-07-09', 'failed': ['CONFIGURATION_REASONING_DISABLED']}]
+    assert inventory_trace['unmeasured_contracts']['sol-high']['deployment'] == 'gpt-5.6-sol-2026-07-09'
+    # The provider-default variant has no reasoning requirement, so it rebinds.
+    assert inventory_trace['rebound']['sol-default']['deployment'] == 'gpt-5.6-sol-2026-07-09'
+    assert inventory_trace['rebound_attempts']['sol-default'][0] == {'deployment': 'global.openai.gpt-5.6-sol', 'failed': ['PRICE']}
+
+
+def test_typed_pool_signals_for_unpriced_canonicals_transport_and_low_tier():
+    args = duplicated_luna(fixture())
+    args['price_snapshot']['entries'] = [e for e in args['price_snapshot']['entries'] if 'luna' not in e['model_name']]
+    args['settings']['classifier']['name'] = 'gpt-5.4'
+    args['models'].append({'name': 'claude-opus-4-7', 'project_id': 7, 'openai_compatible': True,
+                           'context_window': 200000, 'max_output_tokens': 32000,
+                           'identity': identity('anthropic/claude-opus-4-7')})
+    result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
+    inventory_trace = result['trace']['inventory']
+    assert inventory_trace['no_priced_deployment']['openai/gpt-5-6-luna'] == [
+        {'deployment': 'global.openai.gpt-5.6-luna', 'remedy': 'add a Costs price alias for global.openai.gpt-5.6-luna'},
+        {'deployment': 'gpt-5.6-luna-2026-07-09', 'remedy': 'add a Costs price alias for gpt-5.6-luna-2026-07-09'}]
+    assert 'anthropic/claude-opus-4-7' in inventory_trace['no_priced_deployment']
+    assert inventory_trace['transport_unmeasured'] == ['anthropic/claude-opus-4-7']
+    assert inventory_trace['low_tier_priced'] is False
+    next(m for m in args['models'] if m['name'] == 'gpt-5.4-mini')['low_tier'] = True
+    result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
+    assert result['trace']['inventory']['low_tier_priced'] is True
+
+
+def test_unquoted_alternates_are_reported_as_unpriced():
+    args = fixture()
+    args['price_snapshot']['unquoted'] = ['gpt-5.6-luna-2026-07-80']
+    result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
+    assert result['trace']['inventory']['unquoted_alternates'] == ['gpt-5.6-luna-2026-07-80']
