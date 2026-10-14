@@ -1,8 +1,8 @@
 """Cheap-first routing with escalation on a failure signal, never on a prediction (#6722, plan section 13).
 
 Default (`economical`): the demand floor of the admission table stays, and among the admitted heads the
-cheapest by the economics ranking wins at every demand. `premium_at_deep` starts deep cells at the cheapest
-head of the table's top (`eligible`) tier. One signal per resolve moves the scope one step up the ladder
+cheapest by the economics ranking wins at every demand. `premium_at_deep` starts deep cells, and
+`premium_from_standard` standard and deep cells, at the cheapest head of the table's top (`eligible`) tier. One signal per resolve moves the scope one step up the ladder
 of admitted heads, ordered by the economics ranking; a step changes the canonical MODEL (the cheapest
 strictly dearer head of another model), never only the effort of the current one. The level is sticky in the signed state token, so
 later turns of the same scope stay there until a further signal raises it.
@@ -15,7 +15,9 @@ import time
 from decimal import Decimal
 from .v7.admission import annotate, EFFORT_ORDER
 
-MODES = frozenset({'economical', 'premium_at_deep'})
+# Demands at which a premium mode starts at the cheapest head of the top admitted tier.
+PREMIUM_DEMANDS = {'premium_at_deep': frozenset({'deep'}), 'premium_from_standard': frozenset({'standard', 'deep'})}
+MODES = frozenset({'economical'} | set(PREMIUM_DEMANDS))
 DEFAULT_MODE = 'economical'
 # Priority order, strongest first. Only one event fires per resolve.
 PRIORITY = ('upgrade_control', 'regenerate', 'correction', 'refusal', 'incomplete', 'tool_failure', 'inability')
@@ -123,7 +125,7 @@ def apply(selection, catalog, *, mode, event, prior):
     family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
     rows = {r['variant']: r for r in selection['candidates']}
     start = ladder[0]
-    if mode == 'premium_at_deep' and selection['admission']['demand'] == 'deep':
+    if selection['admission']['demand'] in PREMIUM_DEMANDS.get(mode, ()):
         start = next((v for v in ladder if rows[v]['tier'] == 'eligible'), start)
     chain = _chain(ladder, price, family, start)
     record['ladder'] = chain
@@ -139,7 +141,7 @@ def apply(selection, catalog, *, mode, event, prior):
     elif level:
         record['reason'] = 'STICKY'
     elif start != ladder[0]:
-        record['reason'] = 'PREMIUM_AT_DEEP'
+        record['reason'] = 'PREMIUM_START'
     if record['reason'] is not None and target != chosen:
         selection = _switch(selection, catalog, target)
         record['to'] = selection['variant']

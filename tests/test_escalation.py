@@ -50,7 +50,7 @@ def state_of(args, result):
 
 
 # --- policy: economical is cheapest-admitted at every demand; premium_at_deep keeps the top tier at deep ------
-@pytest.mark.parametrize('settings', [None, {'escalation_mode': 'economical'}, {'escalation_mode': 'unknown-mode'}])
+@pytest.mark.parametrize('settings', [None, {'escalation_mode': 'economical'}, {'escalation_mode': 'unknown-mode'}, {'escalation_mode': 'premium'}])
 def test_economical_and_absent_modes_choose_the_cheapest_admitted_head_at_deep(settings):
     _, result = first(settings=settings)
     assert head(result) == LADDER[0] and result['trace']['selection']['tier'] == 'provisional'
@@ -67,7 +67,7 @@ def test_premium_at_deep_starts_deep_cells_at_the_top_tier_head():
     _, result = first(settings={'escalation_mode': 'premium_at_deep'})
     assert head(result) == 'sol-high' and result['trace']['selection']['tier'] == 'eligible'
     assert result['config']['model_name'] == 'global.openai.gpt-5.6-sol'
-    assert moved(result)['mode'] == 'premium_at_deep' and moved(result)['reason'] == 'PREMIUM_AT_DEEP'
+    assert moved(result)['mode'] == 'premium_at_deep' and moved(result)['reason'] == 'PREMIUM_START'
     assert result['trace']['selection']['economics']['output_range'][1] == (
         result['trace']['selection']['economics']['quotes']['sol-high']['output_allowance'])
 
@@ -82,6 +82,42 @@ def test_simple_and_standard_never_change_with_the_mode(demand, mode):
 def test_premium_at_deep_without_a_top_tier_head_keeps_the_cheapest():
     _, result = first(keys=('luna', 'terra', 'sonnet55'), settings={'escalation_mode': 'premium_at_deep'})
     assert head(result) == 'terra-default' and moved(result)['reason'] is None
+
+
+# --- premium_from_standard: the same top-tier rule at standard and deep, simple stays cheapest ------------------------
+PREMIUM_STANDARD = {'escalation_mode': 'premium_from_standard'}
+
+
+def test_premium_from_standard_matches_premium_at_deep_at_deep_and_leaves_simple_alone():
+    _, deep = first(settings=PREMIUM_STANDARD)
+    assert head(deep) == 'sol-high' and moved(deep)['mode'] == 'premium_from_standard'
+    _, simple = first(demand='simple', settings=PREMIUM_STANDARD)
+    assert head(simple) == 'luna-default' and moved(simple)['reason'] is None
+
+
+def test_premium_from_standard_starts_standard_at_the_cheapest_eligible_tier_head():
+    # On the current table every admitted standard head is eligible, so the cheapest eligible head is Luna.
+    _, result = first(demand='standard', settings=PREMIUM_STANDARD)
+    assert head(result) == 'luna-default' and result['trace']['selection']['tier'] == 'eligible'
+    # Where the cheapest standard head is only provisional (Anthropic over an OpenAI-compatible deployment),
+    # the premium start is the cheapest eligible-tier head instead; economical keeps the provisional one.
+    cheap = {'prices': {'sonnet55': ('.0000001', '.0000001')}, 'sonnet55': {'openai_compatible': True}}
+    _, economical = first(keys=('sol', 'sonnet55'), demand='standard', **cheap)
+    _, premium = first(keys=('sol', 'sonnet55'), demand='standard', settings=PREMIUM_STANDARD, **cheap)
+    assert (head(economical), economical['trace']['selection']['tier']) == ('sonnet-5-5-default', 'provisional')
+    assert (head(premium), premium['trace']['selection']['tier']) == ('sol-default', 'eligible')
+    assert moved(premium)['reason'] == 'PREMIUM_START'
+
+
+def test_premium_from_standard_escalation_changes_the_model_not_the_effort():
+    args, one = first(demand='standard', settings=PREMIUM_STANDARD)
+    two = follow(args, one, demand='standard', **FIELDS['regenerate'])
+    variants = compiled_router().catalog['variants']
+    assert head(one) == 'luna-default' and moved(two)['reason'] == 'ESCALATED'
+    assert variants[head(two)]['canonical_model'] != 'openai/gpt-5-6-luna' and head(two) != 'luna-high'
+    assert 'luna-high' not in moved(two)['ladder']
+    three = follow(args, two, demand='standard')  # sticky from the premium start
+    assert head(three) == head(two) and moved(three)['reason'] == 'STICKY'
 
 
 # --- signals ---------------------------------------------------------------------------------------------------
