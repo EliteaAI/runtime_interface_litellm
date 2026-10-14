@@ -119,7 +119,7 @@ def apply(selection, catalog, *, mode, event, prior):
     if event and not prior:
         record['reason'] = 'NO_PRIOR_ROUTE'  # nothing to move up from; the first route is the default
         return selection, record, None
-    if not ladder:
+    if not ladder or 'admission' not in selection:  # greeting rule or no ranking: nothing to climb
         record['reason'] = 'ESCALATION_NO_RANKED_HEADS' if event else None
         return selection, record, (carried or None)
     family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
