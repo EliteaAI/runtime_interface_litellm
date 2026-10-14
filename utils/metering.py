@@ -21,6 +21,8 @@ No policy lives here on purpose: whether a call is metered, how a provider is lo
 a streamed body must carry are all the usage plugin's decisions. This file only reaches it.
 """
 
+import json
+
 from pylon.core.tools import log  # pylint: disable=E0611,E0401
 
 
@@ -65,3 +67,13 @@ def meter_llm_call(proxy_target, proxy_auth, response, iterator):
         # A metering failure must never cost the user their response
         log.exception("Failed to meter LLM call")
         return iterator
+
+
+def record_escalation(record):
+    """One `auto_routing_escalation` usage event per Auto resolve (#6722), as a JSON log line.
+
+    Names and codes only (see routing/escalation.py). The usage plugin has no event hook for it yet,
+    so the line is the stream: a Costs ingestion reads it from there.
+    """
+    if record is not None:
+        log.info("auto_routing_escalation " + json.dumps(record, sort_keys=True, separators=(",", ":")))
