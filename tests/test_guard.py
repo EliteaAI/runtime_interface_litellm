@@ -191,13 +191,86 @@ def test_the_resolve_trace_names_the_head_the_next_step_would_use():
 
 
 # --- authorization and input ------------------------------------------------------------------------------------
-@pytest.mark.parametrize('change', [
-    {'scope_id': '2' * 64}, {'invocation_id': 'c' * 64}, {'pin': 'forged.pin'}, {'pin': None}, {'answer_text': 5},
-    {'request_text_projection': 7}, {'answer_id': 3}, {'last_response': 'length'}, {'last_response': {'refusal': 'yes'}}])
-def test_foreign_or_malformed_requests_are_refused(change):
+REFUSALS = [
+    ({'scope_id': '2' * 64}, 'PIN_INVALID'), ({'invocation_id': 'c' * 64}, 'PIN_INVALID'), ({'pin': 'forged.pin'}, 'PIN_INVALID'),
+    ({'scope_id': 'short'}, 'IDENTITY'), ({'invocation_id': None}, 'IDENTITY'), ({'pin': None}, 'PIN_TYPE'),
+    ({'answer_text': 5}, 'ANSWER_TYPE'), ({'answer_id': 3}, 'ANSWER_ID'),
+    ({'request_text_projection': 7}, 'PROJECTION_TYPE'), ({'request_text_projection': None}, 'PROJECTION_TYPE'),
+    ({'request_text_projection': [{'role': 'user', 'content': 'x'}]}, 'PROJECTION_TYPE'),  # the full history list
+    ({'request_text_projection': {'latest': 'q', 'recent': 'x'}}, 'PROJECTION_TYPE'),
+    ({'request_text_projection': {'latest': 'q', 'recent': [{'role': 'user'}]}}, 'PROJECTION_TYPE'),
+    ({'request_text_projection': {'latest': 'q', 'turns_omitted': -1}}, 'PROJECTION_TYPE'),
+    ({'request_text_projection': {'latest': 'q', 'recent': [{'role': 'user', 'text': 't'}] * 33}}, 'PROJECTION_TYPE'),
+    ({'request_text_projection': 'x' * (guard.MAX_PROJECTION_BYTES + 1)}, 'PROJECTION_TOO_LARGE'),
+    ({'request_text_projection': {'latest': 'x' * (guard.MAX_PROJECTION_BYTES + 1)}}, 'PROJECTION_TOO_LARGE'),
+    ({'last_response': 'length'}, 'LAST_RESPONSE'), ({'last_response': {'refusal': 'yes'}}, 'LAST_RESPONSE')]
+
+
+@pytest.mark.parametrize('change,reason', REFUSALS)
+def test_foreign_or_malformed_requests_are_refused_with_the_specific_reason(change, reason):
     args, one = turn()
-    with pytest.raises(RoutingUnavailable):
+    with pytest.raises(RoutingUnavailable) as refused:
         ask(args, one, **change)
+    assert refused.value.reason == reason
+
+
+def test_a_disabled_project_and_a_non_object_request_have_reasons():
+    args, one = turn()
+    with pytest.raises(RoutingUnavailable) as refused:
+        guard.guard(None, project_id=7, user_id=2, settings=args['settings'], models=args['models'],
+                    price_snapshot=args['price_snapshot'], signing_key=args['signing_key'], complete=Judge(), now=args['now'])
+    assert refused.value.reason == 'INVALID_REQUEST'
+    with pytest.raises(RoutingUnavailable) as refused:
+        guard.guard({}, project_id=7, user_id=2, settings={**args['settings'], 'enabled': False}, models=args['models'],
+                    price_snapshot=args['price_snapshot'], signing_key=args['signing_key'], complete=Judge(), now=args['now'])
+    assert refused.value.reason == 'DISABLED'
+
+
+# --- the SDK's bounded projection and the configured judge --------------------------------------------------------
+SDK_PROJECTION = {'latest': 'Total the invoices and list five risks.',
+                  'recent': [{'role': 'user', 'text': 'Here are the invoices.'}, {'role': 'assistant', 'text': 'Received.'}],
+                  'turns_omitted': 3}
+
+
+def test_the_sdk_projection_grades_the_latest_request_with_the_recent_turns_as_context():
+    args, one = turn()
+    judge = Judge(PASS)
+    assert ask(args, one, judge, request_text_projection=SDK_PROJECTION)['verdict'] == 'pass'
+    body = json.loads(judge.calls[0]['messages'][1]['content'])
+    assert body == {'request': SDK_PROJECTION['latest'], 'context': SDK_PROJECTION['recent'], 'turns_omitted': 3,
+                    'answer': 'Total: 120. Risks: a, b, c, d.', 'answer_truncated': False}
+    assert 'context' in guard.GUARD_RUBRIC and 'latest request' in guard.GUARD_RUBRIC
+
+
+def test_the_sdk_projection_without_recent_turns_is_accepted_and_the_size_cap_still_holds():
+    args, one = turn()
+    judge = Judge(PASS)
+    ask(args, one, judge, request_text_projection={'latest': 'Summarise.'})
+    assert json.loads(judge.calls[0]['messages'][1]['content'])['context'] == []
+    near = {'latest': 'x' * (guard.MAX_PROJECTION_BYTES - 200), 'recent': [], 'turns_omitted': 0}
+    assert ask(args, one, Judge(PASS), request_text_projection=near)['verdict'] == 'pass'
+
+
+def test_the_judge_is_the_configured_classifier_deployment_and_the_full_history_is_never_sent():
+    args, one = turn()
+    other = {**next(m for m in args['models'] if m['name'] == CLASSIFIER), 'name': 'other-judge'}
+    args['models'] = args['models'] + [other]
+    args['price_snapshot'] = {**args['price_snapshot'], 'entries': args['price_snapshot']['entries'] + [
+        {**args['price_snapshot']['entries'][0], 'model_name': 'other-judge'}]}
+    args['settings'] = {**args['settings'], 'classifier': {'name': 'other-judge', 'project_id': 7, 'source': 'project'}}
+    judge = Judge(PASS)
+    ask(args, one, judge, request_text_projection=SDK_PROJECTION)
+    assert [c['model'] for c in judge.calls] == ['other-judge']
+
+
+def test_an_unpriced_configured_classifier_passes_with_a_guard_error_and_no_call():
+    args, one = turn()
+    args['price_snapshot'] = {**args['price_snapshot'],
+                              'entries': [e for e in args['price_snapshot']['entries'] if e['model_name'] != CLASSIFIER]}
+    judge = Judge(FAIL)
+    result = ask(args, one, judge, request_text_projection=SDK_PROJECTION)
+    assert (result['verdict'], result['code'], judge.calls) == ('pass', 'GUARD_PRICE_UNAVAILABLE', [])
+    assert result['trace']['escalation']['guard']['guard_error'] == 'GUARD_PRICE_UNAVAILABLE'
 
 
 def test_another_user_cannot_use_the_pin():
