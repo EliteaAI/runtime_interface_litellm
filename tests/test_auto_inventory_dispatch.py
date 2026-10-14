@@ -393,3 +393,15 @@ def test_guard_endpoint_returns_a_verdict_and_writes_one_record(relay, monkeypat
     assert lines and lines[0].startswith('auto-routing guard project=7 ')
     assert method.guard_auto_routing({'method': 'GET', 'json': None, 'headers': {}}, auth)[1] == 405
     assert method.guard_auto_routing({'method': 'POST', 'json': {**body, 'pin': 'x'}, 'headers': {}}, auth)[1] == 422
+    # a refusal names its specific reason in the 422 body and in the log line, never a generic code
+    history = [{'role': 'user', 'content': 'x' * 300_000}]
+    refused = method.guard_auto_routing({'method': 'POST', 'json': {**body, 'request_text_projection': history},
+                                         'headers': {}}, auth)
+    assert refused[1] == 422 and refused[0]['reason'] == 'PROJECTION_TYPE'
+    assert lines[-1] == 'auto-routing guard project=7 refused=PROJECTION_TYPE'
+    big = method.guard_auto_routing({'method': 'POST', 'json': {**body, 'request_text_projection': 'x' * 70_000},
+                                     'headers': {}}, auth)
+    assert big[0]['reason'] == 'PROJECTION_TOO_LARGE' and lines[-1].endswith('refused=PROJECTION_TOO_LARGE')
+    sdk = {'latest': 'Hi', 'recent': [{'role': 'user', 'text': 'Hi'}], 'turns_omitted': 0}
+    assert method.guard_auto_routing({'method': 'POST', 'json': {**body, 'request_text_projection': sdk},
+                                      'headers': {}}, auth)['verdict'] == 'fail'
