@@ -18,6 +18,7 @@ from .v7.catalog import compile_catalog
 from .v7.candidate import CalibratedRouter
 from .v7.economics import rank
 from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
+from . import escalation
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
 
@@ -126,6 +127,8 @@ def decision_log_line(project_id, request, result=None, refused=None):
     admission = selection.get('admission') or {}
     config = result.get('config') or {}
     cap = config.get('max_tokens')
+    moved = trace.get('escalation') or {}
+    moved = '-' if moved.get('event', 'none') == 'none' else f"{_tok(moved['event'])}/{_tok(moved.get('from'))}->{_tok(moved.get('to'))}"
     deployment = (classifier.get('deployment') or {}).get('name')
     shape = '/'.join(_tok(descriptor.get(k)) for k in ('operation', 'demand', 'relation', 'task_family', 'effort_need'))
     return (f"{head} classifier={_tok(deployment)} schema_valid={classifier.get('schema_valid', '-')} "
@@ -138,7 +141,8 @@ def decision_log_line(project_id, request, result=None, refused=None):
             f"gate_failures={_first_codes(inventory.get('gate_failures'))} "
             f"rejections={_first_codes(admission.get('rejections'))} input_bytes={_tok(inventory.get('input_bytes'))} "
             f"input_tokens_est={_tok(inventory.get('input_tokens_estimate'))} "
-            f"bytes_per_token={_tok((inventory.get('input_estimator') or {}).get('bytes_per_token'))}")
+            f"bytes_per_token={_tok((inventory.get('input_estimator') or {}).get('bytes_per_token'))} "
+            f"escalation={moved}")
 
 
 def encode_pin(value, key):
@@ -314,6 +318,10 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     tools = request.get('tools') or []
     if not isinstance(tools, list) or len(tools) > 256:
         raise RoutingUnavailable('Unsupported tool inventory')
+    try:
+        events = escalation.request_events(request)
+    except ValueError as exc:
+        raise RoutingUnavailable(str(exc)) from exc
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
     router = compiled_router()
     catalog = router.catalog
@@ -503,9 +511,14 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
                 hint={'kind': 'agent_task' if request['surface'] == 'agent' else 'chat_turn'})
             decision['budget']['completion_cap'] = cap
+            # One failure signal per resolve moves the scope up one admitted head (#6722).
+            event = next((e for e in escalation.PRIORITY
+                          if e in events | escalation.correction_event(messages, decision['descriptor'])), None)
+            decision['selection'], escalation_trace, sticky = escalation.apply(
+                decision['selection'], catalog, mode=escalation.mode_of(settings), event=event, prior=restored_state)
             state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
                 project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
-                policy_revision=router.revision), signing_key)
+                policy_revision=router.revision, escalation=sticky), signing_key)
             publish(entry, state_token)
     finally:
         _REQUEST.reset(context_token)
@@ -513,6 +526,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace = {k: copy.deepcopy(decision.get(k)) for k in ('descriptor', 'policy_revision', 'routing_ms', 'budget')}
     trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in (
         'variant', 'reason', 'family_qualification', 'economics', 'tier', 'provisional', 'admission')}
+    trace['escalation'] = escalation_trace
     if catalog.get('admission') is not None:
         trace['policy'] = {'admission_table_sha256': catalog['admission']['sha256'],
                            'rule_revision': catalog['admission']['rule_revision']}

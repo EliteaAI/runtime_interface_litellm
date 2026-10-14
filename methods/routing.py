@@ -7,7 +7,8 @@ from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmi
                                auto_routing_settings, deployment_signals, decision_log_line)
 from ..routing.pricing import PriceBook
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
-from ..utils.metering import meter_llm_call
+from ..routing.escalation import usage_record
+from ..utils.metering import meter_llm_call, record_escalation
 
 UNRESOLVED = 'Auto cannot resolve this request under the current profile'
 MAX_PRICE_NAMES = 64  # Costs get_routing_prices bound.
@@ -120,6 +121,8 @@ class Method:
         def record(result=None, refused=None):
             try:  # Diagnostics must never change a routing outcome.
                 log.info(decision_log_line(project_id, proxy_target.get('json'), result, refused))
+                if result is not None:
+                    record_escalation(usage_record(project_id, proxy_target['json'], result))
             except Exception:  # pylint: disable=W0703
                 pass
 
