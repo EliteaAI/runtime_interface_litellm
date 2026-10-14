@@ -368,3 +368,27 @@ def test_preflight_logs_one_decision_line_per_resolve_without_request_text(relay
     assert out[1] == 422 and len(lines) == 2
     assert lines[1].startswith('auto-routing decision project=7 scope=11111111 refused=')
     assert 'SENTINEL' not in lines[1]
+
+
+def test_guard_endpoint_returns_a_verdict_and_writes_one_record(relay, monkeypatch):
+    routing = importlib.import_module('plugin_under_test.methods.routing')
+    service = importlib.import_module('plugin_under_test.routing.service')
+    monkeypatch.setattr(routing, 'context', relay.context)
+    monkeypatch.setattr(routing, 'VaultClient', relay.vault)
+    lines, records = [], []
+    monkeypatch.setattr(routing, 'log', types.SimpleNamespace(info=lines.append))
+    monkeypatch.setattr(routing, 'record_escalation', records.append)
+    one = service.resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **relay.args)
+    method = routing.Method(); method.descriptor = types.SimpleNamespace(config={})
+    verdict = {'material': True, 'clause': 'ii', 'cited_defect': 'wrong total'}
+    method.classifier_complete = lambda *a: lambda model, messages, effort=None, max_tokens=None: {
+        'message': {'content': __import__('json').dumps(verdict)}, 'finish_reason': 'stop'}
+    body = {'pin': one['pin'], 'scope_id': '1' * 64, 'invocation_id': 'a' * 64, 'answer_text': 'SECRET-ANSWER',
+            'request_text_projection': {'latest': {'text': 'Hi'}}}
+    auth = {'project_id': 7, 'user': {'id': 42}}
+    result = method.guard_auto_routing({'method': 'POST', 'json': body, 'headers': {}}, auth)
+    assert (result['verdict'], result['code'], result['cited_defect']) == ('fail', 'quality_material', 'wrong total')
+    assert len(records) == 1 and records[0]['guard_verdict'] == 'fail' and 'SECRET' not in str(records) + str(lines)
+    assert lines and lines[0].startswith('auto-routing guard project=7 ')
+    assert method.guard_auto_routing({'method': 'GET', 'json': None, 'headers': {}}, auth)[1] == 405
+    assert method.guard_auto_routing({'method': 'POST', 'json': {**body, 'pin': 'x'}, 'headers': {}}, auth)[1] == 422
