@@ -244,6 +244,37 @@ class TestMapModelNameScope(unittest.TestCase):
         self.assertEqual(method._map_model_name("a", 1, 1), ("1_a", proxy.MODEL_SCOPE_OWN))
 
 
+class TestMapModelNameSelectedOwner(unittest.TestCase):
+    """A same-named model in both projects resolves to the owner the client selected (#6999)."""
+
+    def setUp(self):
+        self.method = TestMapModelNameScope._method(
+            lambda name: {"model_group": name} if name in {"7_a", "1_a"} else None
+        )
+
+    def test_without_an_owner_the_caller_project_wins(self):
+        self.assertEqual(self.method._map_model_name("a", 7, 1), ("7_a", proxy.MODEL_SCOPE_OWN))
+
+    def test_the_selected_public_owner_is_shared(self):
+        self.assertEqual(self.method._map_model_name("a", 7, 1, 1), ("1_a", proxy.MODEL_SCOPE_SHARED))
+
+    def test_the_selected_caller_owner_is_own(self):
+        self.assertEqual(self.method._map_model_name("a", 7, 1, 7), ("7_a", proxy.MODEL_SCOPE_OWN))
+
+    def test_a_third_project_owner_is_ignored(self):
+        self.assertEqual(self.method._map_model_name("a", 7, 1, 99), ("7_a", proxy.MODEL_SCOPE_OWN))
+
+    def test_a_missing_selected_deployment_falls_back(self):
+        method = TestMapModelNameScope._method(lambda name: {"model_group": name} if name == "7_a" else None)
+        #
+        self.assertEqual(method._map_model_name("a", 7, 1, 1), ("7_a", proxy.MODEL_SCOPE_OWN))
+
+    def test_the_header_is_parsed_and_malformed_values_dropped(self):
+        self.assertEqual(proxy.extract_model_project_id({proxy.ELITEA_MODEL_PROJECT_HEADER: "1"}), 1)
+        self.assertIsNone(proxy.extract_model_project_id({proxy.ELITEA_MODEL_PROJECT_HEADER: "x"}))
+        self.assertIsNone(proxy.extract_model_project_id({}))
+
+
 class TestTheDenialShortCircuit(unittest.TestCase):
     """A refused call must be answered here, before LiteLLM is ever dialled."""
 
@@ -315,7 +346,7 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         method.get_public_project_id = lambda: 1
         if scope is None:
             scope = proxy.MODEL_SCOPE_SHARED if is_shared else proxy.MODEL_SCOPE_OWN
-        method._map_model_name = lambda raw, project_id, public_id: (
+        method._map_model_name = lambda raw, project_id, public_id, model_project_id=None: (
             raw if scope == proxy.MODEL_SCOPE_UNRESOLVED
             else f"{1 if scope == proxy.MODEL_SCOPE_SHARED else project_id}_{raw}",
             scope,
@@ -369,6 +400,32 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
         #
         self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
 
+    def test_a_selected_shared_duplicate_is_budgeted_and_the_header_stripped(self):
+        # #6999: project 7 and the public project both deploy "gpt-4o"; the client picked 1's
+        method = proxy.Method()
+        method.preprocess_headers = lambda headers: headers
+        method.descriptor = types.SimpleNamespace(
+            config=types.SimpleNamespace(get=lambda *a, **kw: None),
+        )
+        method.get_public_project_id = lambda: 1
+        method.service_node = types.SimpleNamespace(call=types.SimpleNamespace(
+            litellm_api_call=lambda _op, name: {"model_group": name} if name in {"7_gpt-4o", "1_gpt-4o"} else None,
+        ))
+        proxy_target = {
+            "endpoint": "/v1/chat/completions",
+            "headers": proxy.Headers({proxy.ELITEA_MODEL_PROJECT_HEADER: "1"}),
+            "json": {"model": "gpt-4o"},
+            "data": None,
+        }
+        proxy_auth = {"type": "token", "user": {"id": 42, "name": "someone"}}
+        #
+        self.assertIsNone(method.prepare_request(proxy_target, proxy_auth))
+        #
+        self.assertEqual(proxy_target["json"]["model"], "1_gpt-4o")
+        self.assertNotIn(proxy.ELITEA_MODEL_PROJECT_HEADER, proxy_target["headers"])
+        self.assertIs(proxy_auth[proxy.BUDGET_EXEMPT_AUTH_KEY], False)
+        self.assertEqual(self.handed[-1][2:], ("gpt-4o", 1))
+
     def test_no_model_in_the_body_parks_nothing(self):
         # Nothing resolved, nothing to exempt: the usage plugin's default (counted) applies
         _, proxy_auth = self._prepare(is_shared=False, body={"input": "x"})
@@ -409,7 +466,7 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
             )
             method.get_public_project_id = lambda: 1
             #
-            def mapped(raw, project_id, public_id):
+            def mapped(raw, project_id, public_id, model_project_id=None):
                 scope = next(scopes)
                 method_scopes.append(scope)
                 return f"x_{raw}", scope
@@ -456,7 +513,7 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
             config=types.SimpleNamespace(get=lambda *a, **kw: None),
         )
         method.get_public_project_id = lambda: 1
-        method._map_model_name = lambda raw, project_id, public_id: (
+        method._map_model_name = lambda raw, project_id, public_id, model_project_id=None: (
             raw, proxy.MODEL_SCOPE_UNRESOLVED,
         )
         #
@@ -524,7 +581,7 @@ class TestWhatPrepareRequestHandsOver(unittest.TestCase):
             config=types.SimpleNamespace(get=lambda *a, **kw: None),
         )
         method.get_public_project_id = lambda: 1
-        method._map_model_name = lambda raw, project_id, public_id: (
+        method._map_model_name = lambda raw, project_id, public_id, model_project_id=None: (
             raw, proxy.MODEL_SCOPE_UNRESOLVED,
         )
         #

@@ -61,6 +61,11 @@ ELITEA_RUN_ID_HEADER = "X-Elitea-Run-Id"
 # when the response is metered, by which time the header itself is gone from the request.
 PLATFORM_RUN_ID_AUTH_KEY = "platform_run_id"
 
+# Project whose model configuration the client selected (#6999). Needed when the caller's
+# project and the public project both define a model with the same name. Consumed at this
+# gateway — never forwarded to the model provider.
+ELITEA_MODEL_PROJECT_HEADER = "X-Elitea-Model-Project-Id"
+
 # Read by the usage plugin: a non-shared (project-own) model is metered but never budgeted.
 # Parked rather than passed, so either plugin can be deployed first.
 BUDGET_EXEMPT_AUTH_KEY = "usage_budget_exempt"
@@ -89,6 +94,20 @@ def extract_run_id(headers):
         return str(uuid.UUID(raw))
     except (AttributeError, TypeError, ValueError):
         log.warning("Ignoring malformed %s header", ELITEA_RUN_ID_HEADER)
+        return None
+
+
+def extract_model_project_id(headers):
+    """Selected model owner project from the request headers, or None when absent or malformed."""
+    raw = headers.get(ELITEA_MODEL_PROJECT_HEADER)
+    #
+    if not raw:
+        return None
+    #
+    try:
+        return int(raw)
+    except (TypeError, ValueError):
+        log.warning("Ignoring malformed %s header", ELITEA_MODEL_PROJECT_HEADER)
         return None
 
 
@@ -202,7 +221,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         return "Forbidden", 403
 
     @web.method()
-    def _map_model_name(self, raw_model_name, project_id, public_project_id):
+    def _map_model_name(self, raw_model_name, project_id, public_project_id, model_project_id=None):
         """
         Map raw model name to project-prefixed model name.
 
@@ -214,6 +233,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
           2. Falls back to the public project ({public_project_id}_{model}).
           3. Falls back to the raw name for externally-managed models.
           4. ALWAYS uses the caller's own project_llm_key — never a third project's key.
+        An explicit model_project_id (the owner the client selected) is tried first, but only
+        when it is the caller's or the public project; otherwise the fallback above applies.
         Violating invariant 4 risks circular routing loops when a credential's
         api_base points back to this proxy (e.g. an OpenAI-compatible credential
         routing through dev.elitea.ai/llm/v1).
@@ -222,6 +243,21 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             (mapped_model_name, scope) — MODEL_SCOPE_OWN / MODEL_SCOPE_SHARED on a positive
             match in the caller's / public project, MODEL_SCOPE_UNRESOLVED for the raw fallback.
         """
+        if model_project_id is not None and model_project_id in (project_id, public_project_id):
+            model_name = f"{model_project_id}_{raw_model_name}"
+            model_info = self.service_node.call.litellm_api_call(
+                "model_group_info",
+                model_name,
+            )
+            #
+            if model_info:
+                return model_name, MODEL_SCOPE_OWN if model_project_id == project_id else MODEL_SCOPE_SHARED
+            #
+            log.warning(
+                "Selected model %s is not deployed in project %s, falling back",
+                raw_model_name, model_project_id,
+            )
+        #
         model_name = f"{project_id}_{raw_model_name}"
         model_info = self.service_node.call.litellm_api_call(
             "model_group_info",
@@ -264,6 +300,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
         platform_run_id = extract_run_id(proxy_target["headers"])
         proxy_target["headers"].remove(ELITEA_RUN_ID_HEADER)
         proxy_auth[PLATFORM_RUN_ID_AUTH_KEY] = platform_run_id
+        #
+        model_project_id = extract_model_project_id(proxy_target["headers"])
+        proxy_target["headers"].remove(ELITEA_MODEL_PROJECT_HEADER)
         #
         # "user" = runtime authenticated with the caller's session cookie (#6486)
         # Skip LiteLLM's native admin endpoints — they need their original credential, not a project virtual key.
@@ -516,7 +555,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     model_scope = MODEL_SCOPE_SHARED if is_shared else MODEL_SCOPE_OWN
                 else:
                     model_name, model_scope = self._map_model_name(
-                        raw_model_name, project_id, public_project_id,
+                        raw_model_name, project_id, public_project_id, model_project_id,
                     )
                 #
                 if model_name != raw_model_name:
@@ -531,7 +570,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             if raw_model_name:
                 model_name, model_scope = self._map_model_name(
-                    raw_model_name, project_id, public_project_id,
+                    raw_model_name, project_id, public_project_id, model_project_id,
                 )
                 #
                 if model_name != raw_model_name:
