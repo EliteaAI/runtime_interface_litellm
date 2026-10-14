@@ -84,6 +84,10 @@ class TestIsLlmEndpoint(unittest.TestCase):
     def test_whitelisted_endpoint_is_llm(self):
         self.assertTrue(self.method._is_llm_endpoint("/v1/chat/completions"))
 
+    def test_the_answer_guard_endpoint_is_an_llm_endpoint(self):
+        self.assertTrue(self.method._is_llm_endpoint("/v1/auto-routing/guard"))
+        self.assertIn("/v1/auto-routing/guard", proxy.AUTO_ROUTING_ENDPOINTS)
+
     def test_prefixed_endpoint_is_llm(self):
         self.assertTrue(self.method._is_llm_endpoint("/v1/chat/completions/some-id"))
 

@@ -33,6 +33,7 @@ from ..utils.metering import prepare_llm_call
 
 LLM_ENDPOINT_WHITELIST = [
     "/v1/auto-routing/resolve",
+    "/v1/auto-routing/guard",
     "/v1/models",
     "/v1/completions",
     "/v1/chat/completions",
@@ -43,6 +44,8 @@ LLM_ENDPOINT_WHITELIST = [
     "/v1/images/edits",
     "/v1/images/variations",
 ]
+
+AUTO_ROUTING_ENDPOINTS = frozenset({"/v1/auto-routing/resolve", "/v1/auto-routing/guard"})
 
 LLM_ENDPOINT_PREFIX_WHITELIST = [
     "/v1/models/",
@@ -342,7 +345,7 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                     #
                     if user_in_project:
                         project_id = candidate_project_id
-                    elif proxy_target_endpoint == '/v1/auto-routing/resolve':
+                    elif proxy_target_endpoint in AUTO_ROUTING_ENDPOINTS:
                         return {'error': 'Project access denied'}, 403
             #
             if project_id is None:
@@ -364,6 +367,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             #
             if proxy_target_endpoint == '/v1/auto-routing/resolve':
                 return self.resolve_auto_routing(proxy_target, proxy_auth)
+            if proxy_target_endpoint == '/v1/auto-routing/guard':
+                return self.guard_auto_routing(proxy_target, proxy_auth)
             #
             public_project_id = self.get_public_project_id()
             #

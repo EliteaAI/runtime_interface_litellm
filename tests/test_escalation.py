@@ -55,7 +55,7 @@ def test_economical_and_absent_modes_choose_the_cheapest_admitted_head_at_deep(s
     _, result = first(settings=settings)
     assert head(result) == LADDER[0] and result['trace']['selection']['tier'] == 'provisional'
     assert moved(result) == {'mode': 'economical', 'event': 'none', 'from': None, 'to': 'terra-default',
-                             'level': 0, 'reason': None, 'ladder': LADDER}
+                             'level': 0, 'reason': None, 'ladder': LADDER, 'next': 'sol-high'}
 
 
 def test_economical_deep_picks_a_cheaper_eligible_head_when_there_is_one():
@@ -136,7 +136,7 @@ def test_each_request_signal_moves_the_scope_to_the_next_admitted_head(event):
     args, one = first()
     two = follow(args, one, **FIELDS[event])
     assert moved(two) == {'mode': 'economical', 'event': event, 'from': 'terra-default', 'to': 'sol-high',
-                          'level': 1, 'reason': 'ESCALATED', 'ladder': LADDER}
+                          'level': 1, 'reason': 'ESCALATED', 'ladder': LADDER, 'next': 'sonnet-5-5-default'}
     assert head(two) == 'sol-high' and two['config']['model_name'] == 'global.openai.gpt-5.6-sol'
     assert two['trace']['selection']['tier'] == 'eligible' and two['trace']['selection']['provisional'] is False
 
@@ -255,7 +255,7 @@ def test_escalation_walks_the_ladder_one_head_per_event_and_is_sticky_across_tur
     three = follow(args, two)  # no signal: the scope stays where it was moved, not back at the default
     assert head(three) == 'sol-high' and moved(three) == {
         'mode': 'economical', 'event': 'none', 'from': 'sol-high', 'to': 'sol-high', 'level': 1, 'reason': 'STICKY',
-        'ladder': LADDER}
+        'ladder': LADDER, 'next': 'sonnet-5-5-default'}
     four = follow(args, three, **FIELDS['refusal'])  # a further event raises it again
     assert (head(four), moved(four)['from'], moved(four)['level']) == ('sonnet-5-5-default', 'sol-high', 2)
     assert state_of(args, four)['escalation'] == {'event': 'refusal', 'from': 'sol-high', 'level': 2, 'to': 'sonnet-5-5-default'}
@@ -300,7 +300,7 @@ def test_no_escalation_without_a_prior_route_in_the_scope():
     result = resolve(req, complete=classifier(demand='deep'), **args)
     assert head(result) == 'terra-default'
     assert moved(result) == {'mode': 'economical', 'event': 'regenerate', 'from': None, 'to': 'terra-default',
-                             'level': 0, 'reason': 'NO_PRIOR_ROUTE', 'ladder': []}
+                             'level': 0, 'reason': 'NO_PRIOR_ROUTE', 'ladder': [], 'next': 'sol-high'}
     assert 'escalation' not in state_of(args, result)
 
 
@@ -362,7 +362,7 @@ def test_trace_log_and_usage_record_never_carry_request_text():
                       'family': 'quantitative', 'head': 'sol-high', 'model': 'global.openai.gpt-5.6-sol',
                       'escalation_event': 'upgrade_control', 'escalation_from': 'terra-default',
                       'escalation_to': 'sol-high', 'level': 1, 'mode': 'economical', 'reason': 'ESCALATED', 'ts': 1234}
-    assert set(moved(two)) == {'mode', 'event', 'from', 'to', 'level', 'reason', 'ladder'}
+    assert set(moved(two)) == {'mode', 'event', 'from', 'to', 'level', 'reason', 'ladder', 'next'}
     for text in (json.dumps(record), json.dumps(moved(two)), decision_log_line(7, req, two),
                  json.dumps(state_of(args, two)['escalation'])):
         assert 'SENTINEL' not in text and 'zero trust' not in text

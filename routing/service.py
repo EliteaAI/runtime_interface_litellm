@@ -555,30 +555,47 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']
     selected = decision['selection']
-    # The measured variant was chosen; its bound live deployment is dispatched.
+
+    def config_for(vid):
+        """The pin config of one measured variant: its bound live deployment is what is dispatched."""
+        model = runtime_variants[vid]
+        config = {'model_name': model['name'], 'model_project_id': model['project_id'],
+                  'reasoning_effort': catalog['variants'][vid]['effort'],
+                  'openai_compatible': model.get('openai_compatible', False),
+                  'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'],
+                  # None is the provider default; the relay then accepts any value up to max_output_tokens.
+                  'max_tokens': cap, 'routing_total_output_cap': cap is not None}
+        contract = catalog['variants'][vid].get('calibration_contract')
+        if contract:
+            if vid not in tier_caps:
+                config['routing_transport'] = contract['transport']
+                if 'reasoning_fields' in contract:
+                    config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
+            if cap is not None:
+                config['routing_min_output_cap'] = cap
+        return config
+
     model = runtime_variants[selected['variant']]
-    config = {'model_name': model['name'], 'model_project_id': model['project_id'],
-              'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
-              'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'],
-              # None is the provider default; the relay then accepts any value up to max_output_tokens.
-              'max_tokens': cap, 'routing_total_output_cap': cap is not None}
+    config = config_for(selected['variant'])
     contract = catalog['variants'][selected['variant']].get('calibration_contract')
     if contract:
-        unmeasured = selected['variant'] in tier_caps
-        if not unmeasured:
-            config['routing_transport'] = contract['transport']
-            if 'reasoning_fields' in contract:
-                config['routing_reasoning_fields'] = copy.deepcopy(contract['reasoning_fields'])
-        if cap is not None:
-            config['routing_min_output_cap'] = cap
         family = decision['descriptor'].get('task_family')
         trace['calibration_contract'] = {
             'revision': contract['revision'], 'source_sha256': contract['source_sha256'],
             'status': 'provisional_local_beta', 'production_promotion_allowed': False,
             'family': family, 'cell': contract['families'].get(family)}
+    # What a failed answer guard (routing/guard.py) moves this turn to: signed, so the guard endpoint
+    # trusts nothing the client sends about the target.
+    admitted = (decision['selection'].get('admission') or {})
+    plan = {'head': selected['variant'], 'demand': admitted.get('demand'), 'family': admitted.get('family'),
+            'mode': escalation_trace['mode'], 'level': escalation_trace['level'], 'to': escalation_trace['next']}
+    if plan['to']:
+        target = runtime_variants[plan['to']]
+        plan.update(config=config_for(plan['to']), model_binding=model_binding(target), tier=next(
+            r['tier'] for r in decision['selection']['candidates'] if r['variant'] == plan['to']))
     pin = {'version': 1, 'project_id': project_id, 'user_id': user_id, 'profile_ref': PROFILE,
            'gate_revision': settings['revision'], 'config': config, 'invocation_id': invocation_id, 'scope_id': scope_id,
-           'model_binding': model_binding(model), 'policy_revision': router.revision,
+           'model_binding': model_binding(model), 'policy_revision': router.revision, 'escalation_plan': plan,
            'expires_at': int(time.time() if now is None else now)+3600}
     return {'action': 'generate', 'config': config, 'pin': encode_pin(pin, signing_key), 'trace': trace,
             'invocation_id': invocation_id, 'scope_id': scope_id, 'state_token': state_token, 'expires_at': pin['expires_at']}

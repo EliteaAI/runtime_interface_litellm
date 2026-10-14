@@ -20,7 +20,7 @@ PREMIUM_DEMANDS = {'premium_at_deep': frozenset({'deep'}), 'premium_from_standar
 MODES = frozenset({'economical'} | set(PREMIUM_DEMANDS))
 DEFAULT_MODE = 'economical'
 # Priority order, strongest first. Only one event fires per resolve.
-PRIORITY = ('upgrade_control', 'regenerate', 'correction', 'refusal', 'incomplete', 'tool_failure', 'inability')
+PRIORITY = ('upgrade_control', 'regenerate', 'guard', 'correction', 'refusal', 'incomplete', 'tool_failure', 'inability')
 PRODUCT_EVENTS = frozenset({'upgrade_control', 'regenerate'})
 RESPONSE_FLAGS = ('refusal', 'tool_failure', 'inability')
 CORRECTION_WINDOW = 400
@@ -40,6 +40,19 @@ def mode_of(settings):
     return mode if mode in MODES else DEFAULT_MODE
 
 
+def response_events(last):
+    """Events of the last Auto response metadata `{finish_reason, refusal, tool_failure, inability}`."""
+    if last is None:
+        return set()
+    finish = last.get('finish_reason') if isinstance(last, dict) else None
+    if (not isinstance(last, dict) or not (finish is None or isinstance(finish, str) and len(finish) <= 32)
+            or any(k in last and type(last[k]) is not bool for k in RESPONSE_FLAGS)):
+        raise ValueError('Invalid last response metadata')
+    events = {'incomplete'} if finish == 'length' else set()
+    events.update(k for k in RESPONSE_FLAGS if last.get(k))
+    return events
+
+
 def request_events(request):
     """Events carried by the SDK fields `escalation` and `last_response`; malformed input is refused."""
     events = set()
@@ -50,15 +63,7 @@ def request_events(request):
                 or not (from_id is None or isinstance(from_id, str) and len(from_id) <= 128)):
             raise ValueError('Invalid escalation signal')
         events.add(sent['event'])
-    last = request.get('last_response')
-    if last is not None:
-        finish = last.get('finish_reason') if isinstance(last, dict) else None
-        if (not isinstance(last, dict) or not (finish is None or isinstance(finish, str) and len(finish) <= 32)
-                or any(k in last and type(last[k]) is not bool for k in RESPONSE_FLAGS)):
-            raise ValueError('Invalid last response metadata')
-        if finish == 'length':
-            events.add('incomplete')
-        events.update(k for k in RESPONSE_FLAGS if last.get(k))
+    events.update(response_events(request.get('last_response')))
     return events
 
 
@@ -103,7 +108,23 @@ def _chain(ladder, price, family, start):
         chain.append(up)
 
 
+def _next(selection, catalog, here):
+    """The head a guard failure would move `here` to: the cross-model step, or None at the ceiling."""
+    ladder, price = _ladder(selection, catalog)
+    if 'admission' not in selection or here not in price:
+        return None
+    family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
+    return next((v for v in ladder if family[v] != family[here] and price[v] > price[here]), None)
+
+
 def apply(selection, catalog, *, mode, event, prior):
+    """-> (selection, record, sticky); `record['next']` is the head a failed guard would escalate to."""
+    selection, record, sticky = _apply(selection, catalog, mode=mode, event=event, prior=prior)
+    record['next'] = _next(selection, catalog, record['to'])
+    return selection, record, sticky
+
+
+def _apply(selection, catalog, *, mode, event, prior):
     """-> (selection, record, sticky).
 
     `prior` is the signed state of the scope's previous turn (None for the first); `event` the one
