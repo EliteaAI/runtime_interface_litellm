@@ -1,24 +1,22 @@
-"""Answer guard: escalation inside the turn, before the user sees the answer (#6722, plan section 13.4).
+"""Answer guard: RECORD-ONLY judgement of a delivered answer (#6722, plan section 13.5).
 
-The SDK generates on the head `resolve` chose, then asks this guard about the candidate answer. Hard
-signals (refusal, incomplete, tool failure, inability) fail without a judge call. Otherwise ONE call to the
-configured classifier deployment applies the frozen absolute materiality rubric below. A failed guard names
-the next head of the cross-model ladder, taken from the target the signed pin carries (computed by
-`escalation.apply` at resolve), and returns a pin and state token for it. A judge that errs, answers
-invalid JSON or cannot be priced PASSES the answer: the guard never escalates on its own failure.
+Selection is decided before generation and the first visible answer is final: the guard never changes the
+turn and returns no escalation target. After delivery the SDK asks for a verdict on the answer; hard signals
+(refusal, incomplete, tool failure, inability) fail without a judge call, otherwise ONE call to the configured
+classifier deployment applies the frozen absolute materiality rubric below. The verdict goes to the escalation
+record (the label source and the measure of the tiered policy against economical). A judge that errs, answers
+invalid JSON or cannot be priced PASSES the answer with a `guard_error` code. Regenerate, the upgrade control
+and a correction act on the NEXT resolve (routing/escalation.py).
 
 Names, codes and a sha of the answer only: no answer or request text is logged or stored in a record.
 """
 import hashlib
 import json
 import time
-from collections import OrderedDict
-from threading import Lock
 from . import escalation
-from .checkpoint import MAX_CHECKPOINT_BYTES
-from .inventory import effective_models, validate_binding
+from .inventory import effective_models
 from .pricing import PriceBook, Tokens
-from .service import PROFILE, RoutingUnavailable, _tok, compiled_router, decode_pin, encode_pin, restore_state
+from .service import PROFILE, RoutingUnavailable, _tok, compiled_router, decode_pin
 from .v7.routing import decode_classifier_json
 
 MAX_ANSWER_CHARS = 12_000
@@ -40,10 +38,6 @@ Style, tone, polish, depth beyond the request, a preference between valid approa
 
 Reply with exactly one JSON object and nothing else: {"material": true|false, "clause": "i"|"ii"|"iii"|"none", "cited_defect": "<the concrete defect, what is wrong or missing and where; empty when not material>"}.'''
 RUBRIC_SHA256 = hashlib.sha256(GUARD_RUBRIC.encode()).hexdigest()
-
-_USED = OrderedDict()  # (scope_id, invocation_id) whose one escalation was taken; bounded, process-local
-_USED_LOCK = Lock()
-MAX_USED = 4096
 
 
 def sha(text):
@@ -106,50 +100,8 @@ def judge(request_text, answer, truncated, *, settings, visible, prices, complet
     return {'material': value['material'], 'clause': value['clause'], 'cited_defect': defect.strip()[:600]}, None
 
 
-def _escalated_state(token, signing_key, *, project_id, user_id, scope_id, settings, plan, catalog):
-    """The scope's state with the next head recorded as chosen and its sticky level raised."""
-    if not token:
-        return None
-    state = restore_state(token, signing_key, project_id=project_id, user_id=user_id, scope_id=scope_id,
-                          gate_revision=settings['revision'], policy_revision=compiled_router().revision)
-    if state is None:
-        return None
-    variant = catalog['variants'][plan['to']]
-    state['decision']['selection'] = {'variant': plan['to'], 'model': variant['model'], 'effort': variant['effort']}
-    state['escalation'] = {'event': 'guard', 'from': plan['head'], 'level': plan['level'] + 1, 'to': plan['to']}
-    if len(json.dumps(state).encode()) > MAX_CHECKPOINT_BYTES:
-        raise RoutingUnavailable('Routing checkpoint exceeds its supported bound')
-    return encode_pin(state, signing_key)
-
-
-def _escalate(pin, plan, request, *, models, project_id, user_id, settings, signing_key, now):
-    """-> (escalate_to or None, reason). The target comes from the signed plan, re-checked against the live inventory."""
-    if not plan.get('to'):
-        return None, 'ESCALATION_CEILING'
-    try:
-        validate_binding(plan['model_binding'], models, project_id)
-    except ValueError:
-        return None, 'ESCALATION_TARGET_UNAVAILABLE'
-    config = dict(plan['config'])
-    # A renewal may have narrowed the output allowance since the plan was made: never enlarge it.
-    for key in ('max_tokens', 'routing_total_output_cap'):
-        config[key] = pin['config'][key]
-    if config['max_tokens'] is None:
-        config.pop('routing_min_output_cap', None)
-    elif 'routing_min_output_cap' in config:
-        config['routing_min_output_cap'] = config['max_tokens']
-    moved = {**pin, 'config': config, 'model_binding': plan['model_binding'], 'guarded': True,
-             'expires_at': int(time.time() if now is None else now) + 3600}
-    moved.pop('escalation_plan')
-    catalog = compiled_router().catalog
-    state = _escalated_state(request.get('state_token'), signing_key, project_id=project_id, user_id=user_id,
-                             scope_id=request['scope_id'], settings=settings, plan=plan, catalog=catalog)
-    return {'head': plan['to'], 'tier': plan['tier'], 'config': config, 'pin': encode_pin(moved, signing_key),
-            'state_token': state, 'expires_at': moved['expires_at']}, 'ESCALATED'
-
-
 def guard(request, *, project_id, user_id, settings, models, price_snapshot, signing_key, complete, now=None):
-    """Verdict on one candidate answer: `{verdict, code, cited_defect, escalate_to, trace}`."""
+    """Verdict on one delivered answer: `{verdict, code, clause, trace}`. Never an escalation target."""
     if not settings.get('enabled'):
         raise RoutingUnavailable('Auto model selection is disabled for this project')
     if not isinstance(request, dict):
@@ -160,46 +112,30 @@ def guard(request, *, project_id, user_id, settings, models, price_snapshot, sig
                      now=now, scope_id=scope_id, invocation_id=invocation_id, allow_expired=True)
     if pin.get('profile_ref') != PROFILE or pin.get('policy_revision') != compiled_router().revision:
         raise RoutingUnavailable('The checkpoint routing policy changed')
-    plan = pin.get('escalation_plan') or {}
+    context = pin.get('routing_context') or {}
     guard_trace = {'verdict': 'pass', 'code': 'GUARD_PASS', 'clause': None, 'guard_error': None,
                    'first_answer_id': answer_id, 'first_answer_sha256': sha(answer), 'rubric_sha256': RUBRIC_SHA256}
-    record = {'mode': plan.get('mode'), 'event': 'none', 'from': plan.get('head'), 'to': plan.get('head'),
-              'level': plan.get('level', 0), 'reason': None, 'ladder': [], 'next': plan.get('to'), 'guard': guard_trace}
-    result = {'verdict': 'pass', 'code': 'GUARD_PASS', 'cited_defect': None, 'escalate_to': None,
-              'scope_id': scope_id, 'invocation_id': invocation_id, 'trace': {'escalation': record}}
-    key = (scope_id, invocation_id)
-    with _USED_LOCK:
-        taken = key in _USED
-    if pin.get('guarded') or taken or not plan:
-        # One escalation per turn; a pin without a plan (renewed or issued before the guard) cannot escalate.
-        guard_trace['code'] = result['code'] = 'GUARD_ONCE' if pin.get('guarded') or taken else 'GUARD_NO_PLAN'
-        return result
-    defect, clause = None, None
+    # What the turn was routed on; the guard changes none of it.
+    record = {'mode': context.get('mode'), 'event': 'none', 'from': context.get('head'), 'to': context.get('head'),
+              'level': context.get('level', 0), 'reason': None, 'ladder': [], 'next': context.get('to'),
+              'arm': context.get('arm'), 'demand': context.get('demand'), 'family': context.get('family'),
+              'guard': guard_trace}
+    result = {'verdict': 'pass', 'code': 'GUARD_PASS', 'clause': None, 'scope_id': scope_id,
+              'invocation_id': invocation_id, 'trace': {'escalation': record}}
     hard = next((e for e in escalation.PRIORITY if e in events), None)
     if hard:
-        code = hard  # a hard signal needs no judge
+        guard_trace.update(verdict='fail', code=hard)  # a hard signal needs no judge
     else:
         prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
         truncated = len(answer) > MAX_ANSWER_CHARS
         verdict, error = judge(projection, answer[:MAX_ANSWER_CHARS], truncated, settings=settings,
                                visible=effective_models(models, project_id), prices=prices, complete=complete)
         guard_trace['guard_error'] = error
-        if error or not verdict['material']:
-            guard_trace['code'] = result['code'] = error or 'GUARD_PASS'
-            return result
-        code, defect, clause = 'quality_material', verdict['cited_defect'], verdict['clause']
-    guard_trace.update(verdict='fail', code=code, clause=clause)
-    record['event'] = 'guard'
-    target, reason = _escalate(pin, plan, request, models=models, project_id=project_id, user_id=user_id,
-                               settings=settings, signing_key=signing_key, now=now)
-    record['reason'] = reason
-    if target:
-        record.update(to=target['head'], level=plan['level'] + 1)
-        with _USED_LOCK:
-            _USED[key] = True
-            while len(_USED) > MAX_USED:
-                _USED.popitem(last=False)
-    result.update(verdict='fail', code=code, cited_defect=defect, escalate_to=target)
+        if error:
+            guard_trace['code'] = error
+        elif verdict['material']:
+            guard_trace.update(verdict='fail', code='quality_material', clause=verdict['clause'])
+    result.update(verdict=guard_trace['verdict'], code=guard_trace['code'], clause=guard_trace['clause'])
     return result
 
 
@@ -208,9 +144,9 @@ def usage_record(project_id, scope_id, result, now=None):
     record = result['trace']['escalation']
     trace = record['guard']
     return {'kind': 'auto_routing_escalation', 'scope_id': scope_id, 'project_id': project_id,
-            'head': record['from'], 'escalation_event': record['event'], 'escalation_from': record['from'],
+            'demand': record['demand'], 'family': record['family'], 'head': record['from'], 'escalation_event': record['event'], 'escalation_from': record['from'],
             'escalation_to': record['to'], 'level': record['level'], 'mode': record['mode'],
-            'reason': record['reason'], 'guard_verdict': trace['verdict'], 'guard_code': trace['code'],
+            'reason': record['reason'], 'arm': record['arm'], 'guard_verdict': trace['verdict'], 'guard_code': trace['code'],
             'guard_clause': trace['clause'], 'guard_error': trace['guard_error'],
             'first_answer_id': trace['first_answer_id'], 'first_answer_sha256': trace['first_answer_sha256'],
             'ts': int(time.time() if now is None else now)}

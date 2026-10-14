@@ -154,7 +154,7 @@ class Method:
 
     @web.method()
     def guard_auto_routing(self, proxy_target, proxy_auth):
-        """POST /v1/auto-routing/guard: a verdict on one candidate answer, and the escalation when it fails."""
+        """POST /v1/auto-routing/guard: a record-only verdict on a delivered answer; never changes the turn."""
         project_id, user_id = proxy_auth['project_id'], proxy_auth['user']['id']
         if proxy_target['method'] != 'POST':
             return {'error': 'Method not allowed'}, 405

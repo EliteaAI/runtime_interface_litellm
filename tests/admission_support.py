@@ -42,7 +42,7 @@ def args_for(*keys, prices=None, models=None, **per_model):
                      'identity': identity(canonical), **per_model.get(key, {})})
         entries.append(entry(name, prices.get(key, default_prices)))
     return dict(project_id=7, user_id=2, signing_key='unit-test-only', now=100,
-                settings={'enabled': True, 'revision': 'g1',
+                settings={'enabled': True, 'revision': 'g1', 'escalation_mode': 'economical',  # these tests pin the chooser, not the start policy
                           'classifier': {'name': CLASSIFIER, 'project_id': 7, 'source': 'platform'}},
                 models=models if models is not None else rows,
                 price_snapshot={'revision': 'p1', 'entries': entries})
