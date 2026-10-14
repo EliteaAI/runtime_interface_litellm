@@ -3,7 +3,8 @@
 Default (`economical`): the demand floor of the admission table stays, and among the admitted heads the
 cheapest by the economics ranking wins at every demand. `premium_at_deep` starts deep cells at the cheapest
 head of the table's top (`eligible`) tier. One signal per resolve moves the scope one step up the ladder
-of admitted heads, ordered by the economics ranking; the level is sticky in the signed state token, so
+of admitted heads, ordered by the economics ranking; a step changes the canonical MODEL (the cheapest
+strictly dearer head of another model), never only the effort of the current one. The level is sticky in the signed state token, so
 later turns of the same scope stay there until a further signal raises it.
 
 Names and codes only: no request text is stored in a record, a trace or a log line.
@@ -88,6 +89,18 @@ def _switch(selection, catalog, vid):
                     allowance_rejected=info.get('allowance_rejected', ()), rejections=info.get('rejections'))
 
 
+def _chain(ladder, price, family, start):
+    """Heads reached from `start` by repeated escalation: each step is the cheapest admitted head of
+    another canonical model that is strictly more expensive. Effort variants of a model are skipped."""
+    chain = [start]
+    while True:
+        here = chain[-1]
+        up = next((v for v in ladder if family[v] != family[here] and price[v] > price[here]), None)
+        if up is None:
+            return chain
+        chain.append(up)
+
+
 def apply(selection, catalog, *, mode, event, prior):
     """-> (selection, record, sticky).
 
@@ -98,7 +111,8 @@ def apply(selection, catalog, *, mode, event, prior):
     level = carried.get('level', 0)
     previous = prior['decision']['selection']['variant'] if prior else None
     chosen = selection['variant']
-    record = {'mode': mode, 'event': event or 'none', 'from': previous, 'to': chosen, 'level': level, 'reason': None}
+    record = {'mode': mode, 'event': event or 'none', 'from': previous, 'to': chosen, 'level': level, 'reason': None,
+              'ladder': []}
     ladder, price = _ladder(selection, catalog)
     if event and not prior:
         record['reason'] = 'NO_PRIOR_ROUTE'  # nothing to move up from; the first route is the default
@@ -106,26 +120,28 @@ def apply(selection, catalog, *, mode, event, prior):
     if not ladder:
         record['reason'] = 'ESCALATION_NO_RANKED_HEADS' if event else None
         return selection, record, (carried or None)
+    family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
     rows = {r['variant']: r for r in selection['candidates']}
-    base = 0
+    start = ladder[0]
     if mode == 'premium_at_deep' and selection['admission']['demand'] == 'deep':
-        base = next((i for i, v in enumerate(ladder) if rows[v]['tier'] == 'eligible'), 0)
-    last = len(ladder) - 1
-    target = min(base + level, last)
+        start = next((v for v in ladder if rows[v]['tier'] == 'eligible'), start)
+    chain = _chain(ladder, price, family, start)
+    record['ladder'] = chain
+    target = chain[min(level, len(chain) - 1)]
     sticky = carried or None
     if event:
-        here = ladder.index(previous) if previous in ladder else target
-        up = next((j for j in range(here + 1, len(ladder)) if price[ladder[j]] > price[ladder[here]]), None)
+        here = previous if previous in price else target
+        up = next((v for v in ladder if family[v] != family[here] and price[v] > price[here]), None)
         target = here if up is None else up
-        level = max(target - base, 0)
+        level = level if up is None else level + 1
         record.update(level=level, reason='ESCALATION_CEILING' if up is None else 'ESCALATED')
         sticky = {'event': event, 'from': previous, 'level': level} if level else None
     elif level:
         record['reason'] = 'STICKY'
-    elif base and target != ladder.index(chosen):
+    elif start != ladder[0]:
         record['reason'] = 'PREMIUM_AT_DEEP'
-    if record['reason'] is not None and ladder[target] != chosen:
-        selection = _switch(selection, catalog, ladder[target])
+    if record['reason'] is not None and target != chosen:
+        selection = _switch(selection, catalog, target)
         record['to'] = selection['variant']
     if sticky:
         sticky['to'] = record['to']
