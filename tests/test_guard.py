@@ -1,4 +1,4 @@
-"""#6722 section 13.4: the answer guard decides inside the turn and escalates across the model ladder."""
+"""#6722 section 13.5: the answer guard is record-only: a verdict on the delivered answer, never a change to the turn."""
 import json
 import sys
 from pathlib import Path
@@ -8,20 +8,13 @@ import pytest
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from admission_support import CLASSIFIER, args_for, classifier, request
 from routing import guard
-from routing.service import RoutingUnavailable, compiled_router, decode_pin, resolve, restore_state
+from routing.service import RoutingUnavailable, decode_pin, resolve
 
 ALL = ('luna', 'terra', 'sol', 'sonnet55', 'opus55', 'gpt54')
 SENTINEL = 'SENTINEL-do-not-log-8842 zero trust worker'
 PROJECTION = {'latest': {'text': 'Total the invoices and list five risks.'}}
 PASS = {'material': False, 'clause': 'none', 'cited_defect': ''}
 FAIL = {'material': True, 'clause': 'iii', 'cited_defect': 'Only four risks are listed; five were requested.'}
-
-
-@pytest.fixture(autouse=True)
-def fresh_guard_state():
-    guard._USED.clear()
-    yield
-    guard._USED.clear()
 
 
 class Judge:
@@ -63,7 +56,7 @@ def test_hard_signals_fail_without_a_judge_call(last, code):
     judge = Judge()
     result = ask(args, one, judge, last_response=last)
     assert (result['verdict'], result['code'], judge.calls) == ('fail', code, [])
-    assert result['escalate_to']['head'] == 'sol-high'
+    assert_record_only(result)
     assert result['trace']['escalation']['guard']['guard_error'] is None
 
 
@@ -78,7 +71,8 @@ def test_a_not_material_answer_passes_after_exactly_one_judge_call():
     args, one = turn()
     judge = Judge(PASS)
     result = ask(args, one, judge)
-    assert (result['verdict'], result['escalate_to']) == ('pass', None) and len(judge.calls) == 1
+    assert (result['verdict'], result['clause']) == ('pass', None) and len(judge.calls) == 1
+    assert_record_only(result)
     call = judge.calls[0]
     assert (call['model'], call['effort'], call['max_tokens']) == (CLASSIFIER, None, guard.JUDGE_MAX_TOKENS)
     assert call['messages'][0] == {'role': 'system', 'content': guard.GUARD_RUBRIC}
@@ -89,10 +83,11 @@ def test_a_not_material_answer_passes_after_exactly_one_judge_call():
 def test_a_material_answer_fails_with_the_clause_and_the_cited_defect():
     args, one = turn()
     result = ask(args, one, Judge(FAIL))
-    assert (result['verdict'], result['code'], result['cited_defect']) == ('fail', 'quality_material', FAIL['cited_defect'])
+    assert (result['verdict'], result['code'], result['clause']) == ('fail', 'quality_material', 'iii')
+    assert_record_only(result)
     guard_trace = result['trace']['escalation']['guard']
     assert (guard_trace['verdict'], guard_trace['clause'], guard_trace['code']) == ('fail', 'iii', 'quality_material')
-    assert result['trace']['escalation']['event'] == 'guard'
+    assert result['trace']['escalation']['event'] == 'none'  # the guard records; it never escalates
 
 
 def test_the_judge_reply_is_read_with_the_first_object_parser():
@@ -110,7 +105,7 @@ def test_the_judge_reply_is_read_with_the_first_object_parser():
 def test_an_invalid_judge_reply_passes_the_answer_with_a_guard_error(reply, finish):
     args, one = turn()
     result = ask(args, one, Judge(reply, finish))
-    assert (result['verdict'], result['code'], result['escalate_to']) == ('pass', 'GUARD_SCHEMA_INVALID', None)
+    assert (result['verdict'], result['code']) == ('pass', 'GUARD_SCHEMA_INVALID')
     assert result['trace']['escalation']['guard']['guard_error'] == 'GUARD_SCHEMA_INVALID'
 
 
@@ -158,98 +153,41 @@ def test_the_rubric_is_frozen_and_carries_the_judge_panel_standard():
     assert ask(args, one, Judge())['trace']['escalation']['guard']['rubric_sha256'] == guard.RUBRIC_SHA256
 
 
-# --- the escalation target and what the SDK gets -----------------------------------------------------------------
-def test_escalate_to_moves_up_the_cross_model_ladder_at_deep():
+# --- record-only: the guard never changes the turn ---------------------------------------------------------------
+def assert_record_only(result):
+    assert set(result) == {'verdict', 'code', 'clause', 'scope_id', 'invocation_id', 'trace'}
+    for forbidden in ('escalate_to', 'pin', 'state_token', 'config', 'cited_defect'):
+        assert forbidden not in result and forbidden not in json.dumps(result['trace'])
+
+
+def test_a_failed_guard_leaves_the_scope_where_it_was_for_the_next_resolve():
     args, one = turn()
-    target = ask(args, one, Judge(FAIL))['escalate_to']
-    assert (target['head'], target['tier']) == ('sol-high', 'eligible')
-    assert target['config']['model_name'] == 'global.openai.gpt-5.6-sol' and target['config']['reasoning_effort'] == 'high'
-
-
-def test_escalate_to_never_picks_another_effort_of_the_same_model():
-    args, one = turn(demand='simple')
-    assert one['trace']['selection']['variant'] == 'luna-default'
-    target = ask(args, one, Judge(FAIL))['escalate_to']
-    assert target['head'] == 'terra-default' and target['config']['model_name'] == 'global.openai.gpt-5.6-terra'
-
-
-def test_the_escalated_pin_binds_the_next_head_for_the_same_invocation():
-    args, one = turn()
-    target = ask(args, one, Judge(FAIL))['escalate_to']
-    pin = decode_pin(target['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'],
-                     now=args['now'], scope_id='1' * 64, invocation_id='a' * 64)
-    assert pin['config'] == target['config'] and pin['guarded'] is True and 'escalation_plan' not in pin
-    assert pin['model_binding']['name'] == 'global.openai.gpt-5.6-sol' and pin['model_binding'] != one and pin['invocation_id'] == 'a' * 64
-
-
-def test_the_escalated_pin_never_enlarges_the_output_allowance():
-    args, one = turn(output_cap=30000)
-    target = ask(args, one, Judge(FAIL))['escalate_to']
-    assert target['config']['max_tokens'] == 30000 and target['config']['routing_total_output_cap'] is True
-    assert target['config'].get('routing_min_output_cap', 30000) == 30000
-
-
-def test_the_escalated_state_records_the_new_head_and_the_sticky_level():
-    args, one = turn()
-    target = ask(args, one, Judge(FAIL))['escalate_to']
-    state = restore_state(target['state_token'], args['signing_key'], project_id=7, user_id=2, scope_id='1' * 64,
-                          gate_revision='g1', policy_revision=compiled_router().revision)
-    assert state['decision']['selection']['variant'] == 'sol-high'
-    assert state['escalation'] == {'event': 'guard', 'from': 'terra-default', 'level': 1, 'to': 'sol-high'}
+    assert ask(args, one, Judge(FAIL))['verdict'] == 'fail'
     nxt = request('Thanks. Now the same for March.', invocation_id='b' * 64)
     nxt['messages'] = [{'role': 'user', 'content': 'q'}, {'role': 'assistant', 'content': 'a'}, nxt['messages'][0]]
-    nxt['state_token'] = target['state_token']
+    nxt['state_token'] = one['state_token']
     again = resolve(nxt, complete=classifier(demand='deep', relation='followup', reference_ids=['m0']), **args)
-    assert again['trace']['selection']['variant'] == 'sol-high' and again['trace']['escalation']['reason'] == 'STICKY'
+    assert again['trace']['selection']['variant'] == 'terra-default' and again['trace']['escalation']['event'] == 'none'
 
 
-def test_without_a_state_token_the_target_still_comes_back_with_no_state():
+def test_the_next_turn_signal_escalates_across_models_as_before():
     args, one = turn()
-    target = ask(args, one, Judge(FAIL), state_token=None)['escalate_to']
-    assert target['head'] == 'sol-high' and target['state_token'] is None
+    ask(args, one, Judge(FAIL))
+    nxt = request('Again.', invocation_id='b' * 64, last_response={'refusal': True})
+    nxt['messages'] = [{'role': 'user', 'content': 'q'}, {'role': 'assistant', 'content': 'a'}, nxt['messages'][0]]
+    nxt['state_token'] = one['state_token']
+    again = resolve(nxt, complete=classifier(demand='deep', relation='followup', reference_ids=['m0']), **args)
+    assert again['trace']['selection']['variant'] == 'sol-high' and again['trace']['escalation']['event'] == 'refusal'
 
 
-def test_the_ceiling_fails_the_verdict_but_offers_no_target():
-    args, one = turn(keys=('luna', 'terra'))
-    result = ask(args, one, Judge(FAIL))
-    assert (result['verdict'], result['escalate_to']) == ('fail', None)
-    assert result['trace']['escalation']['reason'] == 'ESCALATION_CEILING'
-
-
-def test_a_target_that_left_the_inventory_is_not_offered():
+def test_the_guard_can_be_asked_again_for_the_same_invocation_and_each_ask_is_a_record():
     args, one = turn()
-    args['models'] = [m for m in args['models'] if 'sol' not in m['name']]
-    result = ask(args, one, Judge(FAIL))
-    assert (result['verdict'], result['escalate_to']) == ('fail', None)
-    assert result['trace']['escalation']['reason'] == 'ESCALATION_TARGET_UNAVAILABLE'
+    assert [ask(args, one, Judge(FAIL))['verdict'] for _ in range(2)] == ['fail', 'fail']
 
 
-def test_the_resolve_trace_names_the_head_a_failed_guard_would_use():
+def test_the_resolve_trace_names_the_head_the_next_step_would_use():
     _, one = turn()
     assert one['trace']['escalation']['next'] == 'sol-high'
-
-
-# --- one escalation per turn ------------------------------------------------------------------------------------
-def test_a_second_guard_call_in_the_same_invocation_passes_with_guard_once():
-    args, one = turn()
-    first = ask(args, one, Judge(FAIL))
-    judge = Judge(FAIL)
-    second = ask(args, {'pin': first['escalate_to']['pin'], 'state_token': first['escalate_to']['state_token']}, judge)
-    assert (second['verdict'], second['code'], second['escalate_to'], judge.calls) == ('pass', 'GUARD_ONCE', None, [])
-    replay = ask(args, one, judge, last_response={'refusal': True})  # the old pin cannot be used again either
-    assert (replay['verdict'], replay['code'], judge.calls) == ('pass', 'GUARD_ONCE', [])
-
-
-def test_a_pass_does_not_use_up_the_escalation():
-    args, one = turn()
-    assert ask(args, one, Judge(PASS))['verdict'] == 'pass'
-    assert ask(args, one, Judge(FAIL))['verdict'] == 'fail'
-
-
-def test_a_ceiling_failure_does_not_use_up_the_escalation():
-    args, one = turn(keys=('luna', 'terra'))
-    ask(args, one, Judge(FAIL))
-    assert ask(args, one, Judge(FAIL))['code'] == 'quality_material'
 
 
 # --- authorization and input ------------------------------------------------------------------------------------
@@ -279,14 +217,13 @@ def test_a_disabled_project_is_refused():
         ask(args, one)
 
 
-def test_a_pin_without_a_plan_cannot_escalate():
+def test_a_pin_without_routing_context_still_gets_a_verdict():
     args, one = turn()
     pin = decode_pin(one['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=args['now'])
-    pin.pop('escalation_plan')
+    pin.pop('routing_context')
     from routing.service import encode_pin
-    old = {**one, 'pin': encode_pin(pin, args['signing_key'])}
-    result = ask(args, old, Judge(FAIL))
-    assert (result['verdict'], result['code']) == ('pass', 'GUARD_NO_PLAN')
+    result = ask(args, {**one, 'pin': encode_pin(pin, args['signing_key'])}, Judge(FAIL))
+    assert (result['verdict'], result['trace']['escalation']['from']) == ('fail', None)
 
 
 # --- observability: names, codes and a sha only ------------------------------------------------------------------
@@ -297,19 +234,19 @@ def test_log_line_and_usage_record_carry_no_answer_or_request_text():
            'request_text_projection': {'latest': {'text': SENTINEL}}, 'answer_text': SENTINEL}
     result = guard.guard(req, project_id=7, user_id=2, settings=args['settings'], models=args['models'],
                          price_snapshot=args['price_snapshot'], signing_key=args['signing_key'], complete=judge, now=args['now'])
-    assert result['cited_defect'] == SENTINEL  # the SDK gets the defect; nothing else does
+    assert SENTINEL not in json.dumps(result)  # even the judge's cited defect stays out of the response
     record = guard.usage_record(7, '1' * 64, result, now=77)
     line = guard.log_line(7, req, result)
     for text in (json.dumps(record), line, json.dumps(result['trace'])):
         assert 'SENTINEL' not in text and 'zero trust' not in text
     assert record == {
-        'kind': 'auto_routing_escalation', 'scope_id': '1' * 64, 'project_id': 7, 'head': 'terra-default',
-        'escalation_event': 'guard', 'escalation_from': 'terra-default', 'escalation_to': 'sol-high', 'level': 1,
-        'mode': 'economical', 'reason': 'ESCALATED', 'guard_verdict': 'fail', 'guard_code': 'quality_material',
-        'guard_clause': 'ii', 'guard_error': None, 'first_answer_id': 'm9',
-        'first_answer_sha256': guard.sha(SENTINEL), 'ts': 77}
+        'kind': 'auto_routing_escalation', 'scope_id': '1' * 64, 'project_id': 7, 'demand': 'deep',
+        'family': 'quantitative', 'head': 'terra-default', 'escalation_event': 'none', 'escalation_from': 'terra-default',
+        'escalation_to': 'terra-default', 'level': 0, 'mode': 'economical', 'reason': None, 'arm': None,
+        'guard_verdict': 'fail', 'guard_code': 'quality_material', 'guard_clause': 'ii', 'guard_error': None,
+        'first_answer_id': 'm9', 'first_answer_sha256': guard.sha(SENTINEL), 'ts': 77}
     assert line.startswith('auto-routing guard project=7 scope=11111111 verdict=fail code=quality_material clause=ii ')
-    assert 'escalation=guard/terra-default->sol-high' in line and f'answer_sha={guard.sha(SENTINEL)[:12]}' in line
+    assert 'escalation=none/terra-default->terra-default' in line and f'answer_sha={guard.sha(SENTINEL)[:12]}' in line
     assert '\n' not in line
 
 
@@ -319,3 +256,4 @@ def test_a_pass_record_names_the_verdict_and_no_move():
     record = guard.usage_record(7, '1' * 64, result, now=1)
     assert (record['guard_verdict'], record['escalation_event'], record['escalation_to'], record['reason']) == (
         'pass', 'none', 'terra-default', None)
+    assert_record_only(result)

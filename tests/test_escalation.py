@@ -361,7 +361,7 @@ def test_trace_log_and_usage_record_never_carry_request_text():
     assert record == {'kind': 'auto_routing_escalation', 'scope_id': '1' * 64, 'project_id': 7, 'demand': 'deep',
                       'family': 'quantitative', 'head': 'sol-high', 'model': 'global.openai.gpt-5.6-sol',
                       'escalation_event': 'upgrade_control', 'escalation_from': 'terra-default',
-                      'escalation_to': 'sol-high', 'level': 1, 'mode': 'economical', 'reason': 'ESCALATED', 'ts': 1234}
+                      'escalation_to': 'sol-high', 'level': 1, 'mode': 'economical', 'reason': 'ESCALATED', 'arm': None, 'ts': 1234}
     assert set(moved(two)) == {'mode', 'event', 'from', 'to', 'level', 'reason', 'ladder', 'next'}
     for text in (json.dumps(record), json.dumps(moved(two)), decision_log_line(7, req, two),
                  json.dumps(state_of(args, two)['escalation'])):

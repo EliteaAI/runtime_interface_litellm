@@ -387,7 +387,8 @@ def test_guard_endpoint_returns_a_verdict_and_writes_one_record(relay, monkeypat
             'request_text_projection': {'latest': {'text': 'Hi'}}}
     auth = {'project_id': 7, 'user': {'id': 42}}
     result = method.guard_auto_routing({'method': 'POST', 'json': body, 'headers': {}}, auth)
-    assert (result['verdict'], result['code'], result['cited_defect']) == ('fail', 'quality_material', 'wrong total')
+    assert (result['verdict'], result['code'], result['clause']) == ('fail', 'quality_material', 'ii')
+    assert 'escalate_to' not in result and 'wrong total' not in str(result)
     assert len(records) == 1 and records[0]['guard_verdict'] == 'fail' and 'SECRET' not in str(records) + str(lines)
     assert lines and lines[0].startswith('auto-routing guard project=7 ')
     assert method.guard_auto_routing({'method': 'GET', 'json': None, 'headers': {}}, auth)[1] == 405

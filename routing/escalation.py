@@ -1,15 +1,18 @@
-"""Cheap-first routing with escalation on a failure signal, never on a prediction (#6722, plan section 13).
+"""Start head per escalation mode, and escalation on a failure signal, never on a prediction (#6722, plan 13).
 
-Default (`economical`): the demand floor of the admission table stays, and among the admitted heads the
-cheapest by the economics ranking wins at every demand. `premium_at_deep` starts deep cells, and
-`premium_from_standard` standard and deep cells, at the cheapest head of the table's top (`eligible`) tier. One signal per resolve moves the scope one step up the ladder
-of admitted heads, ordered by the economics ranking; a step changes the canonical MODEL (the cheapest
-strictly dearer head of another model), never only the effort of the current one. The level is sticky in the signed state token, so
-later turns of the same scope stay there until a further signal raises it.
+The demand floor of the admission table always stays. Modes choose the starting head among the admitted ones:
+`tiered` (default): simple cheapest; standard splits per scope between the cheapest head (`standard_low_share`)
+and the measured mid tier; deep the measured frontier tier. `economical`: cheapest at every demand.
+`premium_at_deep` / `premium_from_standard`: the cheapest head of the table's top (`eligible`) tier at deep
+(and standard). One signal per resolve (regenerate, upgrade control, correction, refusal, incomplete, tool failure,
+inability) moves the scope one step up the ladder of admitted heads, ordered by the economics ranking; a step
+changes the canonical MODEL (the cheapest strictly dearer head of another model), never only the effort. The level
+is sticky in the signed state token. The answer guard (routing/guard.py) only records and never moves a turn.
 
 Names and codes only: no request text is stored in a record, a trace or a log line.
 """
 import copy
+import hashlib
 import re
 import time
 from decimal import Decimal
@@ -17,10 +20,13 @@ from .v7.admission import annotate, EFFORT_ORDER
 
 # Demands at which a premium mode starts at the cheapest head of the top admitted tier.
 PREMIUM_DEMANDS = {'premium_at_deep': frozenset({'deep'}), 'premium_from_standard': frozenset({'standard', 'deep'})}
-MODES = frozenset({'economical'} | set(PREMIUM_DEMANDS))
-DEFAULT_MODE = 'economical'
+MODES = frozenset({'economical', 'tiered'} | set(PREMIUM_DEMANDS))
+DEFAULT_MODE = 'tiered'  # plan section 13.5; `economical` stays selectable
+# `tiered`: the share of standard scopes that stays on the cheapest head, bounded (plan section 13, user decision).
+SHARE_DEFAULT, SHARE_MIN, SHARE_MAX = 0.20, 0.10, 0.25
+ARM_BUCKETS = 10_000
 # Priority order, strongest first. Only one event fires per resolve.
-PRIORITY = ('upgrade_control', 'regenerate', 'guard', 'correction', 'refusal', 'incomplete', 'tool_failure', 'inability')
+PRIORITY = ('upgrade_control', 'regenerate', 'correction', 'refusal', 'incomplete', 'tool_failure', 'inability')
 PRODUCT_EVENTS = frozenset({'upgrade_control', 'regenerate'})
 RESPONSE_FLAGS = ('refusal', 'tool_failure', 'inability')
 CORRECTION_WINDOW = 400
@@ -35,9 +41,45 @@ _CORRECTION = re.compile(
 
 
 def mode_of(settings):
-    """`escalation_mode` from Configurations; absent or unknown is the cheap default."""
+    """`escalation_mode` from Configurations: absent is the default (`tiered`), an unknown value is `economical`."""
     mode = settings.get('escalation_mode')
-    return mode if mode in MODES else DEFAULT_MODE
+    return DEFAULT_MODE if mode is None else mode if mode in MODES else 'economical'
+
+
+def share_of(settings):
+    """`standard_low_share` for `tiered`, clamped to [0.10, 0.25]; absent or non-numeric is the default."""
+    raw = settings.get('standard_low_share')
+    if isinstance(raw, bool) or not isinstance(raw, (int, float)) or raw != raw:
+        return {'requested': None, 'used': SHARE_DEFAULT, 'clamped': False}
+    used = min(max(float(raw), SHARE_MIN), SHARE_MAX)
+    return {'requested': raw, 'used': used, 'clamped': used != raw}
+
+
+def arm_of(scope_id, share):
+    """The standard arm of a scope, stable for the whole conversation: `low` (cheapest head) or `mid`."""
+    bucket = int(hashlib.sha256(scope_id.encode()).hexdigest(), 16) % ARM_BUCKETS
+    return 'low' if bucket < share * ARM_BUCKETS else 'mid'
+
+
+def _start(mode, demand, ladder, rows, family, tiering):
+    """-> (start head, reason code, arm). The head a scope starts on before any signal.
+
+    Tiers are measured, never named: `eligible` is the admission-table tier of the row for this demand and
+    family; the frontier is the eligible head(s) with the highest `lb90` (ties: cheapest); mid is an eligible
+    head whose canonical model is not that of the cheapest admitted head.
+    """
+    cheapest = ladder[0]
+    if demand in PREMIUM_DEMANDS.get(mode, ()):
+        return next((v for v in ladder if rows[v]['tier'] == 'eligible'), cheapest), 'PREMIUM_START', None
+    if mode != 'tiered' or demand == 'simple':
+        return cheapest, None, None
+    eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
+    if demand == 'deep':
+        top = max((rows[v]['cell']['lb90'] for v in eligible), default=None)
+        return next((v for v in eligible if rows[v]['cell']['lb90'] == top), cheapest), 'TIERED_START', None
+    arm = arm_of(tiering['scope_id'], tiering['share']['used'])
+    mid = [v for v in eligible if family[v] != family[cheapest]]
+    return (mid[0] if arm == 'mid' and mid else cheapest), 'TIERED_START', arm
 
 
 def response_events(last):
@@ -117,14 +159,14 @@ def _next(selection, catalog, here):
     return next((v for v in ladder if family[v] != family[here] and price[v] > price[here]), None)
 
 
-def apply(selection, catalog, *, mode, event, prior):
+def apply(selection, catalog, *, mode, event, prior, tiering=None):
     """-> (selection, record, sticky); `record['next']` is the head a failed guard would escalate to."""
-    selection, record, sticky = _apply(selection, catalog, mode=mode, event=event, prior=prior)
+    selection, record, sticky = _apply(selection, catalog, mode=mode, event=event, prior=prior, tiering=tiering)
     record['next'] = _next(selection, catalog, record['to'])
     return selection, record, sticky
 
 
-def _apply(selection, catalog, *, mode, event, prior):
+def _apply(selection, catalog, *, mode, event, prior, tiering):
     """-> (selection, record, sticky).
 
     `prior` is the signed state of the scope's previous turn (None for the first); `event` the one
@@ -136,6 +178,8 @@ def _apply(selection, catalog, *, mode, event, prior):
     chosen = selection['variant']
     record = {'mode': mode, 'event': event or 'none', 'from': previous, 'to': chosen, 'level': level, 'reason': None,
               'ladder': []}
+    if mode == 'tiered':
+        record.update(arm=None, standard_low_share=tiering['share'])
     ladder, price = _ladder(selection, catalog)
     if event and not prior:
         record['reason'] = 'NO_PRIOR_ROUTE'  # nothing to move up from; the first route is the default
@@ -145,9 +189,9 @@ def _apply(selection, catalog, *, mode, event, prior):
         return selection, record, (carried or None)
     family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
     rows = {r['variant']: r for r in selection['candidates']}
-    start = ladder[0]
-    if selection['admission']['demand'] in PREMIUM_DEMANDS.get(mode, ()):
-        start = next((v for v in ladder if rows[v]['tier'] == 'eligible'), start)
+    start, start_reason, arm = _start(mode, selection['admission']['demand'], ladder, rows, family, tiering)
+    if mode == 'tiered':
+        record['arm'] = arm
     chain = _chain(ladder, price, family, start)
     record['ladder'] = chain
     target = chain[min(level, len(chain) - 1)]
@@ -162,7 +206,7 @@ def _apply(selection, catalog, *, mode, event, prior):
     elif level:
         record['reason'] = 'STICKY'
     elif start != ladder[0]:
-        record['reason'] = 'PREMIUM_START'
+        record['reason'] = start_reason
     if record['reason'] is not None and target != chosen:
         selection = _switch(selection, catalog, target)
         record['to'] = selection['variant']
@@ -183,4 +227,5 @@ def usage_record(project_id, request, result, now=None):
             'head': (trace.get('selection') or {}).get('variant'), 'model': (result.get('config') or {}).get('model_name'),
             'escalation_event': escalation['event'], 'escalation_from': escalation['from'],
             'escalation_to': escalation['to'], 'level': escalation['level'], 'mode': escalation['mode'],
-            'reason': escalation['reason'], 'ts': int(time.time() if now is None else now)}
+            'reason': escalation['reason'], 'arm': escalation.get('arm'),
+            'ts': int(time.time() if now is None else now)}
