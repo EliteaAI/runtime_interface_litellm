@@ -108,7 +108,7 @@ def test_preflight_reads_actor_inventory_and_keeps_shared_only_candidates(relay,
         {'project_id': 7, 'user': {'id': 42}})
     assert result['action'] == 'generate'
     assert result['trace']['inventory']['discovered'] == 5
-    assert result['trace']['inventory']['qualified_variants'] == 9
+    assert result['trace']['inventory']['qualified_variants'] == 10  # incl. gpt-5-4-default, admitted at standard (material-r2)
     assert relay.seen == [(7, 42)]
 
 
@@ -368,3 +368,40 @@ def test_preflight_logs_one_decision_line_per_resolve_without_request_text(relay
     assert out[1] == 422 and len(lines) == 2
     assert lines[1].startswith('auto-routing decision project=7 scope=11111111 refused=')
     assert 'SENTINEL' not in lines[1]
+
+
+def test_guard_endpoint_returns_a_verdict_and_writes_one_record(relay, monkeypatch):
+    routing = importlib.import_module('plugin_under_test.methods.routing')
+    service = importlib.import_module('plugin_under_test.routing.service')
+    monkeypatch.setattr(routing, 'context', relay.context)
+    monkeypatch.setattr(routing, 'VaultClient', relay.vault)
+    lines, records = [], []
+    monkeypatch.setattr(routing, 'log', types.SimpleNamespace(info=lines.append))
+    monkeypatch.setattr(routing, 'record_escalation', records.append)
+    one = service.resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **relay.args)
+    method = routing.Method(); method.descriptor = types.SimpleNamespace(config={})
+    verdict = {'material': True, 'clause': 'ii', 'cited_defect': 'wrong total'}
+    method.classifier_complete = lambda *a: lambda model, messages, effort=None, max_tokens=None: {
+        'message': {'content': __import__('json').dumps(verdict)}, 'finish_reason': 'stop'}
+    body = {'pin': one['pin'], 'scope_id': '1' * 64, 'invocation_id': 'a' * 64, 'answer_text': 'SECRET-ANSWER',
+            'request_text_projection': {'latest': {'text': 'Hi'}}}
+    auth = {'project_id': 7, 'user': {'id': 42}}
+    result = method.guard_auto_routing({'method': 'POST', 'json': body, 'headers': {}}, auth)
+    assert (result['verdict'], result['code'], result['clause']) == ('fail', 'quality_material', 'ii')
+    assert 'escalate_to' not in result and 'wrong total' not in str(result)
+    assert len(records) == 1 and records[0]['guard_verdict'] == 'fail' and 'SECRET' not in str(records) + str(lines)
+    assert lines and lines[0].startswith('auto-routing guard project=7 ')
+    assert method.guard_auto_routing({'method': 'GET', 'json': None, 'headers': {}}, auth)[1] == 405
+    assert method.guard_auto_routing({'method': 'POST', 'json': {**body, 'pin': 'x'}, 'headers': {}}, auth)[1] == 422
+    # a refusal names its specific reason in the 422 body and in the log line, never a generic code
+    history = [{'role': 'user', 'content': 'x' * 300_000}]
+    refused = method.guard_auto_routing({'method': 'POST', 'json': {**body, 'request_text_projection': history},
+                                         'headers': {}}, auth)
+    assert refused[1] == 422 and refused[0]['reason'] == 'PROJECTION_TYPE'
+    assert lines[-1] == 'auto-routing guard project=7 refused=PROJECTION_TYPE'
+    big = method.guard_auto_routing({'method': 'POST', 'json': {**body, 'request_text_projection': 'x' * 70_000},
+                                     'headers': {}}, auth)
+    assert big[0]['reason'] == 'PROJECTION_TOO_LARGE' and lines[-1].endswith('refused=PROJECTION_TOO_LARGE')
+    sdk = {'latest': 'Hi', 'recent': [{'role': 'user', 'text': 'Hi'}], 'turns_omitted': 0}
+    assert method.guard_auto_routing({'method': 'POST', 'json': {**body, 'request_text_projection': sdk},
+                                      'headers': {}}, auth)['verdict'] == 'fail'
