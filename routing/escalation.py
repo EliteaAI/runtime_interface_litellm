@@ -3,11 +3,18 @@
 The demand floor of the admission table always stays. Modes choose the starting head among the admitted ones:
 `tiered` (default): simple cheapest; standard splits per scope between the cheapest head (`standard_low_share`)
 and the measured mid tier; deep the measured frontier tier. `economical`: cheapest at every demand.
-`premium_at_deep` / `premium_from_standard`: the cheapest head of the table's top (`eligible`) tier at deep
-(and standard). One signal per resolve (regenerate, upgrade control, correction, refusal, incomplete, tool failure,
-inability) moves the scope one step up the ladder of admitted heads, ordered by the economics ranking; a step
-changes the canonical MODEL (the cheapest strictly dearer head of another model), never only the effort. The level
-is sticky in the signed state token. The answer guard (routing/guard.py) only records and never moves a turn.
+
+`premium_at_deep` / `premium_from_standard`: at deep the frontier head, i.e. the eligible head with the highest
+`lb90` on the admission table (ties to the cheaper), found by the same lookup `tiered` uses. Admission is not
+selection: on the table of record (material-r2) Luna is eligible at deep, so "cheapest eligible" would start on
+Luna and make the knob meaningless. Premium costs about 13x per success at deep for +2.5 pp [+0.1, +5.4] pass on
+the held-out deep items (REVIEW-R81 section X(b)), so a project chooses it with that number in view.
+`premium_from_standard` also starts standard on the cheapest head of the table's top (`eligible`) tier.
+
+One signal per resolve (regenerate, upgrade control, correction, refusal, incomplete, tool failure, inability)
+moves the scope one step up the ladder of admitted heads, ordered by the economics ranking; a step changes the
+canonical MODEL (the cheapest strictly dearer head of another model), never only the effort. The level is sticky
+in the signed state token. The answer guard (routing/guard.py) only records and never moves a turn.
 
 Names and codes only: no request text is stored in a record, a trace or a log line.
 """
@@ -61,6 +68,14 @@ def arm_of(scope_id, share):
     return 'low' if bucket < share * ARM_BUCKETS else 'mid'
 
 
+def _frontier(ladder, rows):
+    """The eligible head with the highest `lb90` of its admission row (ties: the cheaper, `ladder` is cheapest
+    first), or None when no head is eligible. One lookup for `tiered` and the premium modes at deep."""
+    eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
+    top = max((rows[v]['cell']['lb90'] for v in eligible), default=None)
+    return next((v for v in eligible if rows[v]['cell']['lb90'] == top), None)
+
+
 def _start(mode, demand, ladder, rows, family, tiering):
     """-> (start head, reason code, arm). The head a scope starts on before any signal.
 
@@ -70,13 +85,14 @@ def _start(mode, demand, ladder, rows, family, tiering):
     """
     cheapest = ladder[0]
     if demand in PREMIUM_DEMANDS.get(mode, ()):
+        if demand == 'deep':
+            return _frontier(ladder, rows) or cheapest, 'PREMIUM_START', None
         return next((v for v in ladder if rows[v]['tier'] == 'eligible'), cheapest), 'PREMIUM_START', None
     if mode != 'tiered' or demand == 'simple':
         return cheapest, None, None
     eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
     if demand == 'deep':
-        top = max((rows[v]['cell']['lb90'] for v in eligible), default=None)
-        return next((v for v in eligible if rows[v]['cell']['lb90'] == top), cheapest), 'TIERED_START', None
+        return _frontier(ladder, rows) or cheapest, 'TIERED_START', None
     arm = arm_of(tiering['scope_id'], tiering['share']['used'])
     mid = [v for v in eligible if family[v] != family[cheapest]]
     return (mid[0] if arm == 'mid' and mid else cheapest), 'TIERED_START', arm
