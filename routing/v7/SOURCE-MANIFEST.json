@@ -100,7 +100,7 @@
     "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
     "admission.py": "aa9fa32d77c6fe804259878cf144911c90a81fa6e646bcce65681afc74065a60",
-    "admission-table.json": "5eef4a1a250aa781c0a11d7b52ffd2eb494301860d9eb1e0f5c4cb4413cf8d31",
+    "admission-table.json": "0d2320a526469f6cf12ad4313148b250bfe75b06e23cbb0890273491305e4692",
     "build_admission_table.py": "fbc4d15bf2a77b12510e897a63d24e702e6f7b8acea781ced5e2a3e523d016b6"
   },
   "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion; interim admission table (reviewed-demand view), provider-default output",

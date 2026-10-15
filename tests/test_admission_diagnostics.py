@@ -33,7 +33,9 @@ def test_at_100k_bytes_sol_and_terra_pass_every_gate():
     result = local(100_000, operation='design')
     inventory = result['trace']['inventory']
     assert inventory['gate_failures'] == {} or not set(SOL_TERRA) & set(inventory['gate_failures'])
-    assert result['trace']['selection']['variant'] in {'terra-default', 'sol-high'}
+    # material-r2 table: luna-default is eligible at deep and the cheapest, so it wins over terra and sol.
+    assert result['trace']['selection']['variant'] == 'luna-default'
+    assert {'terra-default', 'sol-high'} <= set(result['trace']['selection']['economics']['quotes'])
 
 
 def test_the_live_223k_byte_history_is_about_74k_tokens_and_admits_sol_and_terra():
@@ -46,7 +48,8 @@ def test_the_live_223k_byte_history_is_about_74k_tokens_and_admits_sol_and_terra
     assert inventory['input_estimator'] == {'name': 'utf8_bytes_per_token', 'bytes_per_token': '3'}
     assert not set(SOL_TERRA) & set(inventory['gate_failures'])
     selection = result['trace']['selection']
-    assert selection['variant'] in {'terra-default', 'sol-high'} and selection['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+    assert selection['variant'] == 'luna-default' and selection['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+    assert {'terra-default', 'sol-high'} <= set(selection['economics']['quotes'])  # still candidates, not gated out
 
 
 def test_a_true_overflow_still_fails_the_context_gate_and_the_trace_says_so():
@@ -57,9 +60,24 @@ def test_a_true_overflow_still_fails_the_context_gate_and_the_trace_says_so():
     for vid in SOL_TERRA:
         assert inventory['gate_failures'][vid] == ['CONTEXT_WINDOW'], vid
     assert not any(v.startswith('luna') for v in inventory['gate_failures'])  # 272k holds 170k + 64k
+    # material-r2 table: luna-default is eligible at deep, so the one deployment that still fits is admitted.
     selection = result['trace']['selection']
-    # The symptom seen live: the baseline, with an admission status that alone does not say why.
-    assert (selection['variant'], selection['reason']) == ('gpt54-high', 'UNCERTAIN_TASK_BASELINE')
+    assert (selection['variant'], selection['reason']) == ('luna-default', 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR')
+    assert selection['admission']['rejections']['sol-high'] == ['outside configured PoC pool']
+
+
+def test_when_every_admitted_deployment_overflows_the_baseline_is_used_and_the_trace_says_so():
+    # 900,000 bytes / 3 = 300,000 tokens: over the 272k window of luna as well as the 200k windows of sol and terra.
+    result = local(900_000, operation='design', effort_need='high', relation='return', needs_context=True,
+                   input_status='ambiguous')
+    inventory = result['trace']['inventory']
+    assert inventory['input_tokens_estimate'] == 300_000
+    for vid in SOL_TERRA + ['luna-default', 'luna-high']:
+        assert inventory['gate_failures'][vid] == ['CONTEXT_WINDOW'], vid
+    selection = result['trace']['selection']
+    # The symptom seen live: the baseline, with an admission status that alone does not say why. The baseline
+    # model also has the provider-default variant that the table admits at standard, and the lowest effort wins.
+    assert (selection['variant'], selection['reason']) == ('gpt-5-4-default', 'UNCERTAIN_TASK_BASELINE')
     assert selection['admission']['status'] == 'no_variant_clears_floor'
     # The chooser only sees what the gates admitted; the gate failure above is the real reason.
     assert selection['admission']['rejections']['sol-high'] == ['outside configured PoC pool']
@@ -108,7 +126,8 @@ def test_only_names_and_numbers_appear_in_gate_failures():
 def test_chooser_rejections_name_the_reason_per_candidate():
     result = local(100_000, operation='design', effort_need='high')
     rejections = result['trace']['selection']['admission']['rejections']
-    assert rejections['luna-default'] == ['ADMISSION_ROW_OUT']
+    assert rejections['sol-default'] == ['ADMISSION_ROW_OUT']  # 5/5 at deep: below the evidence floor
+    assert 'luna-default' not in rejections  # eligible at deep in the material-r2 table
     assert rejections['gpt54-low'][0] == 'EFFORT_NEED_FILTER'  # then also ADMISSION_NO_ROW: it has no row
     assert rejections['mini-low'][0] == 'outside configured PoC pool'  # no deployment, see gate_failures/exclusions
     assert 'terra-default' not in rejections or rejections['terra-default'] != ['ADMISSION_ROW_OUT']
@@ -139,7 +158,7 @@ SENTINEL = 'SENTINEL-do-not-log-7731 zero trust worker'
 
 def test_log_line_has_the_documented_fields_and_no_request_text():
     args = args_for('luna', 'terra', 'sol', 'gpt54', **LOCAL)
-    req = request(SENTINEL, generation_input_bytes=600_000)
+    req = request(SENTINEL, generation_input_bytes=900_000)
     result = resolve(req, complete=classifier(demand='deep', operation='design', effort_need='high', relation='return',
                                               needs_context=True, input_status='ambiguous',
                                               reason=SENTINEL), **args)
@@ -148,22 +167,26 @@ def test_log_line_has_the_documented_fields_and_no_request_text():
     assert '\n' not in line
     for field in ('project=7', 'scope=11111111', 'classifier=classifier-only', 'schema_valid=True', 'error=-',
                   'profile_error=-', 'descriptor=design/deep/return/quantitative/high', 'needs_context=True',
-                  'input_status=ambiguous', 'selection=gpt54-high/UNCERTAIN_TASK_BASELINE/-',
+                  'input_status=ambiguous', 'selection=gpt-5-4-default/UNCERTAIN_TASK_BASELINE/-',
                   'model=gpt-5.4', 'cap=default', 'gate_failures=', 'sol-high:CONTEXT_WINDOW',
-                  'terra-default:CONTEXT_WINDOW', 'rejections=', 'input_bytes=600000',
-                  'input_tokens_est=200000', 'bytes_per_token=3'):
+                  'terra-default:CONTEXT_WINDOW', 'luna-default:CONTEXT_WINDOW', 'rejections=',
+                  'input_bytes=900000', 'input_tokens_est=300000', 'bytes_per_token=3'):
         assert field in line, field
     assert line.startswith('auto-routing decision ')
     assert f"admitted={result['trace']['inventory']['admitted_variants']}/{result['trace']['inventory']['qualified_variants']}" in line
 
 
 def test_log_line_for_a_tiered_selection_and_an_explicit_cap():
-    args = args_for('luna', 'terra')
+    args = args_for('terra', 'sol')
     req = request(SENTINEL); req['output_cap'] = 9000
     result = resolve(req, complete=classifier(demand='deep'), **args)
     line = decision_log_line(7, req, result)
     assert 'selection=terra-default/V6_PRICE_AFTER_ELIGIBILITY/provisional' in line and 'cap=9000' in line
     assert SENTINEL.split()[0] not in line
+    # An eligible head (luna-default at deep in the material-r2 table) logs its tier as eligible.
+    args = args_for('luna', 'terra')
+    result = resolve(req, complete=classifier(demand='deep'), **args)
+    assert 'selection=luna-default/V6_PRICE_AFTER_ELIGIBILITY/eligible' in decision_log_line(7, req, result)
 
 
 def test_classifier_error_codes_appear_but_the_reply_text_does_not():
