@@ -142,7 +142,7 @@ def test_other_modes_carry_no_tier_fields_and_unknown_modes_stay_economical():
     _, result = run(settings={'escalation_mode': 'economical'})
     assert 'arm' not in moved(result) and 'standard_low_share' not in moved(result)
     _, result = run(demand='deep', settings={'escalation_mode': 'tiered_typo'})
-    assert head(result) == 'terra-default' and moved(result)['mode'] == 'economical'
+    assert head(result) == 'luna-default' and moved(result)['mode'] == 'economical'
 
 
 # --- escalation from a tiered start ------------------------------------------------------------------------------
@@ -211,4 +211,4 @@ def test_economical_stays_selectable_and_an_unknown_value_is_economical():
     assert escalation.mode_of({'escalation_mode': 'economical'}) == 'economical'
     assert escalation.mode_of({'escalation_mode': 'typo'}) == 'economical'
     _, deep = run(demand='deep', settings={'escalation_mode': 'economical'})
-    assert (head(deep), moved(deep)['mode']) == ('terra-default', 'economical')
+    assert (head(deep), moved(deep)['mode']) == ('luna-default', 'economical')

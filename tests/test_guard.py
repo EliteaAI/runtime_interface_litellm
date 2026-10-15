@@ -167,7 +167,7 @@ def test_a_failed_guard_leaves_the_scope_where_it_was_for_the_next_resolve():
     nxt['messages'] = [{'role': 'user', 'content': 'q'}, {'role': 'assistant', 'content': 'a'}, nxt['messages'][0]]
     nxt['state_token'] = one['state_token']
     again = resolve(nxt, complete=classifier(demand='deep', relation='followup', reference_ids=['m0']), **args)
-    assert again['trace']['selection']['variant'] == 'terra-default' and again['trace']['escalation']['event'] == 'none'
+    assert again['trace']['selection']['variant'] == 'luna-default' and again['trace']['escalation']['event'] == 'none'
 
 
 def test_the_next_turn_signal_escalates_across_models_as_before():
@@ -177,7 +177,7 @@ def test_the_next_turn_signal_escalates_across_models_as_before():
     nxt['messages'] = [{'role': 'user', 'content': 'q'}, {'role': 'assistant', 'content': 'a'}, nxt['messages'][0]]
     nxt['state_token'] = one['state_token']
     again = resolve(nxt, complete=classifier(demand='deep', relation='followup', reference_ids=['m0']), **args)
-    assert again['trace']['selection']['variant'] == 'sol-high' and again['trace']['escalation']['event'] == 'refusal'
+    assert again['trace']['selection']['variant'] == 'terra-default' and again['trace']['escalation']['event'] == 'refusal'
 
 
 def test_the_guard_can_be_asked_again_for_the_same_invocation_and_each_ask_is_a_record():
@@ -187,7 +187,7 @@ def test_the_guard_can_be_asked_again_for_the_same_invocation_and_each_ask_is_a_
 
 def test_the_resolve_trace_names_the_head_the_next_step_would_use():
     _, one = turn()
-    assert one['trace']['escalation']['next'] == 'sol-high'
+    assert one['trace']['escalation']['next'] == 'terra-default'
 
 
 # --- authorization and input ------------------------------------------------------------------------------------
@@ -314,12 +314,12 @@ def test_log_line_and_usage_record_carry_no_answer_or_request_text():
         assert 'SENTINEL' not in text and 'zero trust' not in text
     assert record == {
         'kind': 'auto_routing_escalation', 'scope_id': '1' * 64, 'project_id': 7, 'demand': 'deep',
-        'family': 'quantitative', 'head': 'terra-default', 'escalation_event': 'none', 'escalation_from': 'terra-default',
-        'escalation_to': 'terra-default', 'level': 0, 'mode': 'economical', 'reason': None, 'arm': None,
+        'family': 'quantitative', 'head': 'luna-default', 'escalation_event': 'none', 'escalation_from': 'luna-default',
+        'escalation_to': 'luna-default', 'level': 0, 'mode': 'economical', 'reason': None, 'arm': None,
         'guard_verdict': 'fail', 'guard_code': 'quality_material', 'guard_clause': 'ii', 'guard_error': None,
         'first_answer_id': 'm9', 'first_answer_sha256': guard.sha(SENTINEL), 'ts': 77}
     assert line.startswith('auto-routing guard project=7 scope=11111111 verdict=fail code=quality_material clause=ii ')
-    assert 'escalation=none/terra-default->terra-default' in line and f'answer_sha={guard.sha(SENTINEL)[:12]}' in line
+    assert 'escalation=none/luna-default->luna-default' in line and f'answer_sha={guard.sha(SENTINEL)[:12]}' in line
     assert '\n' not in line
 
 
@@ -328,5 +328,5 @@ def test_a_pass_record_names_the_verdict_and_no_move():
     result = ask(args, one, Judge(PASS), answer_id='m1')
     record = guard.usage_record(7, '1' * 64, result, now=1)
     assert (record['guard_verdict'], record['escalation_event'], record['escalation_to'], record['reason']) == (
-        'pass', 'none', 'terra-default', None)
+        'pass', 'none', 'luna-default', None)
     assert_record_only(result)
