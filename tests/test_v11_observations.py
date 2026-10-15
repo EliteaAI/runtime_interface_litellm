@@ -151,4 +151,6 @@ def test_runtime_loads_compiled_candidate_not_raw_observations(monkeypatch):
     assert not explicit & {v for vs in policy['eligible_by_family'].values() for v in vs}
     from routing.v7.catalog import effort_candidate
     effort_candidate.cache_clear()
-    assert len(compile_catalog()['variants']) == 28
+    # 28 measured/legacy variants plus four heads added from the admission table (#6722).
+    assert len(compile_catalog()['variants']) == 32
+    assert len(compile_catalog(admission=False)['variants']) == 28

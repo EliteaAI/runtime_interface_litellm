@@ -16,6 +16,16 @@ ROOT = Path(__file__).resolve().parents[1]
 DATA = effort_candidate()
 
 
+@pytest.fixture(autouse=True)
+def frozen_v12_family_cells(monkeypatch):
+    # This suite reproduces the frozen V12 measured-effort contracts. The product catalog admits by
+    # the data-derived table (tests/test_admission_*.py); here the family cells still decide.
+    import routing.service as service
+    router = service.GenerationRouter(service.ClassifierTransport(), service.CONFIGURED_CLASSIFIER,
+                                      catalog=compile_catalog(admission=False))
+    monkeypatch.setattr(service, 'compiled_router', lambda: router)
+
+
 def descriptor(family, demand, effort='low'):
     return {'operation': 'analysis', 'task_family': family, 'demand': demand,
             'effort_need': effort, 'relation': 'independent', 'needs_context': False,
@@ -26,7 +36,7 @@ def descriptor(family, demand, effort='low'):
 @pytest.mark.parametrize('row', DATA['records'], ids=lambda r: r['variant']+'-'+r['family'])
 @pytest.mark.parametrize('demand', ['simple', 'standard', 'deep'])
 def test_all_cells_use_unchanged_full_family_outcomes_and_observed_demand(row, demand):
-    router = CalibratedRouter(object())
+    router = CalibratedRouter(object(), 'luna-default', catalog=compile_catalog(admission=False))
     result = router.select(descriptor(row['family'], demand), allowed=['gpt54-high', row['variant']])
     assert (result['variant'] == row['variant']) == (row['eligible_local_beta'] and demand in row['demand_coverage'])
     if result['variant'] == row['variant']:
@@ -37,7 +47,8 @@ def inputs(preset):
     args = fixture()
     contract = DATA['variants'][preset]
     args['models'] = [
-        {'name': 'global.openai.gpt-5.6-luna', 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 1024},
+        # Classifier-only: the context window cannot hold the model's own output maximum.
+        {'name': 'global.openai.gpt-5.6-luna', 'project_id': 7, 'context_window': 1000, 'max_output_tokens': 1024},
         {'name': contract['model'], 'project_id': 7, 'context_window': 128000,
          'max_output_tokens': 32000, 'supports_reasoning': True}]
     args['price_snapshot']['entries'].append(dict(model_name=contract['model'],
@@ -84,17 +95,42 @@ def test_measured_fields_reject_aliases_overrides_and_conflicts(preset, mutation
     with pytest.raises(ValueError): validate_fields(config, body)
 
 
-@pytest.mark.parametrize('change', [{'openai_compatible': True}, {'supports_reasoning': False}, {'max_output_tokens': 8000}])
-def test_unmeasured_native_effort_cannot_override_configuration(change):
-    args = inputs('opus5-high'); args['models'][-1].update(change)
+def test_reasoning_disabled_configuration_still_excludes_a_native_effort():
+    args = inputs('opus5-high'); args['models'][-1].update(supports_reasoning=False)
     req = request('Analyze supplied evidence'); req['selection']['reasoning'] = {'mode': 'explicit', 'preset': 'high'}
     with pytest.raises(RoutingUnavailable):
         resolve(req, complete=lambda *a, **k: pytest.fail('No contract admitted'), **args)
 
 
+def test_compatible_transport_is_provisional_not_excluded_and_unpins_the_native_envelope():
+    # #6722: an OpenAI-compatible deployment of an Anthropic contract is admitted, flagged, and the
+    # pin carries no measured native transport or reasoning envelope.
+    args = inputs('opus5-high'); args['models'][-1].update(openai_compatible=True)
+    req = request('Analyze supplied evidence'); req['selection']['reasoning'] = {'mode': 'explicit', 'preset': 'high'}
+    cell = next(r for r in DATA['records'] if r['variant'] == 'opus5-high' and r['eligible_local_beta'])
+    desc = descriptor(cell['family'], cell['demand_coverage'][0], 'high')
+    result = resolve(req, complete=lambda *a, **k: {'message': {'content': json.dumps(desc)}, 'finish_reason': 'stop'}, **args)
+    assert result['trace']['selection']['variant'] == 'opus5-high'
+    assert result['trace']['inventory']['provisional_contracts']['opus5-high']['flags'] == ['CALIBRATION_TRANSPORT_UNMEASURED']
+    assert 'routing_transport' not in result['config'] and 'routing_reasoning_fields' not in result['config']
+
+
+def test_live_output_maximum_is_the_provider_default_bound():
+    args = inputs('opus5-high'); args['models'][-1].update(max_output_tokens=8000)
+    req = request('Analyze supplied evidence'); req['selection']['reasoning'] = {'mode': 'explicit', 'preset': 'high'}
+    cell = next(r for r in DATA['records'] if r['variant'] == 'opus5-high' and r['eligible_local_beta'])
+    desc = descriptor(cell['family'], cell['demand_coverage'][0], 'high')
+    result = resolve(req, complete=lambda *a, **k: {'message': {'content': json.dumps(desc)}, 'finish_reason': 'stop'}, **args)
+    assert result['config']['max_output_tokens'] == 8000 and result['config']['max_tokens'] is None
+    req['output_cap'] = 8001
+    with pytest.raises(RoutingUnavailable):
+        resolve(req, complete=lambda *a, **k: pytest.fail('No model fits the cap'), **args)
+
+
 def test_original_observations_and_legacy_candidate_remain_reproducible():
     assert len(compile_catalog('v9')['variants']) == 13
-    assert len(compile_catalog()['variants']) == 28
+    assert len(compile_catalog()['variants']) == 32
+    assert len(compile_catalog(admission=False)['variants']) == 28
     assert DATA['original_outcomes'] == {'pass': 1278, 'fail': 210, 'unknown': 12}
     assert sum(r['eligible_local_beta'] for r in DATA['records']) == 248
     assert DATA['production_promotion_allowed'] is False

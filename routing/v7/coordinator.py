@@ -33,16 +33,14 @@ class DispatchClassifier:
     def classify(self,view):
         descriptor,info=(self.tools if 'evidence_coverage' in view else self.text).classify(view)
         if info.get('schema_valid'):
-            raw=(info['response']['message'].get('content')or'').strip()
-            if raw.startswith('```'):raw=re.sub(r'^```(?:json)?\s*|\s*```$','',raw)
-            requested=json.loads(raw).get('effort_need')
+            requested=info['parsed'].get('effort_need')
             descriptor['effort_need']=requested if requested in {'low','medium','high'} else ('medium' if descriptor['demand']=='deep' else 'low')
         return descriptor,info
 
 
 class Router(Coordinator):
     supports_request_contract=True
-    def __init__(self,gateway,classifier_variant='luna-default',*,catalog=None,qualifications=None):
+    def __init__(self,gateway,classifier_variant,*,catalog=None,qualifications=None):
         super().__init__(gateway,classifier_variant,catalog=copy.deepcopy(catalog or compile_catalog()))
         self.qualifications=qualifications or QualificationSnapshot()
         self.revision='v6-'+digest({'algorithm_revision':5,'social_revision':SOCIAL_REVISION,'mechanical_revision':MECHANICAL_REVISION,'catalog':self.catalog,'qualifications':self.qualifications.revision,
@@ -51,13 +49,23 @@ class Router(Coordinator):
         self.view_builder=self._view;self.preprocessor=self._preprocess;self.rule_engine=guarded_rules
         self.classifier=DispatchClassifier(gateway,classifier_variant,self.catalog)
 
+    def admission_context(self):
+        gateway=self.gateway
+        ctx=self.local.get()or{}
+        return {'tier_caps':getattr(gateway,'tier_caps',None)or{},'caps':getattr(gateway,'output_caps',None)or{},
+                'cap_basis':getattr(gateway,'cap_basis','provider_default'),'pre_rejected':ctx.get('pre_rejected')or{}}
+
     def select(self,descriptor,allowed=None,previous=None,min_demand='simple'):
         ctx=self.local.get()or{};allowed=list(allowed)if allowed is not None else list(self.catalog['variants'])
         need=descriptor.get('effort_need','medium' if descriptor['demand']=='deep' else 'low')
         order={'low':1,'medium':2,'high':3}
-        allowed=[v for v in allowed if self.catalog['variants'][v]['effort']is None or order[self.catalog['variants'][v]['effort']]>=order[need]]
+        pre={}  # names of variants removed before the chooser, for the trace
+        kept=[v for v in allowed if self.catalog['variants'][v]['effort']is None or order[self.catalog['variants'][v]['effort']]>=order[need]]
+        pre.update({v:'EFFORT_NEED_FILTER' for v in allowed if v not in kept})
         family=ctx.get('task_family',descriptor['operation']);contract=ctx.get('task_contract','text-tools-v1')
-        allowed=self.qualifications.allowed(allowed,family,contract)
+        allowed=self.qualifications.allowed(kept,family,contract)
+        pre.update({v:'QUALIFICATION_REJECTED' for v in kept if v not in allowed})
+        ctx['pre_rejected']=pre
         selected=super().select(descriptor,allowed,previous,min_demand)
         selected['qualification_records']=self.qualifications.describe(allowed,family,contract)
         selected['effort_need']=need
@@ -82,8 +90,9 @@ class Router(Coordinator):
                 min_demand='simple',session=None,output_cap=None,tools=None,view_bytes=24000,
                 access_revision='local-authorized-v1',trusted_role=None,task_family=None,task_contract='text-tools-v1'):
         hint=copy.deepcopy(hint or {'kind':'chat_turn'})
-        cap=output_cap if output_cap is not None else hint.get('generation_output_cap',8000)
-        if type(cap)is not int or not 256<=cap<=32000:raise ValueError('Completion ceiling must be 256–32000')
+        # No default ceiling: an absent cap means the provider default (the model's own maximum).
+        cap=output_cap if output_cap is not None else hint.get('generation_output_cap')
+        if cap is not None and (type(cap)is not int or cap<256):raise ValueError('Completion ceiling must be at least 256')
         if type(view_bytes)is not int or not 6000<=view_bytes<=64000:raise ValueError('Classifier view budget outside bounds')
         session=session or getattr(scope,'routing_session',None) or Session()
         if scope is not None and not hasattr(scope,'routing_session'):scope.routing_session=session
@@ -101,7 +110,8 @@ class Router(Coordinator):
             decision=super().resolve(messages,mode=mode,binding=binding,hint=hint,previous=previous,
                 scope=scope,allowed=allowed,min_demand=min_demand)
             pinned=decision.get('budget',{}).get('completion_cap',cap)
-            if cap>pinned:raise ValueError('Child completion ceiling exceeds the root pin contract')
+            # None is the provider default: a bounded root pin cannot be widened by it.
+            if pinned is not None and (cap is None or cap>pinned):raise ValueError('Child completion ceiling exceeds the root pin contract')
             decision.setdefault('budget',{'completion_cap':cap,'classifier_view_bytes':view_bytes})
             decision['policy_revision']=self.revision;decision['session_id']=session.id
             # The full manifest stays in session/checkpoint state. The trace is

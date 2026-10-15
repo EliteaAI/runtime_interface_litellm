@@ -49,7 +49,8 @@ def test_unmeasured_model_is_discovered_without_receiving_a_quality_label():
                            'max_output_tokens': 16000})
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
     assert result['trace']['inventory']['discovered'] == 6
-    assert result['trace']['inventory']['qualified_variants'] == 8
+    # Luna also joins luna-high, a variant the admission table added (#6722).
+    assert result['trace']['inventory']['qualified_variants'] == 9
     assert result['trace']['inventory']['excluded'] == [
         {'model': 'new-model', 'model_project_id': 7, 'reason': 'NO_CALIBRATED_MODEL_CONTRACT'}]
 
@@ -59,7 +60,7 @@ def test_removing_discovered_model_removes_all_its_variants_without_catalog_edit
     args['models'] = [m for m in args['models'] if m['name'] != 'gpt-5.4-mini']
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
     assert result['trace']['inventory']['discovered'] == 4
-    assert result['trace']['inventory']['qualified_variants'] == 6
+    assert result['trace']['inventory']['qualified_variants'] == 7
 
 
 @pytest.mark.parametrize('change', ['owner', 'fingerprint', 'unavailable', 'limit'])

@@ -55,6 +55,43 @@ dispatch requires the exact owner-prefixed LiteLLM deployment; it never falls
 back to a same-name shared deployment or raw model name when that deployment
 disappears. Existing manual dispatch retains its previous mapping behavior.
 
+Catalog and calibration variants declare `canonical_model` next to the exact
+measured name (#6826). Inventory items carrying a Configurations `identity` join
+a variant by canonical identity (chat kind, D6 request contract; web-search
+deployments never join); items without `identity` join by exact name. One
+deployment is bound per variant (`inventory.rank_deployments`: explicit identity,
+project-owned, preferred contract, the measured deployment name, shortest,
+lexicographic); losers appear as `DUPLICATE_CANONICAL_DEPLOYMENT` with the selected
+winner. Price never enters the ranking, so the binding is a function of the inventory.
+If the bound deployment fails the price or cache-write price gate, admission runs every
+gate on the next ranked duplicate and binds the first that passes
+(`inventory.rebound`, `rebound_from`); every tried deployment and its failed gate is in
+`inventory.rebound_attempts`, and `unmeasured_contracts` names the deployment it came from.
+Any other gate failure on a duplicate stops the variant; further duplicates are not tried.
+The preflight quotes winners and the classifier first and duplicates only up to the
+64-name Costs bound; duplicates beyond it are listed in `inventory.unquoted_alternates`
+and count as unpriced. A renewal (prior pin) keeps its pinned deployment while it is
+still a ranked candidate and passes the gates, so a later price row cannot flip an
+in-flight run (`rebound.reason: PINNED_DEPLOYMENT`).
+
+Pool signals, request-independent, in `trace.inventory` and from the RPC
+`runtime_interface_litellm_auto_preflight(project_id, user_id)` (Configurations readiness
+will consume it in a follow-up): `no_priced_deployment` (canonical model -> deployments with
+the remedy "add a Costs price alias for <name>"), `transport_unmeasured` (canonical models
+whose every variant has a contract their deployments' transport cannot meet) and
+`low_tier_priced` (the trace reports whether a low-tier deployment is admitted for this
+request; the RPC whether one is priced). DIAL serves Anthropic models as
+OpenAI-compatible, so every Anthropic calibration contract (`anthropic_messages`) does not
+match their transport there. Since #6722 that is no longer a hard gate: such a variant is
+admitted at provisional tier with `CALIBRATION_TRANSPORT_UNMEASURED` in the trace
+(`inventory.provisional_contracts`, `selection.admission.flags`), and `transport_unmeasured`
+keeps listing the canonical model as a readiness signal. A canonical match only
+joins an existing measured contract; it never adds quality evidence. The classifier
+is the configured deployment from `settings['classifier']` (project, else platform),
+resolved by name and owner in the visible inventory and called without effort.
+Missing or unusable settings fail with a reason code (`CLASSIFIER_NOT_CONFIGURED`,
+`CLASSIFIER_UNAVAILABLE`, `CLASSIFIER_PRICE_UNAVAILABLE`, `NO_QUALIFIED_MODELS`).
+
 Product Auto always returns a generation binding, never a router-authored chat
 reply. `service.GenerationRouter` converts ancestor clarification decisions
 (missing input, ambiguous references or non-unique pending tasks) through the
@@ -91,3 +128,53 @@ actor-aware discovery, shared-only retention, configuration revocation/replaceme
 no-call greetings, same-run renewal, exact-owner relay and existing manual/Usage
 behavior. Live acceptance is separate from these tests and from model-quality
 calibration.
+
+## Interim admission table and output ceiling (#6722)
+
+Product routing admits by `v7/admission-table.json`, not by the catalog `tasks`,
+`max_demand` and `preferences` tables or `qualification-policy.json`. The table is
+generated offline from the R81 reviewed-demand view by `v7/build_admission_table.py`
+(stdlib; the dataset is an input and is never committed):
+
+```sh
+python routing/v7/build_admission_table.py /path/to/dataset-r81/dataset.jsonl --generated-at YYYY-MM-DD
+python -m pytest --rootdir=tests tests/test_admission_table_builder.py -q   # pinned digest, numbers
+```
+
+Per canonical head (`vendor/family|effort`) and demand it holds counts, a one-sided 90%
+Jeffreys lower bound, a paired adverse count against the best head, a tier (`eligible`,
+`provisional` at deep only, `out`) and the cell's p90 output tokens. A head or demand
+without a row is out. The chooser takes the cheapest admitted variant by the economics
+ranking; a provisional winner is flagged in `trace.selection`. An uncertain descriptor
+goes to the cheapest variant that clears the deep floor and only to the baseline when
+nothing does. `trace.policy` names the table digest and rule revision; the digest is part
+of `policy_revision`, so a new table refuses pins issued under the old one.
+
+An absent `output_cap` is the provider default (`config.max_tokens` is `None`): the cap
+is never defaulted or bounded above except by the model's own `max_output_tokens`. A
+cap below the cell's p90 output rejects that variant (`CALIBRATION_ALLOWANCE_BELOW_P90`),
+and ranking prices the cell p90, never the provider maximum. An Anthropic deployment
+behind an OpenAI-compatible transport is admitted at provisional tier with
+`CALIBRATION_TRANSPORT_UNMEASURED`. Greeting still reads the legacy `tasks` and
+`preferences`; the frozen V9/V12 family cells remain for the lab suites
+(`compile_catalog(admission=False)`).
+
+Diagnostics (names and codes only, never request text): `trace.inventory.gate_failures`
+maps every qualified variant that was not admitted to the gate that removed it
+(`CONTEXT_WINDOW`, `PRICE`, `CACHE_WRITE_PRICE`, `OUTPUT_LIMIT`, `THINKING_BUDGET`,
+`CONFIGURATION_REASONING_DISABLED`, ...) and `trace.inventory.input_bytes` is the size the
+context gate used (`max` of the projected history and the SDK's `generation_input_bytes`).
+`trace.selection.admission.rejections` maps every chooser candidate that was rejected to its
+reasons (`ADMISSION_NO_ROW`, `ADMISSION_ROW_OUT`, `CALIBRATION_ALLOWANCE_BELOW_P90`,
+`EFFORT_NEED_FILTER`, `QUALIFICATION_REJECTED`, `outside configured PoC pool`). Each
+`resolve_auto_routing` call also logs one INFO line `auto-routing decision project=... scope=...
+classifier=... descriptor=op/demand/relation/family/effort selection=variant/reason/tier
+model=... cap=... admitted=n/m gate_failures=vid:CODE,... rejections=vid:CODE,...`
+(`refused=<reason>` for a refusal), readable in pylon_main logs.
+
+Input size is measured in UTF-8 bytes (`MAX_REQUEST_BYTES`, `trace.inventory.input_bytes`) but
+context windows and prices are in tokens, so the context-window gate and every price quote use
+`estimated_input_tokens(size) = ceil(size / 3)` (`routing/pricing.py`, trace
+`inventory.input_tokens_estimate` and `input_estimator`). Three bytes per token is conservative:
+English prose is about four, code and JSON about three. The SDK's per-turn runtime-context
+blocks are real prompt content and stay counted.

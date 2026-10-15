@@ -40,14 +40,18 @@ def test_new_profile_uses_one_classifier_call_and_is_in_trace():
     assert result['trace']['descriptor']['demand'] == 'simple'
 
 
-def test_invalid_profile_abstains_without_second_classifier_call():
+def test_invalid_profile_is_dropped_without_second_classifier_call():
     calls = []
     def complete(*a, **k):
         calls.append(1)
         return {'message':{'content':json.dumps({**DESC, 'work_profile':{**PROFILE,'work':'arbitrary'}})}, 'finish_reason':'stop'}
     result = resolve(request('Write an announcement.'), complete=complete, **fixture())
     assert len(calls) == 1
-    assert result['trace']['descriptor']['operation'] == 'other'
+    # The profile is advisory: a defect drops it, never the validated label.
+    assert result['trace']['classifier']['schema_valid'] is True
+    assert result['trace']['classifier']['profile_error'] == 'WORK_PROFILE_ENUM'
+    assert result['trace']['descriptor']['operation'] == DESC['operation']
+    assert 'work_profile' not in result['trace']['descriptor']
     assert result['action'] == 'generate'  # The model still answers.
 
 

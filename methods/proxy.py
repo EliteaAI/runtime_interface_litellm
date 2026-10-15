@@ -449,9 +449,9 @@ class Method:  # pylint: disable=E1101,R0903,W0201
             proxy_target['headers'].remove('X-Elitea-Routing-Invocation')
             auto_binding = proxy_auth.get('_auto_model_binding')
             if routing_pin:
-                from ..routing.service import decode_pin, RoutingUnavailable
+                from ..routing.service import decode_pin, RoutingUnavailable, auto_routing_settings
                 try:
-                    settings = context.rpc_manager.timeout(10).configurations_get_auto_routing_settings(project_id)
+                    settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, user_id)
                     pin = decode_pin(routing_pin, llm_key, project_id=project_id, user_id=user_id, settings=settings, invocation_id=routing_invocation)
                     if routing_invocation != pin.get('invocation_id'):
                         raise RoutingUnavailable('Routing invocation mismatch')
@@ -480,12 +480,8 @@ class Method:  # pylint: disable=E1101,R0903,W0201
                             validate_fields(pin['config'], body)
                         elif body.get('thinking') is not None or body.get('reasoning'):
                             raise RoutingUnavailable('Pinned provider-default reasoning changed')
-                    output_limit = body.get('max_completion_tokens', body.get('max_tokens', body.get('max_output_tokens')))
-                    if type(output_limit) is not int or output_limit > pin['config']['max_tokens']:
-                        raise RoutingUnavailable('Pinned output allowance exceeded')
-                    if output_limit < pin['config'].get('routing_min_output_cap', 0):
-                        raise RoutingUnavailable('Pinned measured output allowance reduced')
-                    from ..routing.effort import FIELDS
+                    from ..routing.effort import FIELDS, check_output_limit
+                    check_output_limit(pin['config'], body)
                     pinned_envelope = {k: v for k, v in body.items() if k in FIELDS | {
                         'model', 'max_tokens', 'max_completion_tokens', 'max_output_tokens'}}
                 except (ValueError, KeyError, TypeError):

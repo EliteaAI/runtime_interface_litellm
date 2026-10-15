@@ -139,6 +139,40 @@ def validate_descriptor(value, view):
     return value
 
 
+CONFIGURED_CLASSIFIER = "configured-classifier"
+_LEADING_FENCE = re.compile(r"^```(?:json)?\s*", re.I)
+
+
+def decode_classifier_json(text):
+    """Return (object, trailing_chars) for the first JSON object in a response.
+
+    Models often wrap the object in a fence and append prose after it, so the
+    first complete object is the contract and everything after it is ignored.
+    ``trailing_chars`` counts what followed the object, excluding whitespace and
+    a bare closing fence.
+    """
+    text = (text if isinstance(text, str) else "").lstrip("\ufeff").strip()
+    text = _LEADING_FENCE.sub("", text, count=1)
+    start = text.find("{")
+    if start < 0:
+        raise ValueError("Classifier response is not a JSON object")
+    try:
+        value, end = json.JSONDecoder().raw_decode(text, start)
+    except ValueError as e:
+        raise ValueError("Classifier response is not a JSON object") from e
+    if not isinstance(value, dict):
+        raise ValueError("Classifier response is not a JSON object")
+    rest = text[end:].strip()
+    if rest.startswith("```"):
+        rest = rest[3:].strip()
+    return value, len(rest)
+
+
+def parse_classifier_json(text):
+    """Parse the first JSON object from a classifier response; see above."""
+    return decode_classifier_json(text)[0]
+
+
 class Classifier:
     def __init__(self, gateway, variant="mini-low", system_prompt=None, catalog=None):
         self.gateway, self.variant = gateway, variant
@@ -146,7 +180,10 @@ class Classifier:
         self.catalog = catalog or CATALOG
 
     def classify(self, view):
-        config = self.catalog["variants"][self.variant]
+        # Product Auto names no catalog variant: its gateway supplies the exact
+        # configured deployment per request. Lab callers name a catalog variant.
+        config = (self.gateway.classifier_contract if self.variant == CONFIGURED_CLASSIFIER
+                  else self.catalog["variants"][self.variant])
         payload = [{"role": "system", "content": self.system_prompt},
                    {"role": "user", "content": json.dumps(view, ensure_ascii=False)}]
         result = self.gateway.complete(config["model"], payload, effort=config["effort"], max_tokens=900)
@@ -154,20 +191,24 @@ class Classifier:
         try:
             if result["finish_reason"] != "stop":
                 raise ValueError("Classifier response incomplete")
-            text = (result["message"].get("content") or "").strip()
-            if text.startswith("```"):
-                text = re.sub(r"^```(?:json)?\s*|\s*```$", "", text)
-            descriptor = validate_descriptor(json.loads(text), view)
+            parsed, trailing = decode_classifier_json(result["message"].get("content"))
+            info.update(parsed=parsed, trailing_chars=trailing)
+            descriptor = validate_descriptor(dict(parsed), view)
         except (ValueError, KeyError) as e:
             info.update(schema_valid=False, error=str(e))
             descriptor = unknown("Classifier result invalid; baseline required")
         return descriptor, info
 
 
-def choose(descriptor, allowed=None, previous=None, min_demand="simple", catalog=None):
+def choose(descriptor, allowed=None, previous=None, min_demand="simple", catalog=None, context=None):
     catalog = catalog or CATALOG
     allowed = set(allowed) if allowed is not None else set(catalog["variants"])
     op = descriptor["operation"]
+    if catalog.get("admission") is not None and op != "greeting":
+        # Product catalogs admit by the data-derived table; the tables below remain for the
+        # greeting rule and for lab catalogs without an admission section.
+        from .admission import choose_admitted
+        return choose_admitted(descriptor, allowed, previous, min_demand, catalog, context)
     floor = max(DEMAND[descriptor["demand"]], DEMAND[min_demand])
     uncertain = descriptor["needs_context"] or descriptor["relation"] == "ambiguous" or op == "other"
     if uncertain:
@@ -304,5 +345,9 @@ class Coordinator:
             "input_digest": hashlib.sha256(json.dumps(messages, sort_keys=True).encode()).hexdigest()}
         return decision
 
+    def admission_context(self):
+        """Per-request facts the admission chooser needs from the gateway; none for lab gateways."""
+        return {}
+
     def select(self, descriptor, allowed=None, previous=None, min_demand="simple"):
-        return choose(descriptor, allowed, previous, min_demand, self.catalog)
+        return choose(descriptor, allowed, previous, min_demand, self.catalog, context=self.admission_context())
