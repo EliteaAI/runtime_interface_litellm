@@ -21,8 +21,18 @@ SAMPLE = ROOT / 'tests' / 'fixtures' / 'admission-view-sample.jsonl.gz'
 DATASET = Path(os.environ.get('R81_DATASET', '/Users/romanmitusov/Documents/Work/.claude/autorouting_impl/'
                                               'dataset-r81/dataset.jsonl'))
 # Changing the table changes this digest, the policy revision and every pin issued before it.
-SHIPPED_TABLE_SHA256 = '5eef4a1a250aa781c0a11d7b52ffd2eb494301860d9eb1e0f5c4cb4413cf8d31'
+SHIPPED_TABLE_SHA256 = '0d2320a526469f6cf12ad4313148b250bfe75b06e23cbb0890273491305e4692'
 SHIPPED_DATASET_SHA256 = 'f5509ecf25fa1e4d49079c8f9f677c4c132d549078079c94ec4adefa548d826d'
+LABEL_REVISION = 'material-r2'
+# The label set the table of record was built from (15,950 rows, no text). It is not committed; the rebuild test
+# below runs where the file exists.
+LABEL_SET = Path(os.environ.get('MATERIAL_R2_LABEL_SET', '/Users/romanmitusov/Documents/Work/.claude/autorouting_impl/'
+                                                         'admission-rebuild-material-r2/label-set-material-r2.jsonl'))
+LABEL_SET_SHA256 = '98a78853fa8ac5a64b4981c7108ed43bd71be2956f965bfbf4ffa79ee623eafb'
+# The previous table (wave outcomes as labels, rule revision unchanged) is kept as a fixture: the field-reduced
+# sample below reproduces it, and the diff test states what the labels of record changed.
+PREVIOUS = ROOT / 'tests' / 'fixtures' / 'admission-table-previous-wave-outcome.json'
+PREVIOUS_TABLE_SHA256 = '5eef4a1a250aa781c0a11d7b52ffd2eb494301860d9eb1e0f5c4cb4413cf8d31'
 
 LUNA, LUNA_H = 'openai/gpt-5-6-luna|default', 'openai/gpt-5-6-luna|high'
 TERRA, SOL, SOL_H = 'openai/gpt-5-6-terra|default', 'openai/gpt-5-6-sol|default', 'openai/gpt-5-6-sol|high'
@@ -96,16 +106,65 @@ def test_expected_output_p90_is_recorded_per_cell(sample):
 
 
 # --- the sample agrees with the shipped table and the full dataset ----------------------------------------------
-def test_sample_cells_equal_the_shipped_table_cells(sample):
-    shipped = json.loads(TABLE.read_text())
+def test_sample_cells_equal_the_previous_table_cells(sample):
+    # The sample carries the wave outcomes, which were the labels of the previous table; the table of record
+    # is built from the material-r2 labels instead (see the diff and rebuild tests below).
+    previous = json.loads(PREVIOUS.read_text())
     for head, entry in sample['heads'].items():
-        assert entry['cells'] == shipped['heads'][head]['cells'], head
+        assert entry['cells'] == previous['heads'][head]['cells'], head
 
 
 def test_shipped_table_digest_is_pinned():
     assert hashlib.sha256(TABLE.read_bytes()).hexdigest() == SHIPPED_TABLE_SHA256
     table = json.loads(TABLE.read_text())
     assert table['dataset_sha256'] == SHIPPED_DATASET_SHA256 and table['rule_revision'] == builder.RULE_REVISION
+    assert table['label_revision'] == LABEL_REVISION and table['rows_kept'] == 2029
+
+
+def test_previous_table_fixture_is_the_one_that_shipped_before():
+    assert hashlib.sha256(PREVIOUS.read_bytes()).hexdigest() == PREVIOUS_TABLE_SHA256
+    assert 'label_revision' not in json.loads(PREVIOUS.read_text())
+
+
+def test_the_loader_serves_the_table_and_ignores_the_label_revision_key():
+    from routing.v7 import admission
+    loaded = admission.load()
+    assert loaded['sha256'] == SHIPPED_TABLE_SHA256 and loaded['dataset_sha256'] == SHIPPED_DATASET_SHA256
+    assert set(loaded) == {'rule_revision', 'sha256', 'dataset_sha256', 'heads'}
+
+
+def tiers(table):
+    return {(head, demand): cell_['tier'] for head, entry in table['heads'].items()
+            for demand, cell_ in entry['cells'].items()}
+
+
+def test_labels_of_record_change_seven_cells_admit_five_heads_and_remove_none():
+    """TABLE-DIFF of the rebuild, stated as a test: only the new labels of record move tiers."""
+    old, new = tiers(json.loads(PREVIOUS.read_text())), tiers(json.loads(TABLE.read_text()))
+    admitted = {'eligible', 'provisional'}
+    changed = {k: (old[k], new[k]) for k in old if old[k] != new[k]}
+    assert changed == {
+        ('anthropic/claude-opus-4-7|default', 'simple'): ('out', 'eligible'),
+        ('anthropic/claude-opus-5-5|default', 'deep'): ('out', 'eligible'),
+        ('anthropic/claude-opus-5-5|high', 'deep'): ('provisional', 'eligible'),
+        ('anthropic/claude-sonnet-5-5|default', 'deep'): ('provisional', 'eligible'),
+        ('openai/gpt-5-4|default', 'standard'): ('out', 'eligible'),
+        ('openai/gpt-5-6-luna|default', 'deep'): ('out', 'eligible'),
+        ('openai/gpt-5-6-luna|high', 'deep'): ('out', 'provisional')}
+    assert set(old) == set(new)  # no head or demand appears or disappears
+    assert sum(1 for k in changed if old[k] not in admitted and new[k] in admitted) == 5
+    assert not [k for k in changed if old[k] in admitted and new[k] not in admitted]
+
+
+def test_deep_cell_of_record_luna_is_eligible_and_the_best_head_stays_sol_high():
+    table = json.loads(TABLE.read_text())
+    luna, sol = cell(table, LUNA, 'deep'), cell(table, SOL_H, 'deep')
+    assert (luna['pass'], luna['n'], luna['tier']) == (63, 65, 'eligible') and round(luna['lb90'], 3) == 0.931
+    assert (luna['adverse'], luna['paired_n'], luna['best_head']) == (1, 38, SOL_H)
+    assert (sol['pass'], sol['n'], sol['tier']) == (38, 38, 'eligible') and round(sol['lb90'], 3) == 0.965
+    assert cell(table, TERRA, 'deep')['tier'] == 'provisional'  # 2 adverse in 38 is still above 0.05
+    assert cell(table, LUNA_H, 'deep')['tier'] == 'provisional'
+    assert {cell(table, h, 'deep')['tier'] for h in (OPUS, OPUS_H, SONNET)} == {'eligible'}
 
 
 def test_shipped_table_holds_counts_and_rates_only():
@@ -123,11 +182,44 @@ def test_shipped_table_holds_counts_and_rates_only():
 
 
 @pytest.mark.skipif(not DATASET.exists(), reason='offline R81 dataset not available on this machine')
-def test_full_dataset_rebuild_reproduces_the_shipped_table_byte_for_byte():
+def test_full_dataset_rebuild_with_wave_outcomes_reproduces_the_previous_table_byte_for_byte():
+    # The builder is unchanged: with the wave outcomes as labels it still yields the table that shipped before.
+    previous = json.loads(PREVIOUS.read_text())
+    rebuilt = builder.build(DATASET, generated_at=previous['generated_at'])
+    assert builder.dumps(rebuilt) == PREVIOUS.read_text()
+    assert rebuilt['dataset_sha256'] == SHIPPED_DATASET_SHA256
+
+
+def label_pass_map(path):
+    """{dataset line: passed} from the label set: a labelled row passes iff its label is pass; refusal and
+    incomplete rows are non-pass; every other excluded row has no label of record and leaves the view."""
+    passed = {}
+    with open(path, encoding='utf-8') as handle:
+        for text in handle:
+            row = json.loads(text)
+            if row['label'] in ('pass', 'fail'):
+                passed[row['source_line']] = row['label'] == 'pass'
+            elif row['outcome'] in ('refusal', 'incomplete'):
+                passed[row['source_line']] = False
+    return passed
+
+
+@pytest.mark.skipif(not (DATASET.exists() and LABEL_SET.exists()), reason='offline dataset or label set not available')
+def test_full_dataset_rebuild_with_the_material_r2_labels_reproduces_the_shipped_table_byte_for_byte(monkeypatch):
+    assert hashlib.sha256(LABEL_SET.read_bytes()).hexdigest() == LABEL_SET_SHA256
+    passed = label_pass_map(LABEL_SET)
+    original = builder.iter_view
+
+    def labelled_view(path):
+        for row in original(path):
+            if row['line'] in passed:
+                yield dict(row, passed=passed[row['line']])
+    monkeypatch.setattr(builder, 'iter_view', labelled_view)
     shipped = json.loads(TABLE.read_text())
     rebuilt = builder.build(DATASET, generated_at=shipped['generated_at'])
+    rebuilt['label_revision'] = LABEL_REVISION
+    rebuilt['rule']['pass'] = 'label of the material-r2 label set (dataset-r3), refusal/incomplete = non-pass'
     assert builder.dumps(rebuilt) == TABLE.read_text()
-    assert rebuilt['dataset_sha256'] == SHIPPED_DATASET_SHA256
 
 
 def test_build_is_deterministic(sample):
