@@ -108,7 +108,7 @@ def test_preflight_reads_actor_inventory_and_keeps_shared_only_candidates(relay,
         {'project_id': 7, 'user': {'id': 42}})
     assert result['action'] == 'generate'
     assert result['trace']['inventory']['discovered'] == 5
-    assert result['trace']['inventory']['qualified_variants'] == 9
+    assert result['trace']['inventory']['qualified_variants'] == 10  # incl. gpt-5-4-default, admitted at standard (material-r2)
     assert relay.seen == [(7, 42)]
 
 

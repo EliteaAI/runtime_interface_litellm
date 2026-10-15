@@ -193,7 +193,9 @@ def test_unavoidable_source_omission_still_selects_generation_without_synthetic_
     req=request();req['messages']=messages
     result=resolve(req,complete=lambda *a,**k:pytest.fail('Unavailable required sources must not call classifier'),**args)
     assert result['action'] == 'generate'
-    assert result['config']['model_name'] == 'gpt-5.4'
+    # Uncertain input goes to the cheapest head that clears the deep floor: luna-default in the material-r2 table.
+    assert result['trace']['selection']['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+    assert result['config']['model_name'] == 'global.openai.gpt-5.6-luna'
     assert result['trace']['descriptor']['needs_context'] is True
     assert result['trace']['classifier']['error'] == 'REQUIRED_SOURCE_COVERAGE_UNAVAILABLE'
     assert result['trace']['classifier']['called'] is False

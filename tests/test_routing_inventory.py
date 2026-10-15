@@ -49,8 +49,9 @@ def test_unmeasured_model_is_discovered_without_receiving_a_quality_label():
                            'max_output_tokens': 16000})
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
     assert result['trace']['inventory']['discovered'] == 6
-    # Luna also joins luna-high, a variant the admission table added (#6722).
-    assert result['trace']['inventory']['qualified_variants'] == 9
+    # Luna also joins luna-high, a variant the admission table added (#6722); the material-r2 table adds
+    # gpt-5-4-default (admitted at standard) on the gpt-5.4 deployment.
+    assert result['trace']['inventory']['qualified_variants'] == 10
     assert result['trace']['inventory']['excluded'] == [
         {'model': 'new-model', 'model_project_id': 7, 'reason': 'NO_CALIBRATED_MODEL_CONTRACT'}]
 
@@ -60,7 +61,7 @@ def test_removing_discovered_model_removes_all_its_variants_without_catalog_edit
     args['models'] = [m for m in args['models'] if m['name'] != 'gpt-5.4-mini']
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
     assert result['trace']['inventory']['discovered'] == 4
-    assert result['trace']['inventory']['qualified_variants'] == 7
+    assert result['trace']['inventory']['qualified_variants'] == 8
 
 
 @pytest.mark.parametrize('change', ['owner', 'fingerprint', 'unavailable', 'limit'])
@@ -84,7 +85,7 @@ def test_continuation_cannot_silently_replace_its_configuration(change):
 @pytest.mark.parametrize('reverse', [False, True])
 def test_actual_selection_uses_project_limits_in_both_orders(reverse):
     args = fixture()
-    name = 'gpt-5.4'
+    name = 'global.openai.gpt-5.6-luna'  # deep work is admitted to luna-default by the material-r2 table
     private = next(m for m in args['models'] if m['name'] == name)
     private['context_window'] = 64000
     args['models'].append({**private, 'project_id': 1, 'shared': True, 'context_window': 512000})
