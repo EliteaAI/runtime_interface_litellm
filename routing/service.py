@@ -315,7 +315,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if not isinstance(tools, list) or len(tools) > 256:
         raise RoutingUnavailable('Unsupported tool inventory')
     modalities = request.get('required_modalities') or []
-    if not isinstance(modalities, list) or not set(modalities) <= {'image'}:
+    if not isinstance(modalities, list) or not all(isinstance(m, str) for m in modalities) \
+            or not set(modalities) <= {'image'}:
         raise RoutingUnavailable('Unsupported input modality')
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
     router = compiled_router()
