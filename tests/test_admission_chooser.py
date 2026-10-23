@@ -56,12 +56,25 @@ def test_every_current_variant_with_a_simple_row_is_a_candidate():
 
 
 # --- admission by the table: deep -------------------------------------------------------------------------------
-def test_deep_work_goes_to_the_cheapest_provisional_head_and_says_so():
+def test_deep_work_goes_to_luna_default_the_cheapest_eligible_head():
+    # material-r2 table: luna-default is eligible at deep (63/65, lb90 0.931, 1 adverse in 38 vs sol-high), so the
+    # price ordering over the eligible heads picks it; admission is not selection.
     result = run(demand='deep')
+    assert selected(result) == ('luna-default', 'eligible', False)
+    assert result['trace']['selection']['admission']['tier'] == 'eligible'
+    quotes = result['trace']['selection']['economics']['quotes']
+    assert set(quotes) == {'luna-default', 'luna-high', 'terra-default', 'sol-high', 'sonnet-5-5-default',
+                           'opus-5-5-default', 'opus-5-5-high'}
+
+
+def test_deep_work_goes_to_the_cheapest_provisional_head_and_says_so():
+    # terra-default stays provisional at deep (2 adverse in 38); with luna and the Anthropic heads absent it is the
+    # cheapest admitted head and the trace carries the flag.
+    result = run(keys=('terra', 'sol'), demand='deep')
     assert selected(result) == ('terra-default', 'provisional', True)
     assert result['trace']['selection']['admission']['tier'] == 'provisional'
     quotes = result['trace']['selection']['economics']['quotes']
-    assert set(quotes) == {'terra-default', 'sol-high', 'sonnet-5-5-default', 'opus-5-5-high'}  # luna is out at deep
+    assert set(quotes) == {'terra-default', 'sol-high'}
 
 
 def test_an_eligible_head_that_is_cheaper_wins_without_the_provisional_flag():
@@ -69,14 +82,14 @@ def test_an_eligible_head_that_is_cheaper_wins_without_the_provisional_flag():
     assert selected(run(demand='deep', inventory={'prices': prices})) == ('sol-high', 'eligible', False)
 
 
-def test_with_terra_gated_the_next_cheapest_admitted_head_is_chosen():
-    result = run(keys=('luna', 'sonnet55', 'opus55', 'gpt54'), demand='deep')
-    assert selected(result) == ('sonnet-5-5-default', 'provisional', True)  # a DIAL-less native Anthropic head
+def test_with_the_openai_heads_gated_the_next_cheapest_admitted_head_is_chosen():
+    result = run(keys=('sonnet55', 'opus55', 'gpt54'), demand='deep')
+    assert selected(result) == ('sonnet-5-5-default', 'eligible', False)  # a DIAL-less native Anthropic head
     assert result['config']['routing_transport'] == 'anthropic_messages'
 
 
 def test_when_nothing_clears_the_deep_floor_the_baseline_is_used():
-    result = run(keys=('luna', 'gpt54', 'haiku'), demand='deep')
+    result = run(keys=('gpt54', 'haiku'), demand='deep')  # neither is admitted at deep in the table
     selection = result['trace']['selection']
     assert selection['variant'] == 'gpt54-medium' and selection['reason'] == 'UNCERTAIN_TASK_BASELINE'
     assert selection['tier'] is None and selection['provisional'] is False
@@ -85,13 +98,18 @@ def test_when_nothing_clears_the_deep_floor_the_baseline_is_used():
 
 
 def test_the_baseline_honours_the_effort_need_filter():
-    result = run(keys=('luna', 'gpt54'), demand='deep', effort_need='high')
-    assert result['trace']['selection']['variant'] == 'gpt54-high'
+    result = run(keys=('gpt54', 'haiku'), demand='deep', effort_need='high')
+    selection = result['trace']['selection']
+    # The medium and low efforts of the baseline model are filtered by the need. The table now admits gpt-5-4
+    # at standard, which adds a provider-default-effort variant (always kept by the filter); the baseline
+    # takes the lowest effort among the usable variants of its model, so it is chosen over gpt54-high.
+    assert selection['admission']['rejections']['gpt54-medium'][0] == 'EFFORT_NEED_FILTER'
+    assert selection['variant'] == 'gpt-5-4-default'
 
 
 def test_no_baseline_and_nothing_admitted_is_a_refusal_not_a_guess():
     with pytest.raises(ValueError, match='No eligible configured model'):
-        run(keys=('luna', 'haiku'), demand='deep')
+        run(keys=('haiku',), demand='deep')
 
 
 # --- uncertain descriptors ---------------------------------------------------------------------------------------
@@ -106,6 +124,14 @@ UNCERTAIN = {
 def test_uncertain_descriptor_goes_to_the_cheapest_variant_clearing_the_deep_floor(name):
     result = run(demand='simple', **UNCERTAIN[name])
     selection = result['trace']['selection']
+    assert (selection['variant'], selection['reason']) == ('luna-default', 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR')
+    assert selection['admission']['demand'] == 'deep' and selection['provisional'] is False
+
+
+@pytest.mark.parametrize('name', sorted(UNCERTAIN))
+def test_uncertain_descriptor_without_luna_in_the_pool_keeps_the_provisional_flag(name):
+    result = run(keys=('terra', 'sol'), demand='simple', **UNCERTAIN[name])
+    selection = result['trace']['selection']
     assert (selection['variant'], selection['reason']) == ('terra-default', 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR')
     assert selection['admission']['demand'] == 'deep' and selection['provisional'] is True
 
@@ -113,7 +139,7 @@ def test_uncertain_descriptor_goes_to_the_cheapest_variant_clearing_the_deep_flo
 def test_ambiguous_relation_and_clarify_paths_also_pick_the_cheapest_clearing_variant():
     result = run(demand='simple', relation='ambiguous', needs_context=True, input_status='ambiguous')
     selection = result['trace']['selection']
-    assert (selection['variant'], selection['reason']) == ('terra-default', 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR')
+    assert (selection['variant'], selection['reason']) == ('luna-default', 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR')
     assert result['trace']['uncertainty']['handling'] == 'generation_model'
     # The converted clarify path is ranked by expenditure too: Sol would win if it were cheaper.
     cheap_sol = run(demand='simple', relation='ambiguous', needs_context=True, input_status='ambiguous',
@@ -127,11 +153,11 @@ def test_an_unparseable_classifier_reply_is_uncertain_not_a_cheap_route():
     result = resolve(request(), complete=classifier(raw='not json'), **args)
     assert result['trace']['classifier']['schema_valid'] is False
     assert result['trace']['selection']['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
-    assert result['trace']['selection']['variant'] == 'terra-default'
+    assert result['trace']['selection']['variant'] == 'luna-default'
 
 
 def test_uncertain_with_nothing_clearing_the_floor_keeps_the_baseline():
-    result = run(keys=('luna', 'gpt54'), demand='simple', needs_context=True, input_status='missing')
+    result = run(keys=('gpt54', 'haiku'), demand='simple', needs_context=True, input_status='missing')
     assert result['trace']['selection']['reason'] == 'UNCERTAIN_TASK_BASELINE'
     assert result['trace']['selection']['variant'] == 'gpt54-medium'
 
@@ -191,7 +217,8 @@ def test_candidate_rows_record_why_a_variant_was_not_admitted():
     router = CalibratedRouter(object(), CONFIGURED_CLASSIFIER, catalog=compile_catalog())
     chosen = router.select({**descriptor('deep'), 'effort_need': 'low'})
     rows = {r['variant']: r for r in chosen['candidates']}
-    assert rows['luna-default']['rejections'] == ['ADMISSION_ROW_OUT']
+    assert rows['sol-default']['rejections'] == ['ADMISSION_ROW_OUT']  # 5/5 at deep is below the evidence floor
+    assert rows['luna-default']['tier'] == 'eligible' and rows['luna-default']['eligible']
     assert rows['gpt54-medium']['rejections'] == ['ADMISSION_NO_ROW']
     assert rows['terra-default']['tier'] == 'provisional' and rows['terra-default']['eligible']
 
