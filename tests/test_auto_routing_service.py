@@ -437,3 +437,30 @@ def test_projected_task_cannot_reduce_full_generation_size_bound():
     req['generation_input_bytes']=-1
     with pytest.raises(RoutingUnavailable,match='size bound'):
         resolve(req,complete=lambda *a,**k:None,**fixture())
+
+
+def test_image_request_keeps_only_vision_models_and_pins_vision():
+    args = fixture()
+    blind = {m['name'] for m in args['models'] if 'gpt' in m['name']}
+    for model in args['models']:
+        if model['name'] in blind:
+            model['supports_vision'] = False
+    result = resolve({**request(), 'required_modalities': ['image']}, complete=lambda *a, **k: None, **args)
+    assert result['config']['model_name'] not in blind
+    assert result['config']['supports_vision'] is True
+    assert result['trace']['inventory']['vision_fallback'] is False
+    assert any(f == ['VISION_UNSUPPORTED'] for f in result['trace']['inventory']['gate_failures'].values())
+
+
+def test_image_request_falls_back_to_text_only_model_when_none_has_vision():
+    args = fixture()
+    for model in args['models']:
+        model['supports_vision'] = False
+    result = resolve({**request(), 'required_modalities': ['image']}, complete=lambda *a, **k: None, **args)
+    assert result['config']['supports_vision'] is False
+    assert result['trace']['inventory']['vision_fallback'] is True
+
+
+def test_unknown_required_modality_is_refused():
+    with pytest.raises(RoutingUnavailable, match='modality'):
+        resolve({**request(), 'required_modalities': ['audio']}, complete=lambda *a, **k: None, **fixture())

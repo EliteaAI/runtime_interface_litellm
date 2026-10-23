@@ -314,6 +314,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     tools = request.get('tools') or []
     if not isinstance(tools, list) or len(tools) > 256:
         raise RoutingUnavailable('Unsupported tool inventory')
+    modalities = request.get('required_modalities') or []
+    if not isinstance(modalities, list) or not set(modalities) <= {'image'}:
+        raise RoutingUnavailable('Unsupported input modality')
     prices = PriceBook(price_snapshot['entries'], source_revision=price_snapshot['revision'])
     router = compiled_router()
     catalog = router.catalog
@@ -454,6 +457,17 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         raise RoutingUnavailable('Classifier pricing is unavailable', 'CLASSIFIER_PRICE_UNAVAILABLE')
     if not allowed:
         raise RoutingUnavailable('No qualified model fits the request and pricing contract', 'NO_QUALIFIED_MODELS')
+    # Unset vision is the Configurations default (enabled). With no vision model
+    # admitted, a text-only one runs and the SDK replaces images with placeholders.
+    # A renewal keeps its frozen pin; the SDK applies the same fallback to it.
+    vision_fallback = False
+    if 'image' in modalities and not prior:
+        vision = [v for v in allowed if runtime_variants[v].get('supports_vision') is not False]
+        gate_failures.update({v: ['VISION_UNSUPPORTED'] for v in allowed if v not in vision})
+        if vision:
+            allowed = vision
+        else:
+            vision_fallback = True
     if prior:
         try:
             validate_binding(restored.get('model_binding'), models, project_id)
@@ -537,7 +551,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                           'provisional_contracts': provisional_contracts, 'gate_failures': gate_failures,
                           'input_bytes': size, 'input_tokens_estimate': input_tokens,
                           'input_estimator': {'name': INPUT_ESTIMATOR, 'bytes_per_token': str(BYTES_PER_TOKEN)},
-                          'low_tier_priced': any(is_low_tier(runtime_variants[v]) for v in allowed)}
+                          'low_tier_priced': any(is_low_tier(runtime_variants[v]) for v in allowed),
+                          'required_modalities': modalities, 'vision_fallback': vision_fallback}
     if 'uncertainty' in decision:
         trace['uncertainty'] = decision['uncertainty']
     selected = decision['selection']
@@ -546,6 +561,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     config = {'model_name': model['name'], 'model_project_id': model['project_id'],
               'reasoning_effort': selected['effort'], 'openai_compatible': model.get('openai_compatible', False),
               'max_output_tokens': model['max_output_tokens'], 'context_window': model['context_window'],
+              'supports_vision': model.get('supports_vision') is not False,
               # None is the provider default; the relay then accepts any value up to max_output_tokens.
               'max_tokens': cap, 'routing_total_output_cap': cap is not None}
     contract = catalog['variants'][selected['variant']].get('calibration_contract')
