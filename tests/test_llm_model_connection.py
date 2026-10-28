@@ -306,6 +306,123 @@ class TestScrub(unittest.TestCase):
     def test_messages_are_bounded(self):
         self.assertLessEqual(len(connection.scrub("word " * 200)), connection.MAX_MESSAGE_LENGTH)
 
+    def test_public_provider_doc_links_survive(self):
+        self.assertEqual(
+            connection.scrub("The model `gpt-4` has been deprecated, learn more here: "
+                             "https://platform.openai.com/docs/deprecations"),
+            "The model `gpt-4` has been deprecated, learn more here: https://platform.openai.com/docs/deprecations",
+        )
+
+    def test_only_plain_https_links_on_listed_hosts_survive(self):
+        for url in (
+            "http://platform.openai.com/docs",
+            "https://platform.openai.com.evil.example/docs",
+            "https://evil.example/platform.openai.com",
+            "https://user:pass@platform.openai.com/docs",
+            "https://platform.openai.com:8443/docs",
+            "https://platform.openai.com/docs?key=abc",
+            "https://dial.internal.example/openai/deployments",
+        ):
+            with self.subTest(url=url):
+                self.assertEqual(connection.scrub(f"see {url} now"), "see [url] now")
+
+    def test_text_glued_to_a_doc_link_cannot_carry_an_internal_url(self):
+        cases = (
+            (
+                '{"message":"see https://platform.openai.com/docs","param":'
+                '"https://dial.internal.example/openai/deployments/x","code":null}',
+                '{"message":"see [url]',
+            ),
+            (
+                '{"message":"see https://platform.openai.com/docs/x","base":"https://gw.corp.local/v1"}',
+                '{"message":"see [url]',
+            ),
+            (
+                "link https://learn.microsoft.com/azure/x)(proxy=http://proxy.corp:3128)",
+                "link [url]",
+            ),
+            (
+                'see https://platform.openai.com/docs","x":"user:pass@proxy.corp:3128"}',
+                'see [url]',
+            ),
+        )
+        for text, expected in cases:
+            with self.subTest(text=text[:50]):
+                self.assertEqual(connection.scrub(text), expected)
+        for separator in (";", "|", "\\", "*", "@", "=", ",", "'", "(", "{"):
+            with self.subTest(separator=separator):
+                scrubbed = connection.scrub(f"see https://platform.openai.com/docs{separator}https://gw.corp.local/v1")
+                self.assertNotIn("gw.corp.local", scrubbed)
+
+    def test_no_part_of_a_non_doc_url_survives(self):
+        cases = (
+            ("proxy http://svc:Passw0rd! refused", "proxy [url] refused"),
+            ("GET http://h/?token=hunter2!!) refused", "GET [url] refused"),
+            ("Cannot reach https://dial.internal.example/v1.", "Cannot reach [url]"),
+            ("GET https://gw.internal.corp/v1?models=a,b&code=QWERTY refused", "GET [url] refused"),
+            ("proxy http://svc:P,ss@proxy.internal.corp:3128 refused", "proxy [url] refused"),
+            ("http://svc:p(ss@proxy.internal.corp:3128", "[url]"),
+            ("https://gw.internal.corp/v1?a={x}&sig=QWERTY", "[url]"),
+        )
+        for text, expected in cases:
+            with self.subTest(text=text):
+                self.assertEqual(connection.scrub(text), expected)
+
+    def test_a_listed_host_that_is_the_credential_endpoint_is_still_removed(self):
+        scrubbed = connection.scrub("POST https://learn.microsoft.com/v1 failed.", secrets=("learn.microsoft.com",))
+        self.assertEqual(scrubbed, "POST [url] failed.")
+
+    def test_a_doc_link_keeps_its_trailing_punctuation_outside(self):
+        self.assertEqual(
+            connection.scrub("find it at https://platform.openai.com/account/api-keys."),
+            "find it at https://platform.openai.com/account/api-keys.",
+        )
+        self.assertEqual(
+            connection.scrub("{'message': 'see https://platform.openai.com/docs/deprecations', 'type': 'x'}"),
+            "{'message': 'see https://platform.openai.com/docs/deprecations', 'type': 'x'}",
+        )
+
+    def test_a_masked_key_echo_leaves_no_mask_or_tail(self):
+        scrubbed = connection.scrub(f"key sk-proj-{'*' * 150}ABCD rejected")
+        self.assertEqual(scrubbed, "key [redacted] rejected")
+
+
+class TestOpenAiFailureMessages(unittest.TestCase):
+
+    def test_a_wrong_key_reads_without_placeholders(self):
+        error = (
+            "litellm.AuthenticationError: AuthenticationError: OpenAIException - Incorrect API key provided: "
+            f"sk-proj-{'*' * 150}ABCD. You can find your API key at https://platform.openai.com/account/api-keys."
+        )
+        self.assertEqual(
+            connection.classify_failure(error, secrets=("sk-proj-live-secret",)),
+            (
+                connection.AUTHENTICATION_FAILED,
+                "Incorrect API key provided. You can find your API key at https://platform.openai.com/account/api-keys.",
+            ),
+        )
+
+    def test_a_short_wrong_key_is_not_echoed(self):
+        error = (
+            "litellm.AuthenticationError: AuthenticationError: OpenAIException - Incorrect API key provided: "
+            "sk-abc123. You can find your API key at https://platform.openai.com/account/api-keys."
+        )
+        self.assertNotIn("sk-abc123", connection.classify_failure(error)[1])
+        self.assertNotIn("[redacted]", connection.classify_failure(error)[1])
+
+    def test_a_deprecated_model_keeps_its_docs_link(self):
+        error = (
+            "litellm.NotFoundError: NotFoundError: OpenAIException - The model `gpt-4` has been deprecated, "
+            "learn more here: https://platform.openai.com/docs/deprecations"
+        )
+        self.assertEqual(
+            connection.classify_failure(error),
+            (
+                connection.MODEL_NOT_FOUND,
+                "The model `gpt-4` has been deprecated, learn more here: https://platform.openai.com/docs/deprecations",
+            ),
+        )
+
 
 class TestRunConnectionTest(unittest.TestCase):
 

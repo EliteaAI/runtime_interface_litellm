@@ -45,6 +45,17 @@ UNREGISTERED_CREDENTIAL_MESSAGE = (
 )
 UNMAPPABLE_SETTINGS_MESSAGE = "the model settings could not be turned into a request"
 
+PUBLIC_PROVIDER_DOC_HOSTS = frozenset({
+    "platform.openai.com", "help.openai.com",
+    "docs.anthropic.com", "console.anthropic.com", "docs.claude.com",
+    "learn.microsoft.com", "aka.ms",
+    "ai.google.dev", "cloud.google.com",
+    "docs.aws.amazon.com",
+    "docs.mistral.ai",
+})
+
+TRAILING_PUNCTUATION = ".,;:!?'\"(){}<>"
+
 _STACK_TRACE_MARKER = "\nstack trace:"
 _LITELLM_PREFIX = re.compile(r"^(?:litellm\.\w+:\s*)+(?:\w+(?:Error|Exception):\s*)*", re.IGNORECASE)
 _PROVIDER_PREFIX = re.compile(r"^(?:\w+Exception\s*(?:-\s*|\w+Error\s*-\s*)?)", re.IGNORECASE)
@@ -52,10 +63,12 @@ _PROVIDER_PREFIX = re.compile(r"^(?:\w+Exception\s*(?:-\s*|\w+Error\s*-\s*)?)", 
 _OBJECT_REPR = re.compile(r"<[^<>]*\bobject at 0x[0-9a-fA-F]+>")
 _LIBRARY_HINT = re.compile(r"\s*Handle with `[^`]*`\.?", re.IGNORECASE)
 _URL = re.compile(r"\b[a-z][a-z0-9+.-]*://\S+", re.IGNORECASE)
+_PUBLIC_DOC_URL = re.compile(r"https://([a-z0-9.-]+)(?:/[A-Za-z0-9._~%/+-]*)?", re.IGNORECASE | re.ASCII)
 _IPV4 = re.compile(r"\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b")
 _BEARER = re.compile(r"\bBearer\s+\S+", re.IGNORECASE)
 _KEY_ASSIGNMENT = re.compile(r"\b(api[-_ ]?key|authorization|token)\b(\s*[=:]\s*)\S+", re.IGNORECASE)
-_SECRET_LIKE = re.compile(r"\b(?:sk|pk|rk)-[A-Za-z0-9_\-.]{3,}|\b[A-Za-z0-9]{32,}\b")
+_ECHOED_KEY = re.compile(r"(incorrect api key provided)\s*:\s*\S+?(?=\.?(?:\s|$))", re.IGNORECASE)
+_SECRET_LIKE = re.compile(r"\b(?:sk|pk|rk)-[A-Za-z0-9_\-.*]{2,}[A-Za-z0-9_*]|\b[A-Za-z0-9]{32,}\b")
 
 _TIMEOUT_SIGNS = ("litellm.timeout", "apitimeouterror", "timed out", "readtimeout", "timeout exceeded")
 _RATE_LIMIT_SIGNS = ("ratelimiterror", "rate limit", "status code: 429", "error code: 429")
@@ -168,13 +181,13 @@ def provider_message(headline):
 
 
 def scrub(text, secrets=()):
-    result = str(text or "")
+    result = _ECHOED_KEY.sub(r"\1", str(text or ""))
     for secret in secrets:
         if secret:
             result = result.replace(secret, "[redacted]")
     result = _LIBRARY_HINT.sub("", result)
     result = _OBJECT_REPR.sub("", result)
-    result = _URL.sub("[url]", result)
+    result = _URL.sub(_public_doc_link_or_placeholder, result)
     result = _IPV4.sub("[address]", result)
     result = _BEARER.sub("Bearer [redacted]", result)
     result = _KEY_ASSIGNMENT.sub(r"\1\2[redacted]", result)
@@ -190,6 +203,14 @@ def failure(category, message=""):
         "success": False,
         "message": f"{category}: {message}" if message else category,
     }
+
+
+def _public_doc_link_or_placeholder(match):
+    url = match.group(0).rstrip(TRAILING_PUNCTUATION)
+    doc_link = _PUBLIC_DOC_URL.fullmatch(url)
+    if doc_link and doc_link.group(1).lower() in PUBLIC_PROVIDER_DOC_HOSTS:
+        return match.group(0)
+    return "[url]"
 
 
 def _raised_exception_line(text):
