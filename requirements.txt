@@ -1,1 +1,4 @@
 google-cloud-aiplatform==1.133.0
+# anyio 4.15+ needs typing_extensions.sentinel, absent from the pylon base image; this plugin's requirement dir shadows
+# elitea_core's own anyio pin (#498) at import time, which breaks the internal MCP routes (#7278). Same pin as elitea_core.
+anyio>=4.5,<4.15
