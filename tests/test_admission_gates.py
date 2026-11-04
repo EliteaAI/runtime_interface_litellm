@@ -61,8 +61,9 @@ def test_explicit_cap_is_compared_with_the_cell_p90_at_the_boundary(delta, passe
 
 
 def test_small_explicit_cap_leaves_nothing_to_route_to_without_a_baseline():
-    with pytest.raises(ValueError, match='No eligible configured model'):
+    with pytest.raises(ValueError, match='baseline model gpt-5.4 is not available') as info:
         go(('luna', 'terra'), demand='standard', cap=256)
+    assert getattr(info.value, 'reason', None) == 'BASELINE_NOT_CONFIGURED'  # named for the admin (#7307)
 
 
 def test_candidate_row_carries_the_flag():
