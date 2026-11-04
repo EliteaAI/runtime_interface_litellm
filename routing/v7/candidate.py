@@ -106,7 +106,8 @@ class CalibratedRouter(FixedV6Router):
         else:
             baseline=result['reason']=='UNCERTAIN_TASK_BASELINE'
             result['family_qualification']={'family':descriptor.get('task_family','unknown'),
-                'status':'insufficient_evidence_baseline' if baseline else 'admission_table',
+                'status':('insufficient_evidence_baseline' if baseline else 'unmeasured_installation'
+                          if result['reason']=='UNMEASURED_CHEAPEST' else 'admission_table'),
                 'rule_revision':admission['rule_revision'],'table_sha256':admission['sha256'],'promotion':False}
         return result
 
