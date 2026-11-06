@@ -81,9 +81,10 @@ def test_floor_only_is_hidden_unless_the_project_chose_economical():
     assert result['trace']['selection']['admission']['cell']['status'] == 'floor_only'
 
 
-def test_an_unknown_mode_starts_as_economical_but_never_admits_floor_only():
+def test_an_unknown_mode_runs_the_default_and_never_admits_floor_only():
     result = route(('luna', 'sol'), 'standard', 'unknown-mode')
-    assert moved(result)['mode'] == 'economical' and head(result) == 'luna-default'
+    assert (moved(result)['mode'], moved(result)['mode_code']) == ('tiered', 'MODE_UNKNOWN')
+    assert head(result) == 'luna-default'
     assert not {'sol-default', 'sol-high'} & set(result['trace']['selection']['economics']['quotes'])
     economical = route(('luna', 'sol'), 'standard', 'economical')
     assert {'sol-default', 'sol-high'} <= set(economical['trace']['selection']['economics']['quotes'])
@@ -177,9 +178,10 @@ def test_marginal_is_traced_and_changes_nothing():
 # --- rule 5: default mode ------------------------------------------------------------------------------------------
 def test_the_default_mode_is_tiered():
     result = route(CUSTOMER_PLUS_FIVE, 'deep')
-    assert moved(result)['mode'] == 'tiered' and 'premium' not in moved(result)
-    # tiered deep starts on the frontier (highest-lb90 eligible head; the tie goes to the cheaper).
+    assert moved(result)['mode'] == 'tiered' and 'mode_code' not in moved(result)
+    # tiered deep starts on the premium head (review AJ.2): gpt-6-luna by list price.
     assert head(result) == 'gpt-6-luna-default'
+    assert moved(result)['premium'] == {'head': 'gpt-6-luna-default', 'premium_tiebreak': 'list_price', 'code': None}
 
 
 # --- review of #61: one ordering, stored-bound fallback, unpriced heads, trace scope ---------------------------------
@@ -207,11 +209,9 @@ def test_tiered_deep_and_premium_at_deep_start_on_the_same_head_on_the_63_of_63_
     assert (moved(tiered)['mode'], moved(tiered)['reason']) == ('tiered', None)
 
 
-def test_the_tiered_frontier_uses_the_premium_ordering_not_the_ladder_order():
+def test_the_tiered_deep_start_uses_the_premium_ordering_not_the_ladder_order():
     rows = tied(a={'adverse': 2}, b={})  # a is cheaper but has the higher paired adverse rate
-    for row in rows.values():
-        row['cell'].update(cross_provider_confirmed=False, label_regime='single_judge')  # no filter in tiered
-    assert escalation._frontier(['a', 'b'], rows) == 'b'
+    assert escalation._start('tiered', 'deep', ['a', 'b'], rows, {}, None) == ('b', 'TIERED_START', None)
 
 
 def test_an_unpriced_head_ranks_last_on_list_price_without_dropping_the_others():
@@ -224,7 +224,7 @@ def test_a_floor_only_cell_is_never_the_premium_start_even_with_the_highest_lb90
     rows = tied(a={}, b={'pass': 62})
     rows['a']['tier'] = 'floor_only'  # admitted only under economical, confirmed and panel, highest lb90
     assert escalation._premium(['a', 'b'], rows) == ('b', 'lb90')
-    assert escalation._frontier(['a', 'b'], rows) == 'b'
+    assert escalation._start('tiered', 'deep', ['a', 'b'], rows, {}, None)[0] == 'b'
 
 
 @pytest.mark.parametrize('mode', ['premium_at_deep', 'premium_from_standard'])
@@ -242,4 +242,41 @@ def test_premium_is_computed_once_per_resolve(monkeypatch):
     monkeypatch.setattr(escalation, '_premium', lambda *a, **k: calls.append(1) or real(*a, **k))
     route(CUSTOMER_PLUS_FIVE, 'deep', 'premium_at_deep')
     assert len(calls) == 1
+
+
+# --- review AJ: uncertain descriptors, tier precedence, ladder-order trace, full pin -------------------------------
+@pytest.mark.parametrize('mode', ['tiered', 'premium_at_deep', 'premium_from_standard'])
+def test_an_uncertain_descriptor_starts_on_the_cheapest_admitted_head_in_every_mode(mode):
+    # AA condition 1: uncertain counts as deep for admission, never for the start. Sol high is the premium head.
+    confident = route(('luna', 'terra', 'sol'), 'deep', mode)
+    assert head(confident) == 'sol-high'
+    result = route(('luna', 'terra', 'sol'), 'deep', mode, needs_context=True, input_status='missing')
+    selection = result['trace']['selection']
+    assert head(result) == moved(result)['ladder'][0] == 'luna-default'
+    assert selection['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR' and moved(result)['reason'] is None
+    assert moved(result)['premium'] == {'head': None, 'premium_tiebreak': None, 'code': 'UNCERTAIN_DESCRIPTOR'}
+
+
+def test_eligible_ranks_before_provisional_in_the_premium_pool():
+    rows = tied(a={}, b={})
+    rows['a']['tier'] = 'provisional'
+    rows['a']['cell']['pass'] = 63
+    rows['b']['cell']['pass'] = 60  # lower lb90, but eligible
+    assert escalation._premium(['a', 'b'], rows, {'a': 1, 'b': 2}) == ('b', 'tier')
+
+
+def test_list_price_ties_name_the_ladder_order_when_no_prices_are_given():
+    rows = tied(a={}, b={})
+    assert escalation._premium(['a', 'b'], rows) == ('a', 'ladder_order')
+    assert escalation._premium(['a', 'b'], rows, {'a': 2, 'b': 1}) == ('b', 'list_price')
+
+
+def test_every_stored_lb90_of_the_served_table_is_reproduced_and_no_family_cell_is_admitted():
+    from routing.v7.build_admission_table import jeffreys_lower
+    heads = json.loads(admission.TABLE_PATH.read_text())['heads']
+    families = [c for e in heads.values() for f in (e.get('families') or {}).values() for c in f.values()]
+    cells = [c for e in heads.values() for c in e['cells'].values()] + families
+    assert len(cells) == 101
+    assert [c['lb90'] for c in cells if round(jeffreys_lower(c['pass'], c['n']), 6) != c['lb90']] == []
+    assert [c for c in families if c['tier'] in admission.ADMITTED] == []
 

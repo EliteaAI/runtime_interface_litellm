@@ -43,7 +43,8 @@ def moved(result):
 def fixture_rows(spec):
     """spec: variant -> (tier, lb90). Returns the ladder (cheapest first), rows and canonical models."""
     ladder = list(spec)
-    rows = {v: {'tier': tier, 'cell': {'lb90': lb90}} for v, (tier, lb90) in spec.items()}
+    rows = {v: {'tier': tier, 'cell': {'lb90': lb90, 'cross_provider_confirmed': True, 'label_regime': 'panel'}}
+            for v, (tier, lb90) in spec.items()}
     family = {v: v.split('-')[0] for v in ladder}  # 'a-low' and 'a-high' are one model
     return ladder, rows, family
 
@@ -67,8 +68,11 @@ def test_frontier_is_the_eligible_head_with_the_highest_lower_bound_and_ties_go_
     ladder, rows, family = fixture_rows({'a-x': ('eligible', .90), 'b-x': ('provisional', .999), 'c-x': ('eligible', .96),
                                          'd-x': ('eligible', .96), 'e-x': ('eligible', .94)})
     assert escalation._start('tiered', 'deep', ladder, rows, family, TIERING)[:2] == ('c-x', 'TIERED_START')
-    ladder, rows, family = fixture_rows({'a-x': ('provisional', .9), 'b-x': ('provisional', .8)})
-    assert escalation._start('tiered', 'deep', ladder, rows, family, TIERING)[0] == 'a-x'  # nothing eligible: cheapest
+    ladder, rows, family = fixture_rows({'a-x': ('provisional', .8), 'b-x': ('provisional', .9)})
+    assert escalation._start('tiered', 'deep', ladder, rows, family, TIERING)[0] == 'b-x'  # confirmed provisional
+    for row in rows.values():
+        row['cell']['label_regime'] = 'single_judge'  # no confirmed panel cell: the cheapest head, and why
+    assert escalation._start('tiered', 'deep', ladder, rows, family, TIERING)[:2] == ('a-x', 'TIERED_FRONTIER_UNCONFIRMED')
 
 
 def test_simple_is_the_cheapest_in_tiered_mode_and_other_modes_have_no_tiered_start():
@@ -139,11 +143,12 @@ def test_simple_is_unchanged():
     assert head(result) == 'luna-default' and moved(result)['reason'] is None and moved(result)['arm'] is None
 
 
-def test_other_modes_carry_no_tier_fields_and_unknown_modes_stay_economical():
+def test_other_modes_carry_no_tier_fields_and_unknown_modes_run_tiered():
     _, result = run(settings={'escalation_mode': 'economical'})
     assert 'arm' not in moved(result) and 'standard_low_share' not in moved(result)
     _, result = run(demand='deep', settings={'escalation_mode': 'tiered_typo'})
-    assert head(result) == 'luna-default' and moved(result)['mode'] == 'economical'
+    assert (moved(result)['mode'], moved(result)['mode_code']) == ('tiered', 'MODE_UNKNOWN')
+    assert head(result) == 'gpt-6-1-sol-default'  # the tiered deep start
 
 
 # --- escalation from a tiered start ------------------------------------------------------------------------------
@@ -208,8 +213,10 @@ def test_an_absent_escalation_mode_is_tiered():
     assert moved(low)['standard_low_share'] == {'requested': None, 'used': 0.20, 'clamped': False}
 
 
-def test_economical_stays_selectable_and_an_unknown_value_is_economical():
+def test_economical_stays_selectable_and_an_unknown_value_is_the_default():
     assert escalation.mode_of({'escalation_mode': 'economical'}) == 'economical'
-    assert escalation.mode_of({'escalation_mode': 'typo'}) == 'economical'
+    assert escalation.mode_of({'escalation_mode': 'typo'}) == 'tiered'
+    assert escalation.mode_code({'escalation_mode': 'typo'}) == 'MODE_UNKNOWN'
+    assert escalation.mode_code({}) is escalation.mode_code({'escalation_mode': 'economical'}) is None
     _, deep = run(demand='deep', settings={'escalation_mode': 'economical'})
     assert (head(deep), moved(deep)['mode']) == ('luna-default', 'economical')

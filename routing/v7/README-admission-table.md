@@ -5,9 +5,15 @@
 `interim-reviewed-demand-1+ac2+ref30+limit_oracle`, 3-of-4 panel labels). Its rules, cell fields (`status: floor_only`,
 `cross_provider_confirmed`, `label_regime`, `marginal`, `reference_head`) and the round's results are documented in
 `autorouting_impl/admission-rebuild-iv/README.md` and `REPORT-vii.md`; the Gateway consumes tiers only. Selection:
-`floor_only` cells are candidates only under an explicit `economical` mode; premium modes start on the highest
-full-precision `lb90` among admitted cells that are cross-provider confirmed and panel-labelled (tie: paired adverse
-rate, list price, canonical order; `premium_tiebreak` in the trace), else `PREMIUM_INACTIVE` and the `tiered` start.
+`floor_only` cells are candidates only under an explicit `economical` mode. They are never admitted as a tier
+through the unmeasured last resort (#7307 / AB.0): that path is tier-less, ranks every hard-gated deployment by quote
+and marks the route provisional, so a floor_only deployment can be routed there exactly like an `out` one, with tier
+none. Premium modes (and `tiered` at deep) start on the premium head: among admitted cells that are cross-provider
+confirmed and panel-labelled, `eligible` before `provisional`, then the highest full-precision `lb90` (tie: paired
+adverse rate, list price, canonical order; `premium_tiebreak` in the trace). Without one, premium modes start as
+`tiered` (`PREMIUM_INACTIVE`) and `tiered` deep stays on the cheapest head (`TIERED_FRONTIER_UNCONFIRMED`). An
+uncertain descriptor starts on the cheapest admitted head in every mode. The `tiered` standard mid tier is not a
+premium posture: it may pick any eligible cell of another model, confirmed or not.
 The material-r2 table below stays as `admission-table.json` for the history of the pins.
 
 ## Previous table of record (`admission-table.json`)

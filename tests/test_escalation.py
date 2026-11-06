@@ -50,7 +50,15 @@ def state_of(args, result):
 
 
 # --- policy: economical is cheapest-admitted at every demand; premium_at_deep keeps the top tier at deep ------
-@pytest.mark.parametrize('settings', [None, {'escalation_mode': 'economical'}, {'escalation_mode': 'unknown-mode'}, {'escalation_mode': 'premium'}])
+@pytest.mark.parametrize('mode', ['unknown-mode', 'premium'])
+def test_an_unknown_mode_runs_the_default_and_is_traced(mode):
+    # Review AJ.1 (d): an unknown value fails to the default (`tiered`), never to `economical`.
+    _, result = first(settings={'escalation_mode': mode})
+    assert (moved(result)['mode'], moved(result)['mode_code']) == ('tiered', 'MODE_UNKNOWN')
+    assert head(result) == 'sol-high' and moved(result)['reason'] == 'TIERED_START'  # the premium head at deep
+
+
+@pytest.mark.parametrize('settings', [None, {'escalation_mode': 'economical'}])
 def test_economical_and_absent_modes_choose_the_cheapest_admitted_head_at_deep(settings):
     _, result = first(settings=settings)
     assert head(result) == LADDER[0] and result['trace']['selection']['tier'] == 'provisional'  # luna, vii deep
@@ -118,9 +126,10 @@ def frontier_rows(spec):
 @pytest.mark.parametrize('mode', ['premium_at_deep', 'premium_from_standard'])
 def test_premium_at_deep_picks_the_highest_lb90_admitted_head_not_the_cheapest(mode):
     # Candidates are the admitted heads (eligible or provisional, rule 1); the highest lb90 starts.
+    # Eligible ranks before provisional (review AJ.1 (c)(3)): b-x's 0.999 does not beat c-x's 0.965.
     ladder, rows = frontier_rows({'a-x': ('eligible', .931), 'b-x': ('provisional', .999), 'c-x': ('eligible', .965),
                                   'd-x': ('out', 1.0)})
-    assert escalation._start(mode, 'deep', ladder, rows, {}, None) == ('b-x', 'PREMIUM_START', None)
+    assert escalation._start(mode, 'deep', ladder, rows, {}, None) == ('c-x', 'PREMIUM_START', None)
     assert escalation._start('economical', 'deep', ladder, rows, {}, None)[0] == 'a-x'  # the cheapest admitted
 
 
@@ -128,7 +137,7 @@ def test_premium_at_deep_breaks_a_lb90_tie_toward_the_cheaper_head():
     ladder, rows = frontier_rows({'a-x': ('eligible', .90), 'b-x': ('eligible', .965), 'c-x': ('eligible', .965),
                                   'd-x': ('eligible', .94)})
     assert escalation._start('premium_at_deep', 'deep', ladder, rows, {}, None)[0] == 'b-x'  # b is cheaper than c
-    assert escalation._premium(ladder, rows) == ('b-x', 'list_price')
+    assert escalation._premium(ladder, rows) == ('b-x', 'ladder_order')  # no list prices given
 
 
 def test_premium_at_deep_with_no_confirmed_panel_cell_is_inactive_and_starts_as_tiered():
@@ -136,8 +145,10 @@ def test_premium_at_deep_with_no_confirmed_panel_cell_is_inactive_and_starts_as_
     for row in rows.values():
         row['cell']['cross_provider_confirmed'] = False
     tiering = {'scope_id': 's', 'share': escalation.share_of({})}
-    assert escalation._start('premium_at_deep', 'deep', ladder, rows, {}, tiering) == ('b-x', 'PREMIUM_INACTIVE', None)
-    assert escalation._start('tiered', 'deep', ladder, rows, {}, tiering) == ('b-x', 'TIERED_START', None)
+    # Tiered deep needs the same confirmed panel pool (review AJ.2): both stay on the cheapest head.
+    assert escalation._start('premium_at_deep', 'deep', ladder, rows, {}, tiering) == ('a-x', 'PREMIUM_INACTIVE', None)
+    assert escalation._start('tiered', 'deep', ladder, rows, {}, tiering) == (
+        'a-x', 'TIERED_FRONTIER_UNCONFIRMED', None)
 
 
 def test_premium_at_deep_leaves_simple_and_standard_alone():
@@ -157,17 +168,24 @@ def test_premium_at_deep_starts_on_sol_high_on_the_shipped_table():
 
 
 def test_premium_is_inactive_on_the_material_r2_table_and_starts_as_tiered(table_of_record):
-    # The material-r2 cells carry no cross-provider confirmation, so premium is inactive there: the scope starts as
-    # `tiered` does at deep (the highest-lb90 eligible head, sol-high) and the trace says why.
+    # The material-r2 cells carry no cross-provider confirmation, so premium is inactive there and the tiered deep
+    # start has no confirmed frontier either (review AJ.2): the scope stays on the cheapest head, and says why.
     _, economical = first()
     _, premium = first(settings={'escalation_mode': 'premium_at_deep'})
     assert head(economical) == 'luna-default' and economical['trace']['selection']['tier'] == 'eligible'
-    assert head(premium) == 'sol-high' and premium['config']['model_name'] == 'global.openai.gpt-5.6-sol'
+    assert head(premium) == 'luna-default'
     deep = {h: e['cells']['deep'] for h, e in json.loads(table_of_record.read_text())['heads'].items()}
     assert not any(c.get('cross_provider_confirmed') for c in deep.values())
     assert moved(premium)['mode'] == 'premium_at_deep' and moved(premium)['reason'] == 'PREMIUM_INACTIVE'
     assert moved(premium)['premium'] == {'head': None, 'premium_tiebreak': None, 'code': 'PREMIUM_INACTIVE'}
-    assert moved(premium)['ladder'][0] == 'sol-high'
+    assert moved(premium)['ladder'][0] == 'luna-default'
+
+
+def test_tiered_deep_without_a_confirmed_frontier_stays_on_the_cheapest_head(table_of_record):
+    # Review AJ.2: the tiered deep start is the premium head or nothing; material-r2 has no confirmed cell.
+    _, result = first(settings={'escalation_mode': 'tiered'})
+    assert head(result) == 'luna-default' and moved(result)['reason'] == 'TIERED_FRONTIER_UNCONFIRMED'
+    assert moved(result)['premium']['code'] == 'TIERED_FRONTIER_UNCONFIRMED'
 
 
 @pytest.mark.parametrize('demand', ['simple', 'standard'])
@@ -198,7 +216,7 @@ def test_premium_from_standard_starts_standard_at_the_premium_head():
     assert economical['trace']['selection']['tier'] == 'provisional' and head(economical) != 'luna-default'
     assert (head(premium), premium['trace']['selection']['tier']) == ('luna-default', 'eligible')
     assert moved(premium)['reason'] == 'PREMIUM_START'
-    assert moved(premium)['premium'] == {'head': 'luna-default', 'premium_tiebreak': 'lb90', 'code': None}
+    assert moved(premium)['premium'] == {'head': 'luna-default', 'premium_tiebreak': 'tier', 'code': None}
 
 
 def test_premium_from_standard_escalation_changes_the_model_not_the_effort():
@@ -411,7 +429,7 @@ def test_premium_at_deep_still_escalates_on_a_signal_from_the_top_tier():
     args, one = first(settings={'escalation_mode': 'premium_at_deep'})
     two = follow(args, one, **FIELDS['regenerate'])
     assert (head(one), head(two), moved(two)['reason']) == ('sol-high', 'sol-high', 'ESCALATION_CEILING')
-    assert moved(one)['premium'] == {'head': 'sol-high', 'premium_tiebreak': 'lb90', 'code': None}
+    assert moved(one)['premium'] == {'head': 'sol-high', 'premium_tiebreak': 'tier', 'code': None}  # sole eligible
 
 
 def test_the_uncertain_baseline_has_no_ranked_heads_to_climb():
