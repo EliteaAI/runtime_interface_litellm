@@ -1,0 +1,1173 @@
+{
+ "dataset_rows_total": 15950,
+ "dataset_sha256": "f5509ecf25fa1e4d49079c8f9f677c4c132d549078079c94ec4adefa548d826d",
+ "generated_at": "2026-10-13",
+ "heads": {
+  "anthropic/claude-haiku-4-5|default": {
+   "canonical_model": "anthropic/claude-haiku-4-5",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 9667,
+     "lb90": 0.174976,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 2,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 7,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 312,
+     "lb90": 0.622429,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 20,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 8,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 2460,
+     "lb90": 0.479455,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 13,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+   ]
+  },
+  "anthropic/claude-opus-4-7|default": {
+   "canonical_model": "anthropic/claude-opus-4-7",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 4713,
+     "lb90": 0.174976,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 2,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 492,
+     "lb90": 0.951573,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 27,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 3504,
+     "lb90": 0.795853,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 19,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-opus-4-7"
+   ]
+  },
+  "anthropic/claude-opus-5-5|default": {
+   "canonical_model": "anthropic/claude-opus-5-5",
+   "cells": {
+    "deep": {
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 20466,
+     "lb90": 0.929489,
+     "lineages": 39,
+     "n": 43,
+     "output_n": 43,
+     "paired_n": 38,
+     "pass": 42,
+     "tier": "eligible"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 1533,
+     "lb90": 0.988529,
+     "lineages": 114,
+     "n": 117,
+     "output_n": 117,
+     "paired_n": 0,
+     "pass": 117,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 8541,
+     "lb90": 0.862823,
+     "lineages": 32,
+     "n": 42,
+     "output_n": 42,
+     "paired_n": 21,
+     "pass": 39,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 98,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 1,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 29559,
+      "lb90": 0.853585,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 19,
+      "tier": "eligible"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 1759,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 33,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.anthropic.claude-opus-5-5"
+   ]
+  },
+  "anthropic/claude-opus-5-5|high": {
+   "canonical_model": "anthropic/claude-opus-5-5",
+   "cells": {
+    "deep": {
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 27987,
+     "lb90": 0.910031,
+     "lineages": 56,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 38,
+     "pass": 62,
+     "tier": "eligible"
+    },
+    "simple": {
+     "adverse": 1,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 1468,
+     "lb90": 0.980861,
+     "lineages": 134,
+     "n": 162,
+     "output_n": 162,
+     "paired_n": 117,
+     "pass": 161,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 10487,
+     "lb90": 0.921744,
+     "lineages": 50,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 21,
+     "pass": 72,
+     "tier": "out"
+    }
+   },
+   "effort": "high",
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 107,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 1,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 36200,
+      "lb90": 0.853585,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 19,
+      "tier": "eligible"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 2302,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 59,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.anthropic.claude-opus-5-5"
+   ]
+  },
+  "anthropic/claude-opus-5|default": {
+   "canonical_model": "anthropic/claude-opus-5",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 15825,
+     "lb90": 0.326847,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 3,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 2,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 929,
+     "lb90": 0.838567,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 25,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 6,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 9372,
+     "lb90": 0.577283,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 15,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-opus-5"
+   ]
+  },
+  "anthropic/claude-sonnet-4-6|default": {
+   "canonical_model": "anthropic/claude-sonnet-4-6",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 7594,
+     "lb90": 0.174976,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 2,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 5,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 333,
+     "lb90": 0.704252,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 22,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 7,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 3864,
+     "lb90": 0.527666,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 14,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-4-6"
+   ]
+  },
+  "anthropic/claude-sonnet-5-5|default": {
+   "canonical_model": "anthropic/claude-sonnet-5-5",
+   "cells": {
+    "deep": {
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 27419,
+     "lb90": 0.920529,
+     "lineages": 34,
+     "n": 38,
+     "output_n": 38,
+     "paired_n": 38,
+     "pass": 37,
+     "tier": "eligible"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 1095,
+     "lb90": 0.985123,
+     "lineages": 87,
+     "n": 90,
+     "output_n": 90,
+     "paired_n": 90,
+     "pass": 90,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 7603,
+     "lb90": 0.938332,
+     "lineages": 11,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "pass": 21,
+     "tier": "eligible"
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 181,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 1,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 27504,
+      "lb90": 0.853585,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 19,
+      "tier": "eligible"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 1394,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 63,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.anthropic.claude-sonnet-5-5"
+   ]
+  },
+  "anthropic/claude-sonnet-5|default": {
+   "canonical_model": "anthropic/claude-sonnet-5",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 8627,
+     "lb90": 0.174976,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 2,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 3,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 913,
+     "lb90": 0.791578,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 24,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 1,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 3228,
+     "lb90": 0.860126,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 20,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-5"
+   ]
+  },
+  "anthropic/claude-sonnet-5|high": {
+   "canonical_model": "anthropic/claude-sonnet-5",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 13905,
+     "lb90": 0.326847,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 3,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 2,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 819,
+     "lb90": 0.838567,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 25,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 3918,
+     "lb90": 0.795853,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 19,
+     "tier": "out"
+    }
+   },
+   "effort": "high",
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-5"
+   ]
+  },
+  "openai/gpt-5-4-mini|default": {
+   "canonical_model": "openai/gpt-5-4-mini",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 3852,
+     "lb90": 0.516097,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 4,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 3,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 222,
+     "lb90": 0.791578,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 24,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 1631,
+     "lb90": 0.795853,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 19,
+     "tier": "out"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "gpt-5.4-mini"
+   ]
+  },
+  "openai/gpt-5-4|default": {
+   "canonical_model": "openai/gpt-5-4",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 6124,
+     "lb90": 0.516097,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 4,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 2,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 302,
+     "lb90": 0.832732,
+     "lineages": 26,
+     "n": 26,
+     "output_n": 26,
+     "paired_n": 26,
+     "pass": 24,
+     "tier": "out"
+    },
+    "standard": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 2320,
+     "lb90": 0.938332,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "pass": 21,
+     "tier": "eligible"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "gpt-5.4"
+   ]
+  },
+  "openai/gpt-5-6-luna|default": {
+   "canonical_model": "openai/gpt-5-6-luna",
+   "cells": {
+    "deep": {
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 4738,
+     "lb90": 0.930636,
+     "lineages": 56,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 38,
+     "pass": 63,
+     "tier": "eligible"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 573,
+     "lb90": 0.980861,
+     "lineages": 134,
+     "n": 162,
+     "output_n": 162,
+     "paired_n": 117,
+     "pass": 161,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 1,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 2783,
+     "lb90": 0.959046,
+     "lineages": 50,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 21,
+     "pass": 74,
+     "tier": "eligible"
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 107,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 1,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 4828,
+      "lb90": 0.853585,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 19,
+      "tier": "eligible"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 805,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 68,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-luna"
+   ]
+  },
+  "openai/gpt-5-6-luna|high": {
+   "canonical_model": "openai/gpt-5-6-luna",
+   "cells": {
+    "deep": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 14067,
+     "lb90": 0.883359,
+     "lineages": 34,
+     "n": 38,
+     "output_n": 38,
+     "paired_n": 38,
+     "pass": 36,
+     "tier": "provisional"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 728,
+     "lb90": 0.985123,
+     "lineages": 87,
+     "n": 90,
+     "output_n": 90,
+     "paired_n": 90,
+     "pass": 90,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 9109,
+     "lb90": 0.938332,
+     "lineages": 11,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "pass": 21,
+     "tier": "eligible"
+    }
+   },
+   "effort": "high",
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 100,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 2,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 14200,
+      "lb90": 0.786443,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 18,
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 2165,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 69,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-luna"
+   ]
+  },
+  "openai/gpt-5-6-sol|default": {
+   "canonical_model": "openai/gpt-5-6-sol",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 4802,
+     "lb90": 0.773275,
+     "lineages": 5,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "pass": 5,
+     "tier": "out"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 294,
+     "lb90": 0.951573,
+     "lineages": 27,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 27,
+     "pass": 27,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 1790,
+     "lb90": 0.938332,
+     "lineages": 21,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 21,
+     "pass": 21,
+     "tier": "eligible"
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "global.openai.gpt-5.6-sol"
+   ]
+  },
+  "openai/gpt-5-6-sol|high": {
+   "canonical_model": "openai/gpt-5-6-sol",
+   "cells": {
+    "deep": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 13448,
+     "lb90": 0.965253,
+     "lineages": 34,
+     "n": 38,
+     "output_n": 38,
+     "paired_n": 0,
+     "pass": 38,
+     "tier": "eligible"
+    },
+    "simple": {
+     "adverse": 1,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 579,
+     "lb90": 0.965006,
+     "lineages": 85,
+     "n": 88,
+     "output_n": 88,
+     "paired_n": 88,
+     "pass": 87,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 6785,
+     "lb90": 0.938332,
+     "lineages": 11,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "pass": 21,
+     "tier": "eligible"
+    }
+   },
+   "effort": "high",
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 1,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 72,
+      "lb90": 0.853585,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 19,
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 14289,
+      "lb90": 0.935388,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 834,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 32,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-sol"
+   ]
+  },
+  "openai/gpt-5-6-terra|default": {
+   "canonical_model": "openai/gpt-5-6-terra",
+   "cells": {
+    "deep": {
+     "adverse": 2,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "expected_output_tokens_p90": 6926,
+     "lb90": 0.930636,
+     "lineages": 56,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 38,
+     "pass": 63,
+     "tier": "provisional"
+    },
+    "simple": {
+     "adverse": 0,
+     "best_head": "anthropic/claude-opus-5-5|default",
+     "expected_output_tokens_p90": 433,
+     "lb90": 0.980861,
+     "lineages": 134,
+     "n": 162,
+     "output_n": 162,
+     "paired_n": 117,
+     "pass": 161,
+     "tier": "eligible"
+    },
+    "standard": {
+     "adverse": 0,
+     "best_head": "openai/gpt-5-4|default",
+     "expected_output_tokens_p90": 3706,
+     "lb90": 0.959046,
+     "lineages": 50,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 21,
+     "pass": 74,
+     "tier": "eligible"
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 78,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 7451,
+      "lb90": 0.935388,
+      "lineages": 16,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 752,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 35,
+      "lb90": 0.935388,
+      "lineages": 20,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 20,
+      "pass": 20,
+      "tier": "eligible"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-terra"
+   ]
+  }
+ },
+ "label_revision": "material-r2",
+ "output_field": "usage.output",
+ "rows_kept": 2029,
+ "rule": {
+  "adverse_eligible": 0.05,
+  "adverse_provisional": 0.08,
+  "authored_waves": [
+   "v14-r77",
+   "v14-r79",
+   "v14-r80"
+  ],
+  "excluded_routed_arms": [
+   [
+    "v14-r53",
+    "candidate"
+   ],
+   [
+    "v14-r53",
+    "retained"
+   ]
+  ],
+  "family_min_lineages": 8,
+  "family_min_n": 20,
+  "floor": {
+   "deep": 0.85,
+   "simple": 0.9,
+   "standard": 0.9
+  },
+  "lower_bound": "one-sided 90% Jeffreys",
+  "min_best_n": 20,
+  "output_percentile": 0.9,
+  "pass": "label of the material-r2 label set (dataset-r3), refusal/incomplete = non-pass",
+  "provisional_demands": [
+   "deep"
+  ],
+  "provisional_max_adverse_items": 3,
+  "view": "reviewed-demand"
+ },
+ "rule_revision": "interim-reviewed-demand-1",
+ "schema_version": 1
+}

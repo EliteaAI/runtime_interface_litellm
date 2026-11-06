@@ -83,7 +83,8 @@ def apply_observation(session, state, observation, messages, gateway, catalog, t
                       decision['budget']['completion_cap'], result, now=completed_at)
 
 
-def state_value(session, decision, messages, *, scope_id, project_id, user_id, gate_revision, policy_revision):
+def state_value(session, decision, messages, *, scope_id, project_id, user_id, gate_revision, policy_revision,
+                escalation=None):
     compact_decision = {key: copy.deepcopy(decision[key]) for key in
                         ('action', 'selection', 'descriptor', 'budget', 'pending_intent_id') if key in decision}
     compact_decision['selection'] = {key: decision['selection'].get(key) for key in ('variant', 'model', 'effort')}
@@ -91,6 +92,8 @@ def state_value(session, decision, messages, *, scope_id, project_id, user_id, g
              'gate_revision': gate_revision, 'policy_revision': policy_revision,
              'checkpoint': session.checkpoint(), 'input_count': len(messages), 'input_digest': digest(messages),
              'decision': compact_decision}
+    if escalation:
+        value['escalation'] = escalation  # sticky level of this scope (#6722)
     if len(json.dumps(value).encode()) > MAX_CHECKPOINT_BYTES:
         raise ValueError('Routing checkpoint exceeds its supported bound')
     return value

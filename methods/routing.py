@@ -7,7 +7,9 @@ from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmi
                                auto_routing_settings, deployment_signals, decision_log_line)
 from ..routing.pricing import PriceBook
 from ..routing.inventory import effective_models, model_binding, qualified_inventory
-from ..utils.metering import meter_llm_call
+from ..routing import guard as answer_guard
+from ..routing.escalation import usage_record
+from ..utils.metering import meter_llm_call, record_escalation
 
 UNRESOLVED = 'Auto cannot resolve this request under the current profile'
 MAX_PRICE_NAMES = 64  # Costs get_routing_prices bound.
@@ -61,26 +63,9 @@ def auto_preflight(rpc, project_id, user_id):
 
 class Method:
     @web.method()
-    def resolve_auto_routing(self, proxy_target, proxy_auth):
-        project_id = proxy_auth['project_id']
-        settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, proxy_auth['user']['id'])
-        if proxy_target['method'] == 'GET':
-            return {'enabled': bool(settings['enabled']), 'profile_ref': PROFILE,
-                    'surfaces': ['chat', 'agent'], 'revision': settings['revision']}
-        if proxy_target['method'] != 'POST':
-            return {'error': 'Method not allowed'}, 405
-        if not settings['enabled']:
-            return {'error': 'Auto model selection is disabled'}, 403
-        snapshot = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, proxy_auth['user']['id'])
-        models = snapshot['items']
-        inventory = effective_models(models, project_id)
-        router = compiled_router()
-        _, _, prices = routing_price_snapshot(context.rpc_manager.timeout(10), inventory, router.catalog,
-                                              project_id, settings.get('classifier'))
-        key = VaultClient(project_id).get_secrets().get('project_llm_key')
-        if not key:
-            return {'error': 'Auto model selection is unavailable'}, 503
-
+    def classifier_complete(self, proxy_target, proxy_auth, inventory):
+        """A `complete(model, messages, effort, max_tokens)` that relays a call through the authenticated
+        gateway path, metered like any generation; used by the classifier and the answer guard."""
         def complete(model, messages, effort, max_tokens):
             body = {'model': model, 'messages': messages, 'max_tokens': max_tokens, 'stream': False}
             if effort:
@@ -116,10 +101,36 @@ class Method:
                 if emitter is not None:
                     emitter.end()
                 self.stream_node.remove_stream(response_id)
+        return complete
+
+    @web.method()
+    def resolve_auto_routing(self, proxy_target, proxy_auth):
+        project_id = proxy_auth['project_id']
+        settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, proxy_auth['user']['id'])
+        if proxy_target['method'] == 'GET':
+            return {'enabled': bool(settings['enabled']), 'profile_ref': PROFILE,
+                    'surfaces': ['chat', 'agent'], 'revision': settings['revision']}
+        if proxy_target['method'] != 'POST':
+            return {'error': 'Method not allowed'}, 405
+        if not settings['enabled']:
+            return {'error': 'Auto model selection is disabled'}, 403
+        snapshot = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, proxy_auth['user']['id'])
+        models = snapshot['items']
+        inventory = effective_models(models, project_id)
+        router = compiled_router()
+        _, _, prices = routing_price_snapshot(context.rpc_manager.timeout(10), inventory, router.catalog,
+                                              project_id, settings.get('classifier'))
+        key = VaultClient(project_id).get_secrets().get('project_llm_key')
+        if not key:
+            return {'error': 'Auto model selection is unavailable'}, 503
+
+        complete = self.classifier_complete(proxy_target, proxy_auth, inventory)
 
         def record(result=None, refused=None):
             try:  # Diagnostics must never change a routing outcome.
                 log.info(decision_log_line(project_id, proxy_target.get('json'), result, refused))
+                if result is not None:
+                    record_escalation(usage_record(project_id, proxy_target['json'], result))
             except Exception:  # pylint: disable=W0703
                 pass
 
@@ -140,3 +151,36 @@ class Method:
             # Our own fixed messages for ValueError; other classes by name only.
             record(refused=f'{type(exc).__name__}:{exc}' if type(exc) is ValueError else type(exc).__name__)
             return {'error': UNRESOLVED, 'reason': None}, 422
+
+    @web.method()
+    def guard_auto_routing(self, proxy_target, proxy_auth):
+        """POST /v1/auto-routing/guard: a record-only verdict on a delivered answer; never changes the turn."""
+        project_id, user_id = proxy_auth['project_id'], proxy_auth['user']['id']
+        if proxy_target['method'] != 'POST':
+            return {'error': 'Method not allowed'}, 405
+        settings = auto_routing_settings(context.rpc_manager.timeout(10), project_id, user_id)
+        if not settings['enabled']:
+            return {'error': 'Auto model selection is disabled'}, 403
+        models = context.rpc_manager.timeout(10).configurations_get_routing_models(project_id, user_id)['items']
+        inventory = effective_models(models, project_id)
+        _, _, prices = routing_price_snapshot(context.rpc_manager.timeout(10), inventory, compiled_router().catalog,
+                                              project_id, settings.get('classifier'))
+        key = VaultClient(project_id).get_secrets().get('project_llm_key')
+        if not key:
+            return {'error': 'Auto model selection is unavailable'}, 503
+        try:
+            result = answer_guard.guard(proxy_target['json'], project_id=project_id, user_id=user_id, settings=settings,
+                                        models=models, price_snapshot=prices, signing_key=key,
+                                        complete=self.classifier_complete(proxy_target, proxy_auth, inventory))
+        except RoutingUnavailable as exc:
+            log.info(f'auto-routing guard project={project_id} refused={exc.reason or "UNAVAILABLE"}')
+            return {'error': str(exc), 'reason': exc.reason}, 422
+        except (ValueError, KeyError, TypeError) as exc:
+            log.info(f'auto-routing guard project={project_id} refused={type(exc).__name__}')
+            return {'error': UNRESOLVED, 'reason': None}, 422
+        try:  # Diagnostics must never change a verdict.
+            log.info(answer_guard.log_line(project_id, proxy_target['json'], result))
+            record_escalation(answer_guard.usage_record(project_id, proxy_target['json']['scope_id'], result))
+        except Exception:  # pylint: disable=W0703
+            pass
+        return result
