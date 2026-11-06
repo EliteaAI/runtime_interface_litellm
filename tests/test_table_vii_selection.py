@@ -141,9 +141,6 @@ def test_premium_tiebreak_order_on_an_exact_lb90_tie():
     assert escalation._premium(['a', 'b'], rows, {'a': 1, 'b': 3}) == ('b', 'paired_adverse_rate')
     assert escalation._premium(['b', 'c'], rows, {'b': 2, 'c': 2}, {'b': 'z|default', 'c': 'y|default'}) == (
         'c', 'canonical_order')
-    # lb90 is compared at full precision from the counts, not as the rounded table value.
-    rows = tied(a={'pass': 62, 'lb90': 0.97884}, b={})
-    assert escalation._premium(['a', 'b'], rows) == ('b', 'lb90')
 
 
 def test_deep_premium_is_gpt_6_luna_by_list_price_over_gpt_6_1_sol():
@@ -183,3 +180,66 @@ def test_the_default_mode_is_tiered():
     assert moved(result)['mode'] == 'tiered' and 'premium' not in moved(result)
     # tiered deep starts on the frontier (highest-lb90 eligible head; the tie goes to the cheaper).
     assert head(result) == 'gpt-6-luna-default'
+
+
+# --- review of #61: one ordering, stored-bound fallback, unpriced heads, trace scope ---------------------------------
+def test_every_candidate_cell_reproduces_its_stored_lb90_from_its_counts():
+    from routing.v7.build_admission_table import jeffreys_lower
+    cells = [c for e in json.loads(VII.read_text())['heads'].values()
+             for c in [*e['cells'].values(), *(d for f in (e.get('families') or {}).values() for d in f.values())]
+             if c['tier'] in admission.ADMITTED or c.get('status') == admission.FLOOR_ONLY]
+    assert len(cells) == 52
+    assert all(round(jeffreys_lower(c['pass'], c['n']), 6) == c['lb90'] for c in cells)
+
+
+def test_a_cell_whose_counts_do_not_reproduce_its_bound_keeps_the_stored_bound():
+    assert escalation._lb90({'n': 63, 'pass': 63, 'lb90': 0.5}) == 0.5  # e.g. a reweighted cell
+    exact = escalation._lb90({'n': 63, 'pass': 63, 'lb90': 0.97884})  # consistent: the full-precision bound
+    assert exact != 0.97884 and round(exact, 6) == 0.97884
+
+
+def test_tiered_deep_and_premium_at_deep_start_on_the_same_head_on_the_63_of_63_tie():
+    tiered = route(CUSTOMER_PLUS_FIVE, 'deep', 'tiered')
+    premium = route(CUSTOMER_PLUS_FIVE, 'deep', 'premium_at_deep')
+    assert head(tiered) == head(premium) == 'gpt-6-luna-default'  # list price decides both
+    assert moved(premium)['premium']['premium_tiebreak'] == 'list_price'
+    # Here the frontier is also the cheapest admitted head, so the tiered start moves nothing.
+    assert (moved(tiered)['mode'], moved(tiered)['reason']) == ('tiered', None)
+
+
+def test_the_tiered_frontier_uses_the_premium_ordering_not_the_ladder_order():
+    rows = tied(a={'adverse': 2}, b={})  # a is cheaper but has the higher paired adverse rate
+    for row in rows.values():
+        row['cell'].update(cross_provider_confirmed=False, label_regime='single_judge')  # no filter in tiered
+    assert escalation._frontier(['a', 'b'], rows) == 'b'
+
+
+def test_an_unpriced_head_ranks_last_on_list_price_without_dropping_the_others():
+    rows = tied(a={}, b={}, c={})
+    assert escalation._premium(['a', 'b', 'c'], rows, {'a': None, 'b': 3, 'c': 2}) == ('c', 'list_price')
+    assert escalation._premium(['a', 'b'], rows, {'b': 3}) == ('b', 'list_price')  # a missing price is unpriced
+
+
+def test_a_floor_only_cell_is_never_the_premium_start_even_with_the_highest_lb90():
+    rows = tied(a={}, b={'pass': 62})
+    rows['a']['tier'] = 'floor_only'  # admitted only under economical, confirmed and panel, highest lb90
+    assert escalation._premium(['a', 'b'], rows) == ('b', 'lb90')
+    assert escalation._frontier(['a', 'b'], rows) == 'b'
+
+
+@pytest.mark.parametrize('mode', ['premium_at_deep', 'premium_from_standard'])
+def test_a_greeting_under_a_premium_mode_carries_no_premium_record(mode):
+    args = args_for('luna', 'sol')
+    args['settings']['escalation_mode'] = mode
+    result = resolve(request('Hi'), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
+    assert result['trace']['descriptor']['operation'] == 'greeting'
+    assert 'premium' not in moved(result)
+
+
+def test_premium_is_computed_once_per_resolve(monkeypatch):
+    calls = []
+    real = escalation._premium
+    monkeypatch.setattr(escalation, '_premium', lambda *a, **k: calls.append(1) or real(*a, **k))
+    route(CUSTOMER_PLUS_FIVE, 'deep', 'premium_at_deep')
+    assert len(calls) == 1
+

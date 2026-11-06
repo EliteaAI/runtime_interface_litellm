@@ -580,8 +580,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             decision['selection'], escalation_trace, sticky = escalation.apply(
                 decision['selection'], catalog, mode=escalation.mode_of(settings), event=event, prior=restored_state,
                 tiering={'scope_id': scope_id, 'share': escalation.share_of(settings)},
-                list_price=({v: Decimal(usd) for v, usd in list_price.items()}
-                            if None not in list_price.values() else None))
+                # An unpriced deployment ranks last on the list-price step, for that head only.
+                list_price={v: None if usd is None else Decimal(usd) for v, usd in list_price.items()})
             state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
                 project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
                 policy_revision=router.revision, escalation=sticky), signing_key)

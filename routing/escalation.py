@@ -72,36 +72,32 @@ def arm_of(scope_id, share):
     return 'low' if bucket < share * ARM_BUCKETS else 'mid'
 
 
-def _frontier(ladder, rows):
-    """The eligible head with the highest `lb90` of its admission row (ties: the cheaper, `ladder` is cheapest
-    first), or None when no head is eligible. The `tiered` deep start (and an inactive premium start)."""
-    eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
-    top = max((rows[v]['cell']['lb90'] for v in eligible), default=None)
-    return next((v for v in eligible if rows[v]['cell']['lb90'] == top), None)
-
-
 def _lb90(cell):
-    """`lb90` at full precision from the cell counts; the table stores it rounded."""
-    return jeffreys_lower(cell['pass'], cell['n']) if 'pass' in cell and 'n' in cell else cell['lb90']
+    """`lb90` at full precision from the cell counts (the table stores it rounded to 6 places). A cell whose
+    counts do not reproduce its stored bound (none in the shipped table; pinned by a test) keeps the stored one."""
+    if 'pass' not in cell or 'n' not in cell:
+        return cell['lb90']
+    exact = jeffreys_lower(cell['pass'], cell['n'])
+    return exact if round(exact, 6) == cell['lb90'] else cell['lb90']
 
 
 def _adverse_rate(cell):
     return cell['adverse'] / cell['paired_n'] if cell.get('paired_n') else 0.0
 
 
-def _premium(ladder, rows, list_price=None, head_of=None):
-    """-> (premium head, deciding step), or (None, None) when no admitted cell is cross-provider-confirmed
-    and panel-labelled. `list_price` (variant -> list price) falls back to the ladder order (cheapest first);
-    `head_of` (variant -> canonical head) to the variant id."""
-    pool = [v for v in ladder if rows[v]['tier'] in ADMITTED
-            and (rows[v].get('cell') or {}).get('cross_provider_confirmed') is True
-            and rows[v]['cell'].get('label_regime') == 'panel']
+_UNPRICED = Decimal('Infinity')
+
+
+def _rank(pool, ladder, rows, list_price, head_of):
+    """-> (head, deciding step) of `pool`: highest `lb90`, exact tie -> lower paired adverse rate -> cheaper list
+    price (an unpriced head last; without `list_price` the ladder order) -> canonical head order."""
     if not pool:
         return None, None
-    price = list_price or {v: i for i, v in enumerate(ladder)}
+    price = ((lambda v: _UNPRICED if list_price.get(v) is None else list_price[v]) if list_price is not None
+             else {v: i for i, v in enumerate(ladder)}.__getitem__)
     steps = (('lb90', lambda v: -_lb90(rows[v]['cell'])),
              ('paired_adverse_rate', lambda v: _adverse_rate(rows[v]['cell'])),
-             ('list_price', lambda v: price[v]),
+             ('list_price', price),
              ('canonical_order', lambda v: (head_of or {}).get(v, v)))
     for step, key in steps:
         best = min(key(v) for v in pool)
@@ -111,31 +107,51 @@ def _premium(ladder, rows, list_price=None, head_of=None):
     return pool[0], 'canonical_order'
 
 
-def _start(mode, demand, ladder, rows, family, tiering, list_price=None, head_of=None):
+def _frontier(ladder, rows, list_price=None, head_of=None):
+    """The `tiered` deep start (and an inactive premium start): the eligible head first by `_rank`, the same
+    ordering as the premium head, or None when no head is eligible."""
+    return _rank([v for v in ladder if rows[v]['tier'] == 'eligible'], ladder, rows, list_price, head_of)[0]
+
+
+def _premium(ladder, rows, list_price=None, head_of=None):
+    """-> (premium head, deciding step), or (None, None) when no admitted (eligible, provisional) cell is
+    cross-provider-confirmed and panel-labelled. A `floor_only` row is never in the pool."""
+    pool = [v for v in ladder if rows[v]['tier'] in ADMITTED
+            and (rows[v].get('cell') or {}).get('cross_provider_confirmed') is True
+            and rows[v]['cell'].get('label_regime') == 'panel']
+    return _rank(pool, ladder, rows, list_price, head_of)
+
+
+_COMPUTE = object()
+
+
+def _start(mode, demand, ladder, rows, family, tiering, list_price=None, head_of=None, premium=_COMPUTE):
     """-> (start head, reason code, arm). The head a scope starts on before any signal.
 
     Tiers are measured, never named: `eligible` is the admission-table tier of the row for this demand and
-    family; the frontier is the eligible head(s) with the highest `lb90` (ties: cheapest); mid is an eligible
-    head whose canonical model is not that of the cheapest admitted head. Premium: see `_premium`.
+    family; the frontier is the eligible head first by `_rank` (the premium ordering); mid is an eligible
+    head whose canonical model is not that of the cheapest admitted head. Premium: see `_premium`; `premium`
+    is its head when the caller already computed it.
     """
     cheapest = ladder[0]
     inactive = False
     if demand in PREMIUM_DEMANDS.get(mode, ()):
-        premium = _premium(ladder, rows, list_price, head_of)[0]
+        if premium is _COMPUTE:
+            premium = _premium(ladder, rows, list_price, head_of)[0]
         if premium:
             return premium, 'PREMIUM_START', None
         mode, inactive = 'tiered', True  # no confirmed panel cell: start as `tiered` for this demand
-    start, reason, arm = _tiered_start(mode, demand, ladder, rows, family, tiering)
+    start, reason, arm = _tiered_start(mode, demand, ladder, rows, family, tiering, list_price, head_of)
     return start, ('PREMIUM_INACTIVE' if inactive else reason), arm
 
 
-def _tiered_start(mode, demand, ladder, rows, family, tiering):
+def _tiered_start(mode, demand, ladder, rows, family, tiering, list_price=None, head_of=None):
     cheapest = ladder[0]
     if mode != 'tiered' or demand == 'simple':
         return cheapest, None, None
     eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
     if demand == 'deep':
-        return _frontier(ladder, rows) or cheapest, 'TIERED_START', None
+        return _frontier(ladder, rows, list_price, head_of) or cheapest, 'TIERED_START', None
     arm = arm_of(tiering['scope_id'], tiering['share']['used'])
     mid = [v for v in eligible if family[v] != family[cheapest]]
     return (mid[0] if arm == 'mid' and mid else cheapest), 'TIERED_START', arm
@@ -247,19 +263,21 @@ def _apply(selection, catalog, *, mode, event, prior, tiering, list_price=None):
         record['reason'] = 'NO_PRIOR_ROUTE'  # nothing to move up from; the first route is the default
         return selection, record, None
     demand = (selection.get('admission') or {}).get('demand')
-    if demand in PREMIUM_DEMANDS.get(mode, ()):
-        record['premium'] = {'head': None, 'premium_tiebreak': None, 'code': 'PREMIUM_INACTIVE'}
+    premium_demand = demand in PREMIUM_DEMANDS.get(mode, ())
+    inactive = {'head': None, 'premium_tiebreak': None, 'code': 'PREMIUM_INACTIVE'}
     if not ladder or 'admission' not in selection:  # greeting rule or no ranking: nothing to climb
+        if premium_demand:
+            record['premium'] = inactive  # the chooser ran and admitted nothing at a premium demand
         record['reason'] = 'ESCALATION_NO_RANKED_HEADS' if event else None
         return selection, record, (carried or None)
     family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
     head_of = {v: variant_head(catalog['variants'][v]) for v in ladder}
     rows = {r['variant']: r for r in selection['candidates']}
-    if 'premium' in record:
+    premium = None
+    if premium_demand:
         premium, step = _premium(ladder, rows, list_price, head_of)
-        if premium:
-            record['premium'] = {'head': premium, 'premium_tiebreak': step, 'code': None}
-    start, start_reason, arm = _start(mode, demand, ladder, rows, family, tiering, list_price, head_of)
+        record['premium'] = {'head': premium, 'premium_tiebreak': step, 'code': None} if premium else inactive
+    start, start_reason, arm = _start(mode, demand, ladder, rows, family, tiering, list_price, head_of, premium)
     if mode == 'tiered' or arm:
         record['arm'] = arm
     chain = _chain(ladder, price, family, start)
