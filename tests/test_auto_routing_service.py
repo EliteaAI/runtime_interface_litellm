@@ -475,7 +475,9 @@ def test_nothing_clears_the_floor_without_the_baseline_is_a_named_refusal_that_n
     # #7307 follow-up: a project holding only cheap models used to surface the internal
     # ValueError as the generic "cannot resolve" text; the admin could not tell what to add.
     args = fixture()
-    keep = {'global.openai.gpt-5.6-luna', 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'}
+    # Luna is eligible at deep in the material-r2 table (#6826): haiku alone clears nothing, and classifies.
+    keep = {'eu.anthropic.claude-haiku-4-5-20251001-v1:0'}
+    args['settings']['classifier']['name'] = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'
     args['models'] = [m for m in args['models'] if m['name'] in keep]
     args['price_snapshot']['entries'] = [e for e in args['price_snapshot']['entries'] if e['model_name'] in keep]
     with pytest.raises(RoutingUnavailable) as info:
