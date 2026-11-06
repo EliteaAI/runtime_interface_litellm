@@ -127,9 +127,12 @@ def test_previous_table_fixture_is_the_one_that_shipped_before():
 
 
 def test_the_loader_serves_the_table_and_ignores_the_label_revision_key():
+    # Since #6826 (round vii) the loader serves the vii table (pinned in test_table_vii_selection.py); the
+    # material-r2 table this file rebuilds stays beside it as history and is no longer loaded.
     from routing.v7 import admission
     loaded = admission.load()
-    assert loaded['sha256'] == SHIPPED_TABLE_SHA256 and loaded['dataset_sha256'] == SHIPPED_DATASET_SHA256
+    assert admission.TABLE_PATH.name == 'admission-table-material-r2-vii-3of4-ref30-limit-ai.json'
+    assert loaded['sha256'] == hashlib.sha256(admission.TABLE_PATH.read_bytes()).hexdigest() != SHIPPED_TABLE_SHA256
     assert set(loaded) == {'rule_revision', 'sha256', 'dataset_sha256', 'heads'}
 
 

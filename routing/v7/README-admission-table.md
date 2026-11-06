@@ -1,4 +1,22 @@
-# Admission table of record (`admission-table.json`)
+# Admission table of record
+
+**Since #6826 round (vii) the loader serves `admission-table-material-r2-vii-3of4-ref30-limit-ai.json`**, sha256
+`09a9bcd29f7b2f8590126c9fc27b46b087801d7e89e93e488dd76129d6e4ba00` (21 heads, rule revision
+`interim-reviewed-demand-1+ac2+ref30+limit_oracle`, 3-of-4 panel labels). Its rules, cell fields (`status: floor_only`,
+`cross_provider_confirmed`, `label_regime`, `marginal`, `reference_head`) and the round's results are documented in
+`autorouting_impl/admission-rebuild-iv/README.md` and `REPORT-vii.md`; the Gateway consumes tiers only. Selection:
+`floor_only` cells are candidates only under an explicit `economical` mode. They are never admitted as a tier
+through the unmeasured last resort (#7307 / AB.0): that path is tier-less, ranks every hard-gated deployment by quote
+and marks the route provisional, so a floor_only deployment can be routed there exactly like an `out` one, with tier
+none. Premium modes (and `tiered` at deep) start on the premium head: among admitted cells that are cross-provider
+confirmed and panel-labelled, `eligible` before `provisional`, then the highest full-precision `lb90` (tie: paired
+adverse rate, list price, canonical order; `premium_tiebreak` in the trace). Without one, premium modes start as
+`tiered` (`PREMIUM_INACTIVE`) and `tiered` deep stays on the cheapest head (`TIERED_FRONTIER_UNCONFIRMED`). An
+uncertain descriptor starts on the cheapest admitted head in every mode. The `tiered` standard mid tier is not a
+premium posture: it may pick any eligible cell of another model, confirmed or not.
+The material-r2 table below stays as `admission-table.json` for the history of the pins.
+
+## Previous table of record (`admission-table.json`)
 
 Label revision: **`material-r2`** (#6722 / #6826). Admission is not selection: selection is the policy's price
 ordering over the eligible heads.

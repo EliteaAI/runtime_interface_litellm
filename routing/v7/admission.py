@@ -1,10 +1,14 @@
 """Data-derived admission table and the chooser that reads it (interim policy, #6722).
 
-``admission-table.json`` is generated offline by ``build_admission_table.py`` from
-the reviewed-demand view of the routing-outcome dataset. For every canonical head
+The table of record (``TABLE_PATH``, round vii, #6826) is built offline from the
+reviewed-demand view of the routing-outcome dataset (``build_admission_table.py`` plus
+the ac2/ref30/limit_oracle rules of autorouting_impl/admission-rebuild-iv);
+``admission-table.json`` (material-r2) stays beside it as history. For every canonical head
 (``vendor/family|effort``) and demand it records counts, a lower bound, a paired
-adverse count and a tier: ``eligible``, ``provisional`` (deep only) or ``out``.
-A head or demand without a row is out: nothing is inferred from names or prices.
+adverse count and a tier: ``eligible``, ``provisional`` or ``out``. An ``out`` cell with
+``status: floor_only`` cleared the absolute floor but not the paired rule: it is a candidate
+only when the project chose the ``economical`` mode (``context['floor_only']``), never by
+default. A head or demand without a row is out: nothing is inferred from names or prices.
 
 The legacy catalog tables (``tasks``, ``max_demand``, ``preferences``) and
 ``qualification-policy.json`` stay on disk for the lab tests but no longer decide
@@ -27,11 +31,12 @@ from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
-TABLE_PATH = Path(__file__).with_name('admission-table.json')
+TABLE_PATH = Path(__file__).with_name('admission-table-material-r2-vii-3of4-ref30-limit-ai.json')
 DEMAND = {'simple': 0, 'standard': 1, 'deep': 2}
 ADMITTED = frozenset({'eligible', 'provisional'})
 # Evidence verdicts of the table; the unmeasured last resort sets only these aside.
 EVIDENCE_REJECTIONS = frozenset({'ADMISSION_NO_ROW', 'ADMISSION_ROW_OUT', 'CALIBRATION_ALLOWANCE_BELOW_P90'})
+FLOOR_ONLY = 'floor_only'
 EFFORT_ORDER = {None: 0, 'low': 1, 'medium': 2, 'high': 3}
 TRANSPORT_BY_VENDOR = {'anthropic': 'anthropic_messages'}
 _SHORT = re.compile(r'^(claude-|gpt-\d+-\d+-)')
@@ -71,8 +76,17 @@ def tier_of(admission, head, demand, family=None):
     return found['tier'] if found else 'out'
 
 
-def _variant_id(canonical, effort):
-    return f"{_SHORT.sub('', canonical.split('/', 1)[1])}-{effort or 'default'}"
+def _variant_id(canonical, effort, taken=()):
+    """The short id (``sol-default``), or the full family id when the short one is taken by another model
+    (gpt-6.1-sol and gpt-5.6-sol both shorten to ``sol``)."""
+    family = canonical.split('/', 1)[1]
+    short = f"{_SHORT.sub('', family)}-{effort or 'default'}"
+    if short not in taken:
+        return short
+    full = f"{family}-{effort or 'default'}"
+    if full in taken:
+        raise ValueError(f'Admission head {canonical} has no free variant id')
+    return full
 
 
 def missing_variants(admission, existing):
@@ -84,7 +98,7 @@ def missing_variants(admission, existing):
     have = {(v['canonical_model'], v['effort']) for v in existing.values()}
     result = {}
     for head, entry in sorted(admission['heads'].items()):
-        admitted = [d for d, c in entry['cells'].items() if c['tier'] in ADMITTED]
+        admitted = [d for d, c in entry['cells'].items() if c['tier'] in ADMITTED or c.get('status') == FLOOR_ONLY]
         if not admitted or (entry['canonical_model'], entry['effort']) in have or not entry['model_ids']:
             continue
         vendor = entry['canonical_model'].split('/', 1)[0]
@@ -97,12 +111,13 @@ def missing_variants(admission, existing):
                 'revision': admission['rule_revision'], 'source_sha256': admission['dataset_sha256'],
                 'families': {}, 'transport': TRANSPORT_BY_VENDOR[vendor], 'output_allowance': None,
                 'production_promotion_allowed': False}
-        result[_variant_id(entry['canonical_model'], entry['effort'])] = variant
+        result[_variant_id(entry['canonical_model'], entry['effort'], set(existing) | set(result))] = variant
     return result
 
 
 def _summary(found):
-    return {k: found[k] for k in ('n', 'pass', 'lb90', 'adverse', 'paired_n', 'best_head') if k in found}
+    return {k: found[k] for k in ('n', 'pass', 'lb90', 'adverse', 'paired_n', 'best_head', 'status', 'reference_head',
+                                  'cross_provider_confirmed', 'label_regime', 'marginal') if k in found}
 
 
 def annotate(selection, row, *, demand, family, admission, allowance_rejected=(), rejections=None):
@@ -152,6 +167,8 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
             reasons.append(v.get('disabled_reason', 'disabled'))
         found = cell(admission, variant_head(v), demand, family)
         tier = found['tier'] if found else 'out'
+        if tier == 'out' and found and found.get('status') == FLOOR_ONLY and context.get('floor_only'):
+            tier = FLOOR_ONLY  # the project chose `economical`: the measured gap is accepted
         if tier == 'out':
             reasons.append('ADMISSION_NO_ROW' if found is None else 'ADMISSION_ROW_OUT')
         capped = tier_caps.get(vid)

@@ -36,7 +36,7 @@ def test_simple_and_standard_work_goes_to_luna_default(demand):
     assert selected(result) == ('luna-default', 'eligible', False)
     assert result['config']['model_name'] == 'global.openai.gpt-5.6-luna'
     info = result['trace']['selection']['admission']
-    assert info['demand'] == demand and info['status'] == 'admitted' and info['cell']['pass'] / info['cell']['n'] > 0.98
+    assert info['demand'] == demand and info['status'] == 'admitted' and info['cell']['pass'] / info['cell']['n'] > 0.97
 
 
 def test_the_old_task_ceiling_tables_no_longer_decide_product_routing():
@@ -56,15 +56,14 @@ def test_every_current_variant_with_a_simple_row_is_a_candidate():
 
 
 # --- admission by the table: deep -------------------------------------------------------------------------------
-def test_deep_work_goes_to_luna_default_the_cheapest_eligible_head():
-    # material-r2 table: luna-default is eligible at deep (63/65, lb90 0.931, 1 adverse in 38 vs sol-high), so the
-    # price ordering over the eligible heads picks it; admission is not selection.
+def test_deep_work_goes_to_luna_default_the_cheapest_admitted_head():
+    # Round (vii) table: luna-default is provisional at deep (60/65, 5 adverse in 63 vs gpt-6.1-sol), so the price
+    # ordering over the admitted heads picks it with the flag; the Anthropic deep cells are out.
     result = run(demand='deep')
-    assert selected(result) == ('luna-default', 'eligible', False)
-    assert result['trace']['selection']['admission']['tier'] == 'eligible'
+    assert selected(result) == ('luna-default', 'provisional', True)
+    assert result['trace']['selection']['admission']['tier'] == 'provisional'
     quotes = result['trace']['selection']['economics']['quotes']
-    assert set(quotes) == {'luna-default', 'luna-high', 'terra-default', 'sol-high', 'sonnet-5-5-default',
-                           'opus-5-5-default', 'opus-5-5-high'}
+    assert set(quotes) == {'luna-default', 'terra-default', 'sol-high'}
 
 
 def test_deep_work_goes_to_the_cheapest_provisional_head_and_says_so():
@@ -83,7 +82,7 @@ def test_an_eligible_head_that_is_cheaper_wins_without_the_provisional_flag():
 
 
 def test_with_the_openai_heads_gated_the_next_cheapest_admitted_head_is_chosen():
-    result = run(keys=('sonnet55', 'opus55', 'gpt54'), demand='deep')
+    result = run(keys=('sonnet55', 'opus55'), demand='simple')  # the 5.5 heads are admitted at simple only (vii)
     assert selected(result) == ('sonnet-5-5-default', 'eligible', False)  # a DIAL-less native Anthropic head
     assert result['config']['routing_transport'] == 'anthropic_messages'
 
@@ -132,7 +131,7 @@ def test_uncertain_descriptor_goes_to_the_cheapest_variant_clearing_the_deep_flo
     result = run(demand='simple', **UNCERTAIN[name])
     selection = result['trace']['selection']
     assert (selection['variant'], selection['reason']) == ('luna-default', 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR')
-    assert selection['admission']['demand'] == 'deep' and selection['provisional'] is False
+    assert selection['admission']['demand'] == 'deep' and selection['provisional'] is True  # provisional at deep (vii)
 
 
 @pytest.mark.parametrize('name', sorted(UNCERTAIN))
@@ -225,7 +224,7 @@ def test_candidate_rows_record_why_a_variant_was_not_admitted():
     chosen = router.select({**descriptor('deep'), 'effort_need': 'low'})
     rows = {r['variant']: r for r in chosen['candidates']}
     assert rows['sol-default']['rejections'] == ['ADMISSION_ROW_OUT']  # 5/5 at deep is below the evidence floor
-    assert rows['luna-default']['tier'] == 'eligible' and rows['luna-default']['eligible']
+    assert rows['luna-default']['tier'] == 'provisional' and rows['luna-default']['eligible']
     assert rows['gpt54-medium']['rejections'] == ['ADMISSION_NO_ROW']
     assert rows['terra-default']['tier'] == 'provisional' and rows['terra-default']['eligible']
 

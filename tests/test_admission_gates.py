@@ -42,10 +42,10 @@ def test_the_provider_default_is_the_models_own_maximum_and_can_fail_the_p90_che
     result = go(('luna', 'gpt54'), demand='standard', inventory=small)
     info = result['trace']['selection']['admission']
     assert 'luna-default' in info['allowance_rejected']  # rejected on its own provider maximum
-    # gpt-5.4 default is admitted at standard in the material-r2 table (21/21), so it is chosen as an admitted
-    # head and no longer through the baseline rule.
+    # gpt-5.4 default is admitted at standard (provisional in the round (vii) table, 71/75), so it is chosen as an
+    # admitted head and not through the baseline rule.
     selection = result['trace']['selection']
-    assert (selection['variant'], selection['tier']) == ('gpt-5-4-default', 'eligible')
+    assert (selection['variant'], selection['tier']) == ('gpt-5-4-default', 'provisional')
     assert selection['reason'] != 'UNCERTAIN_TASK_BASELINE'
 
 
@@ -60,8 +60,9 @@ def test_explicit_cap_is_compared_with_the_cell_p90_at_the_boundary(delta, passe
         assert selection['admission']['effective_cap'] == cap
         assert result['config']['max_tokens'] == cap
     else:
-        assert (selection['variant'], selection['tier']) == ('gpt-5-4-default', 'eligible')  # admitted at standard
-        assert 'luna-default' in selection['admission']['allowance_rejected']
+        # gpt-5-4-default's own standard p90 (vii) is above this cap too, so the baseline variant runs.
+        assert (selection['variant'], selection['reason']) == ('gpt54-medium', 'UNCERTAIN_TASK_BASELINE')
+        assert {'luna-default', 'gpt-5-4-default'} <= set(selection['admission']['allowance_rejected'])
 
 
 def test_small_explicit_cap_without_a_baseline_routes_to_the_cheapest_hard_gated_head():
@@ -165,9 +166,10 @@ def test_ranking_prices_the_cell_p90_never_the_provider_maximum():
 
 
 def test_a_cheaper_model_with_a_longer_expected_answer_can_lose():
-    # Opus-5.5-high's deep answers average far more tokens than Terra's: a lower token price does not win.
+    # Opus-5.5-high's simple answers are far longer than Terra's (p90 1468 vs 433 tokens): a lower token price
+    # does not win. (The Opus deep cells are out in the round (vii) table.)
     prices = {'opus55': ('.0000001', '.000004')}  # half Terra's output price per token
-    result = go(('terra', 'opus55'), demand='deep', inventory={'prices': prices})
+    result = go(('terra', 'opus55'), demand='simple', inventory={'prices': prices})
     quotes = result['trace']['selection']['economics']['quotes']
     assert float(quotes['opus-5-5-high']['ranking_usd']) > float(quotes['terra-default']['ranking_usd'])
     assert result['trace']['selection']['variant'] == 'terra-default'

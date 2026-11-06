@@ -1,0 +1,4355 @@
+{
+ "dataset_rows_total": 17872,
+ "dataset_sha256": "8adcee92b20b40946ef93982672b003cea4f4f0992700aa11c6994c72cd9e407",
+ "generated_at": "2026-10-13",
+ "heads": {
+  "anthropic/claude-haiku-4-5|default": {
+   "canonical_model": "anthropic/claude-haiku-4-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 3,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 9667,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 3,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.174976,
+     "lineages": 5,
+     "marginal": false,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.4,
+      "other": 0.0,
+      "panel": 0.6,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 2,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 2,
+      "terra_required_pass": 2,
+      "terra_required_tier": "out",
+      "unanimous_pass": 2,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 9,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 312,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 7,
+      "oracle": 16,
+      "other": 0,
+      "panel": 4,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.622429,
+     "lineages": 27,
+     "marginal": false,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.2593,
+      "oracle": 0.5926,
+      "other": 0.0,
+      "panel": 0.1481,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 20,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 20,
+      "terra_required_pass": 19,
+      "terra_required_tier": "out",
+      "unanimous_pass": 19,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 10,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 2460,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 5,
+      "oracle": 6,
+      "other": 0,
+      "panel": 10,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.479455,
+     "lineages": 21,
+     "marginal": false,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.2381,
+      "oracle": 0.2857,
+      "other": 0.0,
+      "panel": 0.4762,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 13,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 13,
+      "terra_required_pass": 13,
+      "terra_required_tier": "out",
+      "unanimous_pass": 13,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-haiku-4-5-20251001-v1:0"
+   ]
+  },
+  "anthropic/claude-haiku-5-5|default": {
+   "canonical_model": "anthropic/claude-haiku-5-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 0,
+     "adverse": 37,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 13349,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.335969,
+     "lineages": 54,
+     "marginal": false,
+     "n": 63,
+     "output_n": 63,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 26,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 26,
+      "terra_required_pass": 25,
+      "terra_required_tier": "out",
+      "unanimous_pass": 25,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 0,
+     "adverse": 5,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 1518,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 74,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.886522,
+     "lineages": 66,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier"
+     ],
+     "n": 74,
+     "output_n": 74,
+     "paired_n": 74,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 69,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 74,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 69,
+      "terra_required_pass": 69,
+      "terra_required_tier": "out",
+      "unanimous_pass": 69,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 17,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 5296,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.682456,
+     "lineages": 44,
+     "marginal": false,
+     "n": 69,
+     "output_n": 69,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 52,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 52,
+      "terra_required_pass": 51,
+      "terra_required_tier": "out",
+      "unanimous_pass": 50,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 20087,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.072889,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 3,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.anthropic.claude-haiku-5-5"
+   ]
+  },
+  "anthropic/claude-opus-4-7|default": {
+   "canonical_model": "anthropic/claude-opus-4-7",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 3,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 4713,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 3,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.174976,
+     "lineages": 5,
+     "marginal": false,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.4,
+      "other": 0.0,
+      "panel": 0.6,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 2,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 2,
+      "terra_required_pass": 2,
+      "terra_required_tier": "out",
+      "unanimous_pass": 2,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 6,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 492,
+     "gap": {
+      "adverse": null,
+      "best_head": null,
+      "paired_n": 0,
+      "rate": null,
+      "reason": "paired test not evaluable (no head shares >= 30 items)"
+     },
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 10,
+      "oracle": 16,
+      "other": 0,
+      "panel": 1,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.951573,
+     "lineages": 27,
+     "marginal": false,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.3704,
+      "oracle": 0.5926,
+      "other": 0.0,
+      "panel": 0.037,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 27,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "status": "floor_only",
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 27,
+      "terra_required_pass": 26,
+      "terra_required_tier": "out",
+      "unanimous_pass": 26,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 6,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 3504,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 9,
+      "oracle": 6,
+      "other": 0,
+      "panel": 6,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.795853,
+     "lineages": 21,
+     "marginal": false,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.4286,
+      "oracle": 0.2857,
+      "other": 0.0,
+      "panel": 0.2857,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 19,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 19,
+      "terra_required_pass": 18,
+      "terra_required_tier": "out",
+      "unanimous_pass": 17,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-opus-4-7"
+   ]
+  },
+  "anthropic/claude-opus-5-5|default": {
+   "canonical_model": "anthropic/claude-opus-5-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 7,
+     "adverse": 20,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 20466,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 40,
+      "refusal_or_incomplete": 1
+     },
+     "lb90": 0.437739,
+     "lineages": 39,
+     "marginal": false,
+     "n": 43,
+     "output_n": 43,
+     "paired_n": 41,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0465,
+      "other": 0.0,
+      "panel": 0.9302,
+      "refusal_or_incomplete": 0.0233
+     },
+     "pass": 23,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 41,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 23,
+      "terra_required_pass": 24,
+      "terra_required_tier": "out",
+      "unanimous_pass": 23,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 12,
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 1533,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 39,
+      "oracle": 76,
+      "other": 0,
+      "panel": 2,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.973582,
+     "lineages": 114,
+     "marginal": false,
+     "n": 117,
+     "output_n": 117,
+     "paired_n": 117,
+     "panel_share": {
+      "judge_reweighted": 0.3333,
+      "oracle": 0.6496,
+      "other": 0.0,
+      "panel": 0.0171,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 116,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 117,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 116,
+      "terra_required_pass": 116,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 116,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 6,
+     "adverse": 12,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 7817,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 7,
+      "other": 0,
+      "panel": 67,
+      "refusal_or_incomplete": 1
+     },
+     "lb90": 0.779574,
+     "lineages": 50,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0933,
+      "other": 0.0,
+      "panel": 0.8933,
+      "refusal_or_incomplete": 0.0133
+     },
+     "pass": 63,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 63,
+      "terra_required_pass": 62,
+      "terra_required_tier": "out",
+      "unanimous_pass": 62,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 98,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 29559,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 19,
+       "refusal_or_incomplete": 1
+      },
+      "lb90": 0.072889,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.95,
+       "refusal_or_incomplete": 0.05
+      },
+      "pass": 3,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 1759,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "single_judge",
+      "label_rows": {
+       "judge_reweighted": 19,
+       "oracle": 0,
+       "other": 0,
+       "panel": 1,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.95,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.05,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 33,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "eu.anthropic.claude-opus-5-5",
+    "global.anthropic.claude-opus-5-5"
+   ]
+  },
+  "anthropic/claude-opus-5-5|high": {
+   "canonical_model": "anthropic/claude-opus-5-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 9,
+     "adverse": 27,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 27987,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 62,
+      "refusal_or_incomplete": 1
+     },
+     "lb90": 0.505222,
+     "lineages": 56,
+     "marginal": false,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9538,
+      "refusal_or_incomplete": 0.0154
+     },
+     "pass": 38,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 38,
+      "terra_required_pass": 37,
+      "terra_required_tier": "out",
+      "unanimous_pass": 37,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 22,
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 1468,
+     "label_regime": "single_judge",
+     "label_rows": {
+      "judge_reweighted": 82,
+      "oracle": 79,
+      "other": 0,
+      "panel": 1,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.980861,
+     "lineages": 134,
+     "marginal": false,
+     "n": 162,
+     "output_n": 162,
+     "paired_n": 90,
+     "panel_share": {
+      "judge_reweighted": 0.5062,
+      "oracle": 0.4877,
+      "other": 0.0,
+      "panel": 0.0062,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 161,
+     "reference_head": "openai/gpt-5-6-luna|high",
+     "reference_paired_n": 90,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 161,
+      "suppressed": "single_judge cell (REVIEW AD): the bounds would restate one vote",
+      "terra_required_pass": null,
+      "terra_required_tier": null,
+      "unanimous_pass": null,
+      "unanimous_tier": null
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 9,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 10487,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 6,
+      "other": 0,
+      "panel": 67,
+      "refusal_or_incomplete": 2
+     },
+     "lb90": 0.824828,
+     "lineages": 50,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.8933,
+      "refusal_or_incomplete": 0.0267
+     },
+     "pass": 66,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 66,
+      "terra_required_pass": 65,
+      "terra_required_tier": "out",
+      "unanimous_pass": 63,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": "high",
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 107,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 36200,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 19,
+       "refusal_or_incomplete": 1
+      },
+      "lb90": 0.227674,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.95,
+       "refusal_or_incomplete": 0.05
+      },
+      "pass": 7,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 2302,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "single_judge",
+      "label_rows": {
+       "judge_reweighted": 19,
+       "oracle": 0,
+       "other": 0,
+       "panel": 1,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.95,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.05,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 59,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.anthropic.claude-opus-5-5"
+   ]
+  },
+  "anthropic/claude-opus-5|default": {
+   "canonical_model": "anthropic/claude-opus-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 3,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 15825,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 3,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.326847,
+     "lineages": 5,
+     "marginal": false,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.4,
+      "other": 0.0,
+      "panel": 0.6,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 3,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 3,
+      "terra_required_pass": 2,
+      "terra_required_tier": "out",
+      "unanimous_pass": 2,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 2,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 929,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 9,
+      "oracle": 16,
+      "other": 0,
+      "panel": 1,
+      "refusal_or_incomplete": 1
+     },
+     "lb90": 0.838567,
+     "lineages": 27,
+     "marginal": false,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.3333,
+      "oracle": 0.5926,
+      "other": 0.0,
+      "panel": 0.037,
+      "refusal_or_incomplete": 0.037
+     },
+     "pass": 25,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 25,
+      "terra_required_pass": 25,
+      "terra_required_tier": "out",
+      "unanimous_pass": 25,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 5,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 9372,
+     "label_regime": "single_judge",
+     "label_rows": {
+      "judge_reweighted": 11,
+      "oracle": 6,
+      "other": 0,
+      "panel": 3,
+      "refusal_or_incomplete": 1
+     },
+     "lb90": 0.577283,
+     "lineages": 21,
+     "marginal": false,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.5238,
+      "oracle": 0.2857,
+      "other": 0.0,
+      "panel": 0.1429,
+      "refusal_or_incomplete": 0.0476
+     },
+     "pass": 15,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 15,
+      "suppressed": "single_judge cell (REVIEW AD): the bounds would restate one vote",
+      "terra_required_pass": null,
+      "terra_required_tier": null,
+      "unanimous_pass": null,
+      "unanimous_tier": null
+     }
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "eu.anthropic.claude-opus-5"
+   ]
+  },
+  "anthropic/claude-sonnet-4-6|default": {
+   "canonical_model": "anthropic/claude-sonnet-4-6",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 63,
+     "adverse": 49,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 7344,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.183725,
+     "lineages": 56,
+     "marginal": false,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9692,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 16,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 18,
+     "votes": {
+      "majority_pass": 16,
+      "terra_required_pass": 8,
+      "terra_required_tier": "out",
+      "unanimous_pass": 8,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 55,
+     "adverse": 11,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 1302,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 6,
+      "oracle": 16,
+      "other": 0,
+      "panel": 53,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.794509,
+     "lineages": 67,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 75,
+     "panel_share": {
+      "judge_reweighted": 0.08,
+      "oracle": 0.2133,
+      "other": 0.0,
+      "panel": 0.7067,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 64,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 75,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 64,
+      "terra_required_pass": 62,
+      "terra_required_tier": "out",
+      "unanimous_pass": 61,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 63,
+     "adverse": 21,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 4013,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 6,
+      "oracle": 6,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.64991,
+     "lineages": 50,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.08,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.84,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 54,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 1,
+     "votes": {
+      "majority_pass": 54,
+      "terra_required_pass": 44,
+      "terra_required_tier": "out",
+      "unanimous_pass": 42,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 7711,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.040993,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 2,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-4-6"
+   ]
+  },
+  "anthropic/claude-sonnet-5-5|default": {
+   "canonical_model": "anthropic/claude-sonnet-5-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 3,
+     "adverse": 16,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 27419,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 38,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.475129,
+     "lineages": 34,
+     "marginal": false,
+     "n": 38,
+     "output_n": 38,
+     "paired_n": 38,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 22,
+     "reference_head": "openai/gpt-5-6-sol|high",
+     "reference_paired_n": 38,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 22,
+      "terra_required_pass": 21,
+      "terra_required_tier": "out",
+      "unanimous_pass": 21,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 10,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 1095,
+     "label_regime": "single_judge",
+     "label_rows": {
+      "judge_reweighted": 50,
+      "oracle": 39,
+      "other": 0,
+      "panel": 1,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.985123,
+     "lineages": 87,
+     "marginal": false,
+     "n": 90,
+     "output_n": 90,
+     "paired_n": 90,
+     "panel_share": {
+      "judge_reweighted": 0.5556,
+      "oracle": 0.4333,
+      "other": 0.0,
+      "panel": 0.0111,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 90,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 90,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 90,
+      "suppressed": "single_judge cell (REVIEW AD): the bounds would restate one vote",
+      "terra_required_pass": null,
+      "terra_required_tier": null,
+      "unanimous_pass": null,
+      "unanimous_tier": null
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 1,
+     "adverse": 9,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 6871,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 67,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.810183,
+     "lineages": 44,
+     "marginal": false,
+     "n": 69,
+     "note": "n=69; 6 with_effects standard items not generatable by a plain completion (not filled)",
+     "output_n": 69,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.029,
+      "other": 0.0,
+      "panel": 0.971,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 60,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 60,
+      "terra_required_pass": 59,
+      "terra_required_tier": "out",
+      "unanimous_pass": 59,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 181,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "single_judge",
+      "label_rows": {
+       "judge_reweighted": 18,
+       "oracle": 2,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.9,
+       "oracle": 0.1,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 27504,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.27082,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 8,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 1394,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "single_judge",
+      "label_rows": {
+       "judge_reweighted": 19,
+       "oracle": 0,
+       "other": 0,
+       "panel": 1,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.95,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.05,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 63,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 2,
+       "oracle": 18,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.1,
+       "oracle": 0.9,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-5-5",
+    "global.anthropic.claude-sonnet-5-5"
+   ]
+  },
+  "anthropic/claude-sonnet-5|default": {
+   "canonical_model": "anthropic/claude-sonnet-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 63,
+     "adverse": 24,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 16401,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.551959,
+     "lineages": 56,
+     "marginal": false,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9692,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 41,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 3,
+     "votes": {
+      "majority_pass": 41,
+      "terra_required_pass": 30,
+      "terra_required_tier": "out",
+      "unanimous_pass": 30,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 50,
+     "adverse": 4,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 2287,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 9,
+      "oracle": 16,
+      "other": 0,
+      "panel": 50,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.904598,
+     "lineages": 67,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 75,
+     "panel_share": {
+      "judge_reweighted": 0.12,
+      "oracle": 0.2133,
+      "other": 0.0,
+      "panel": 0.6667,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 71,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 75,
+     "tier": "provisional",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 71,
+      "terra_required_pass": 70,
+      "terra_required_tier": "out",
+      "unanimous_pass": 70,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 58,
+     "adverse": 7,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 11212,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 11,
+      "oracle": 6,
+      "other": 0,
+      "panel": 58,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.855892,
+     "lineages": 50,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.1467,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.7733,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 68,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 68,
+      "terra_required_pass": 61,
+      "terra_required_tier": "out",
+      "unanimous_pass": 59,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 19040,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.315381,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 9,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-5"
+   ]
+  },
+  "anthropic/claude-sonnet-5|high": {
+   "canonical_model": "anthropic/claude-sonnet-5",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 62,
+     "adverse": 22,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 17545,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 1,
+      "oracle": 2,
+      "other": 0,
+      "panel": 62,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.583522,
+     "lineages": 56,
+     "marginal": false,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0154,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9538,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 43,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 43,
+      "terra_required_pass": 27,
+      "terra_required_tier": "out",
+      "unanimous_pass": 24,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 50,
+     "adverse": 3,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 2069,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 9,
+      "oracle": 16,
+      "other": 0,
+      "panel": 50,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.921744,
+     "lineages": 67,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 75,
+     "panel_share": {
+      "judge_reweighted": 0.12,
+      "oracle": 0.2133,
+      "other": 0.0,
+      "panel": 0.6667,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 72,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 75,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 72,
+      "terra_required_pass": 69,
+      "terra_required_tier": "out",
+      "unanimous_pass": 67,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 60,
+     "adverse": 7,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 10056,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 10,
+      "oracle": 6,
+      "other": 0,
+      "panel": 59,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.855892,
+     "lineages": 50,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.1333,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.7867,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 68,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 68,
+      "terra_required_pass": 61,
+      "terra_required_tier": "out",
+      "unanimous_pass": 56,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": "high",
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 18108,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.457143,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 12,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "eu.anthropic.claude-sonnet-5"
+   ]
+  },
+  "google/gemini-3-1-pro|default": {
+   "canonical_model": "google/gemini-3-1-pro",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 0,
+     "adverse": 47,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 5116,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.189775,
+     "lineages": 54,
+     "marginal": false,
+     "n": 63,
+     "output_n": 63,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 16,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 16,
+      "terra_required_pass": 15,
+      "terra_required_tier": "out",
+      "unanimous_pass": 14,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 0,
+     "adverse": 3,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 2039,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 74,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.920712,
+     "lineages": 66,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 74,
+     "output_n": 74,
+     "paired_n": 74,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 71,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 74,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 71,
+      "terra_required_pass": 70,
+      "terra_required_tier": "provisional",
+      "unanimous_pass": 69,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 22,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 3406,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.606176,
+     "lineages": 44,
+     "marginal": false,
+     "n": 69,
+     "output_n": 69,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 47,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 47,
+      "terra_required_pass": 47,
+      "terra_required_tier": "out",
+      "unanimous_pass": 44,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 5412,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.014688,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 1,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "gemini-3.1-pro-preview"
+   ]
+  },
+  "google/gemini-3-8-flash|default": {
+   "canonical_model": "google/gemini-3-8-flash",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 0,
+     "adverse": 45,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 6503,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.218217,
+     "lineages": 54,
+     "marginal": false,
+     "n": 63,
+     "output_n": 63,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 18,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 18,
+      "terra_required_pass": 17,
+      "terra_required_tier": "out",
+      "unanimous_pass": 16,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 0,
+     "adverse": 6,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 1781,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 74,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.870106,
+     "lineages": 66,
+     "marginal": false,
+     "n": 74,
+     "output_n": 74,
+     "paired_n": 74,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 68,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 74,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 68,
+      "terra_required_pass": 66,
+      "terra_required_tier": "out",
+      "unanimous_pass": 66,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 21,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 3420,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.621262,
+     "lineages": 44,
+     "marginal": false,
+     "n": 69,
+     "output_n": 69,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 48,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 48,
+      "terra_required_pass": 47,
+      "terra_required_tier": "out",
+      "unanimous_pass": 47,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 6903,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.014688,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 1,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "gemini-3.8-flash"
+   ]
+  },
+  "openai/gpt-5-4-mini|default": {
+   "canonical_model": "openai/gpt-5-4-mini",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 62,
+     "adverse": 26,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 3503,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 2,
+      "oracle": 2,
+      "other": 0,
+      "panel": 61,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.520722,
+     "lineages": 56,
+     "marginal": false,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0308,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9385,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 39,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 39,
+      "terra_required_pass": 36,
+      "terra_required_tier": "out",
+      "unanimous_pass": 25,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 49,
+     "adverse": 6,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 354,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 11,
+      "oracle": 16,
+      "other": 0,
+      "panel": 48,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.871786,
+     "lineages": 67,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 75,
+     "panel_share": {
+      "judge_reweighted": 0.1467,
+      "oracle": 0.2133,
+      "other": 0.0,
+      "panel": 0.64,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 69,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 75,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 69,
+      "terra_required_pass": 67,
+      "terra_required_tier": "out",
+      "unanimous_pass": 67,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 61,
+     "adverse": 9,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 2019,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 12,
+      "oracle": 6,
+      "other": 0,
+      "panel": 57,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.824828,
+     "lineages": 50,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.16,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.76,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 66,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 66,
+      "terra_required_pass": 63,
+      "terra_required_tier": "out",
+      "unanimous_pass": 58,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 3694,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.27082,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 8,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "gpt-5.4-mini"
+   ]
+  },
+  "openai/gpt-5-4|default": {
+   "canonical_model": "openai/gpt-5-4",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 62,
+     "adverse": 10,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 5274,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 1,
+      "oracle": 2,
+      "other": 0,
+      "panel": 62,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.781549,
+     "lineages": 56,
+     "marginal": false,
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0154,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9538,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 55,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "out",
+     "truncated_packets_r4": 17,
+     "votes": {
+      "majority_pass": 55,
+      "terra_required_pass": 50,
+      "terra_required_tier": "out",
+      "unanimous_pass": 49,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 50,
+     "adverse": 2,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 325,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 8,
+      "oracle": 16,
+      "other": 0,
+      "panel": 51,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.939692,
+     "lineages": 67,
+     "marginal": false,
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 75,
+     "panel_share": {
+      "judge_reweighted": 0.1067,
+      "oracle": 0.2133,
+      "other": 0.0,
+      "panel": 0.68,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 73,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 75,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 73,
+      "terra_required_pass": 73,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 73,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 61,
+     "adverse": 4,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "provisional",
+     "expected_output_tokens_p90": 3135,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 13,
+      "oracle": 6,
+      "other": 0,
+      "panel": 56,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.904598,
+     "lineages": 50,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.1733,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.7467,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 71,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "provisional",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 71,
+      "terra_required_pass": 69,
+      "terra_required_tier": "out",
+      "unanimous_pass": 66,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 5901,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.558707,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 14,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "gpt-5.4"
+   ]
+  },
+  "openai/gpt-5-6-luna|default": {
+   "canonical_model": "openai/gpt-5-6-luna",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 64,
+     "adverse": 5,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "provisional",
+     "expected_output_tokens_p90": 4738,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.871318,
+     "lineages": 56,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9692,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 60,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "provisional",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 60,
+      "terra_required_pass": 56,
+      "terra_required_tier": "out",
+      "unanimous_pass": 55,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 65,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 573,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 21,
+      "oracle": 82,
+      "other": 0,
+      "panel": 59,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.980861,
+     "lineages": 134,
+     "marginal": false,
+     "n": 162,
+     "output_n": 162,
+     "paired_n": 90,
+     "panel_share": {
+      "judge_reweighted": 0.1296,
+      "oracle": 0.5062,
+      "other": 0.0,
+      "panel": 0.3642,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 161,
+     "reference_head": "openai/gpt-5-6-luna|high",
+     "reference_paired_n": 90,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 161,
+      "terra_required_pass": 161,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 160,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 74,
+     "adverse": 2,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 2783,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 6,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.939692,
+     "lineages": 50,
+     "marginal": true,
+     "marginal_reason": [
+      "tier differs under the Terra-required count"
+     ],
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.92,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 73,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 73,
+      "terra_required_pass": 69,
+      "terra_required_tier": "out",
+      "unanimous_pass": 69,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 107,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 4828,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.667261,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 16,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 805,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 7,
+       "oracle": 0,
+       "other": 0,
+       "panel": 13,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.35,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.65,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 68,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-luna"
+   ]
+  },
+  "openai/gpt-5-6-luna|high": {
+   "canonical_model": "openai/gpt-5-6-luna",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 5,
+     "adverse": 4,
+     "best_head": "openai/gpt-5-6-sol|high",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 14067,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 38,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.816423,
+     "lineages": 34,
+     "marginal": false,
+     "n": 38,
+     "output_n": 38,
+     "paired_n": 38,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 34,
+     "reference_head": "openai/gpt-5-6-sol|high",
+     "reference_paired_n": 38,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 34,
+      "terra_required_pass": 34,
+      "terra_required_tier": "out",
+      "unanimous_pass": 34,
+      "unanimous_tier": "out"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 5,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 728,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 31,
+      "oracle": 59,
+      "other": 0,
+      "panel": 0,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.985123,
+     "lineages": 87,
+     "marginal": false,
+     "n": 90,
+     "output_n": 90,
+     "paired_n": 90,
+     "panel_share": {
+      "judge_reweighted": 0.3444,
+      "oracle": 0.6556,
+      "other": 0.0,
+      "panel": 0.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 90,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 90,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 90,
+      "terra_required_pass": 90,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 90,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 9109,
+     "gap": {
+      "adverse": null,
+      "best_head": null,
+      "paired_n": 0,
+      "rate": null,
+      "reason": "paired test not evaluable (no head shares >= 30 items)"
+     },
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 21,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.938332,
+     "lineages": 11,
+     "marginal": false,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 21,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "status": "floor_only",
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 21,
+      "terra_required_pass": 21,
+      "terra_required_tier": "out",
+      "unanimous_pass": 21,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": "high",
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 100,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 14200,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.667261,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 16,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 2165,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "single_judge",
+      "label_rows": {
+       "judge_reweighted": 20,
+       "oracle": 0,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 1.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 69,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-luna"
+   ]
+  },
+  "openai/gpt-5-6-sol|default": {
+   "canonical_model": "openai/gpt-5-6-sol",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 3,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 4802,
+     "label_regime": "single_judge",
+     "label_rows": {
+      "judge_reweighted": 3,
+      "oracle": 2,
+      "other": 0,
+      "panel": 0,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.773275,
+     "lineages": 5,
+     "marginal": false,
+     "n": 5,
+     "output_n": 5,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.6,
+      "oracle": 0.4,
+      "other": 0.0,
+      "panel": 0.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 5,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 5,
+      "suppressed": "single_judge cell (REVIEW AD): the bounds would restate one vote",
+      "terra_required_pass": null,
+      "terra_required_tier": null,
+      "unanimous_pass": null,
+      "unanimous_tier": null
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 12,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 294,
+     "gap": {
+      "adverse": null,
+      "best_head": null,
+      "paired_n": 0,
+      "rate": null,
+      "reason": "paired test not evaluable (no head shares >= 30 items)"
+     },
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 11,
+      "oracle": 16,
+      "other": 0,
+      "panel": 0,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.951573,
+     "lineages": 27,
+     "marginal": false,
+     "n": 27,
+     "output_n": 27,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.4074,
+      "oracle": 0.5926,
+      "other": 0.0,
+      "panel": 0.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 27,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "status": "floor_only",
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 27,
+      "terra_required_pass": 27,
+      "terra_required_tier": "out",
+      "unanimous_pass": 27,
+      "unanimous_tier": "out"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 7,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 1790,
+     "gap": {
+      "adverse": null,
+      "best_head": null,
+      "paired_n": 0,
+      "rate": null,
+      "reason": "paired test not evaluable (no head shares >= 30 items)"
+     },
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 6,
+      "other": 0,
+      "panel": 15,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.938332,
+     "lineages": 21,
+     "marginal": false,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.2857,
+      "other": 0.0,
+      "panel": 0.7143,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 21,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "status": "floor_only",
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 21,
+      "terra_required_pass": 21,
+      "terra_required_tier": "out",
+      "unanimous_pass": 21,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "model_ids": [
+    "global.openai.gpt-5.6-sol"
+   ]
+  },
+  "openai/gpt-5-6-sol|high": {
+   "canonical_model": "openai/gpt-5-6-sol",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 41,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 13448,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 38,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.965253,
+     "lineages": 34,
+     "marginal": false,
+     "n": 38,
+     "output_n": 38,
+     "paired_n": 38,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 38,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 38,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 38,
+      "terra_required_pass": 38,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 38,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 23,
+     "adverse": 1,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 579,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 9,
+      "oracle": 57,
+      "other": 0,
+      "panel": 22,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.965006,
+     "lineages": 85,
+     "marginal": false,
+     "n": 88,
+     "output_n": 88,
+     "paired_n": 88,
+     "panel_share": {
+      "judge_reweighted": 0.1023,
+      "oracle": 0.6477,
+      "other": 0.0,
+      "panel": 0.25,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 87,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 88,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 87,
+      "terra_required_pass": 87,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 87,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 21,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": false,
+     "cross_provider_tier": "out",
+     "expected_output_tokens_p90": 6785,
+     "gap": {
+      "adverse": null,
+      "best_head": null,
+      "paired_n": 0,
+      "rate": null,
+      "reason": "paired test not evaluable (no head shares >= 30 items)"
+     },
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 21,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.938332,
+     "lineages": 11,
+     "marginal": false,
+     "n": 21,
+     "output_n": 21,
+     "paired_n": 0,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 21,
+     "reference_head": null,
+     "reference_paired_n": 0,
+     "status": "floor_only",
+     "tier": "out",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 21,
+      "terra_required_pass": 21,
+      "terra_required_tier": "out",
+      "unanimous_pass": 21,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": "high",
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 72,
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.853585,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 19,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 14289,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 834,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 7,
+       "oracle": 0,
+       "other": 0,
+       "panel": 13,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.35,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.65,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 32,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-sol"
+   ]
+  },
+  "openai/gpt-5-6-terra|default": {
+   "canonical_model": "openai/gpt-5-6-terra",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 67,
+     "adverse": 4,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "provisional",
+     "expected_output_tokens_p90": 6926,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 2,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.890359,
+     "lineages": 56,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 65,
+     "output_n": 65,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0308,
+      "other": 0.0,
+      "panel": 0.9692,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 61,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "provisional",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 61,
+      "terra_required_pass": 63,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 61,
+      "unanimous_tier": "provisional"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 66,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|high",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 433,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 21,
+      "oracle": 82,
+      "other": 0,
+      "panel": 59,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.971766,
+     "lineages": 134,
+     "marginal": false,
+     "n": 162,
+     "output_n": 162,
+     "paired_n": 90,
+     "panel_share": {
+      "judge_reweighted": 0.1296,
+      "oracle": 0.5062,
+      "other": 0.0,
+      "panel": 0.3642,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 160,
+     "reference_head": "openai/gpt-5-6-luna|high",
+     "reference_paired_n": 90,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 160,
+      "terra_required_pass": 159,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 158,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 78,
+     "adverse": 4,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "provisional",
+     "expected_output_tokens_p90": 3706,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 6,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.904598,
+     "lineages": 50,
+     "marginal": true,
+     "marginal_reason": [
+      "one item moves the tier",
+      "tier differs under the Terra-required count"
+     ],
+     "n": 75,
+     "output_n": 75,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.08,
+      "other": 0.0,
+      "panel": 0.92,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 71,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "provisional",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 71,
+      "terra_required_pass": 73,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 69,
+      "unanimous_tier": "out"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "analysis": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|high",
+      "expected_output_tokens_p90": 78,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 7451,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.853585,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 19,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "implementation": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-luna|default",
+      "expected_output_tokens_p90": 752,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 7,
+       "oracle": 0,
+       "other": 0,
+       "panel": 13,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.35,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 0.65,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    },
+    "transform": {
+     "simple": {
+      "adverse": 0,
+      "best_head": "anthropic/claude-opus-5-5|default",
+      "expected_output_tokens_p90": 35,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 20,
+       "other": 0,
+       "panel": 0,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 20,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 1.0,
+       "other": 0.0,
+       "panel": 0.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-5.6-terra"
+   ]
+  },
+  "openai/gpt-6-1-sol|default": {
+   "canonical_model": "openai/gpt-6-1-sol",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 0,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 3724,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.97884,
+     "lineages": 54,
+     "marginal": false,
+     "n": 63,
+     "output_n": 63,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 63,
+     "reference_head": "openai/gpt-6-luna|default",
+     "reference_paired_n": 63,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 63,
+      "terra_required_pass": 63,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 63,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 0,
+     "adverse": 0,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 373,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 74,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.981946,
+     "lineages": 66,
+     "marginal": false,
+     "n": 74,
+     "output_n": 74,
+     "paired_n": 74,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 74,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 74,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 74,
+      "terra_required_pass": 74,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 74,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 1895,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.980655,
+     "lineages": 44,
+     "marginal": false,
+     "n": 69,
+     "output_n": 69,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 69,
+     "reference_head": "openai/gpt-6-luna|default",
+     "reference_paired_n": 69,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 69,
+      "terra_required_pass": 69,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 68,
+      "unanimous_tier": "eligible"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 4569,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-6.1-sol"
+   ]
+  },
+  "openai/gpt-6-luna|default": {
+   "canonical_model": "openai/gpt-6-luna",
+   "cells": {
+    "deep": {
+     "absolute_packets_of_record": 0,
+     "adverse": 0,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 7312,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 63,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.97884,
+     "lineages": 54,
+     "marginal": false,
+     "n": 63,
+     "output_n": 63,
+     "paired_n": 63,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 63,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 63,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 63,
+      "terra_required_pass": 62,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 62,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "simple": {
+     "absolute_packets_of_record": 0,
+     "adverse": 2,
+     "best_head": "openai/gpt-5-6-luna|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 463,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 74,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.938894,
+     "lineages": 66,
+     "marginal": false,
+     "n": 74,
+     "output_n": 74,
+     "paired_n": 74,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 72,
+     "reference_head": "openai/gpt-5-6-luna|default",
+     "reference_paired_n": 74,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 72,
+      "terra_required_pass": 72,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 72,
+      "unanimous_tier": "eligible"
+     }
+    },
+    "standard": {
+     "absolute_packets_of_record": 0,
+     "adverse": 1,
+     "best_head": "openai/gpt-6-1-sol|default",
+     "cross_provider_confirmed": true,
+     "cross_provider_tier": "eligible",
+     "expected_output_tokens_p90": 3199,
+     "label_regime": "panel",
+     "label_rows": {
+      "judge_reweighted": 0,
+      "oracle": 0,
+      "other": 0,
+      "panel": 69,
+      "refusal_or_incomplete": 0
+     },
+     "lb90": 0.955552,
+     "lineages": 44,
+     "marginal": false,
+     "n": 69,
+     "output_n": 69,
+     "paired_n": 69,
+     "panel_share": {
+      "judge_reweighted": 0.0,
+      "oracle": 0.0,
+      "other": 0.0,
+      "panel": 1.0,
+      "refusal_or_incomplete": 0.0
+     },
+     "pass": 68,
+     "reference_head": "openai/gpt-6-1-sol|default",
+     "reference_paired_n": 69,
+     "tier": "eligible",
+     "truncated_packets_r4": 0,
+     "votes": {
+      "majority_pass": 68,
+      "terra_required_pass": 68,
+      "terra_required_tier": "eligible",
+      "unanimous_pass": 67,
+      "unanimous_tier": "eligible"
+     }
+    }
+   },
+   "effort": null,
+   "families": {
+    "deep-design": {
+     "deep": {
+      "adverse": 0,
+      "best_head": "openai/gpt-5-6-sol|high",
+      "expected_output_tokens_p90": 8747,
+      "gap": {
+       "adverse": null,
+       "best_head": null,
+       "paired_n": 0,
+       "rate": null,
+       "reason": "paired test not evaluable (no head shares >= 30 items)"
+      },
+      "label_regime": "panel",
+      "label_rows": {
+       "judge_reweighted": 0,
+       "oracle": 0,
+       "other": 0,
+       "panel": 20,
+       "refusal_or_incomplete": 0
+      },
+      "lb90": 0.935388,
+      "lineages": 16,
+      "marginal": false,
+      "n": 20,
+      "output_n": 20,
+      "paired_n": 0,
+      "panel_share": {
+       "judge_reweighted": 0.0,
+       "oracle": 0.0,
+       "other": 0.0,
+       "panel": 1.0,
+       "refusal_or_incomplete": 0.0
+      },
+      "pass": 20,
+      "reference_head": null,
+      "reference_paired_n": 0,
+      "status": "floor_only",
+      "tier": "out"
+     }
+    }
+   },
+   "model_ids": [
+    "global.openai.gpt-6-luna"
+   ]
+  }
+ },
+ "label_revision": "material-r2-vii-3of4",
+ "output_field": "usage.output",
+ "protocol": {
+  "counting_rule": "3-of-4 where four votes exist (2-2 = fail), else the 3-vote material majority of record; cross_provider_* fields from the xp count",
+  "labels": "material-r2 re-read of record; round (iv) rows absolute-r4 (39 cut packets re-judged under r5); rounds V/VI/VII under absolute-r5; VI = fourth seat gpt-6.1-sol on the Anthropic standard/deep cells and the AE.4 controls (label_3of4); VII = five onboarded heads, 2+2 panel (Opus 5.5, Sonnet 5.5, Terra, gpt-6.1-sol; gpt-5.6-sol high on gpt-6.1-sol rows), label_3of4; AG.2 limit oracle applied (15 rows)",
+  "rubric_sha256_r5": "050fa03baea735f8e303862e38da52d945e5cc21e3fc66937746ab8897f3ef39",
+  "rule_revision": "interim-reviewed-demand-1+ac2+ref30+limit_oracle"
+ },
+ "rows_kept": 3951,
+ "rule": {
+  "ac2": true,
+  "adverse_eligible": 0.05,
+  "adverse_provisional": 0.08,
+  "authored_waves": [
+   "v14-r77",
+   "v14-r79",
+   "v14-r80"
+  ],
+  "excluded_routed_arms": [
+   [
+    "v14-r53",
+    "candidate"
+   ],
+   [
+    "v14-r53",
+    "retained"
+   ]
+  ],
+  "family_min_lineages": 8,
+  "family_min_n": 20,
+  "floor": {
+   "deep": 0.85,
+   "simple": 0.9,
+   "standard": 0.9
+  },
+  "floor_only": "tier out with status floor_only: clears the absolute floor, fails the paired rule; selectable only by an explicit per-project economical choice, never by default and never by AB.0 (owner decision pending)",
+  "label_regime": "single_judge when more than 50% of the kept rows carry the one-vote v14 judge_reweighted grade (vote bounds suppressed); oracle labels never count toward it; else panel",
+  "limit_oracle": "AG.2: a stated whole-answer word/sentence/character limit exceeded by more than 10%% is a fail (label_source oracle, oracle_rule limit_overrun), overriding panel and single-judge labels; applied to the label set before the build",
+  "lower_bound": "one-sided 90% Jeffreys",
+  "marginal": "information, not a tier: one item moves the tier, or the tier differs between the majority and the Terra-required vote count",
+  "min_best_n": "superseded by ref30 (reference_paired_n >= 30)",
+  "output_percentile": 0.9,
+  "pass": "label of the material-r2-vii-3of4 label set (dataset-r3), refusal/incomplete = non-pass",
+  "provisional": "lb90 >= floor, paired adverse rate <= 0.08, paired n >= 30, no recorded material loss (every demand)",
+  "provisional_demands": "superseded by ac2 (every demand)",
+  "provisional_max_adverse_items": "superseded by ac2 (paired n >= 30, rate <= 0.08)",
+  "ref30": "AF.2",
+  "reference_head": "per cell: the other head with the highest pass rate on the shared items among heads sharing >= 30 items (tie: larger overlap, then dataset order); no such head -> paired test not evaluable -> at most floor_only; no union of heads",
+  "simple_cap_round_iv": "round (iv) equalised the simple demand at 75 items per head (seeded subset of the 162-item simple set, keeping the items the under-sampled heads already had); a simple cell with n=162 and one with n=75 are not of equal precision",
+  "view": "reviewed-demand"
+ },
+ "rule_revision": "interim-reviewed-demand-1+ac2+ref30+limit_oracle",
+ "schema_version": 1
+}

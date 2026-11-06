@@ -183,10 +183,11 @@ def test_log_line_for_a_tiered_selection_and_an_explicit_cap():
     line = decision_log_line(7, req, result)
     assert 'selection=terra-default/V6_PRICE_AFTER_ELIGIBILITY/provisional' in line and 'cap=9000' in line
     assert SENTINEL.split()[0] not in line
-    # An eligible head (luna-default at deep in the material-r2 table) logs its tier as eligible.
-    args = args_for('luna', 'terra')
+    # An eligible head (sol-high at deep in the round (vii) table) logs its tier as eligible.
+    args = args_for('sol')
+    req = request(SENTINEL)  # provider default: sol-high's deep p90 is above the 9000 cap
     result = resolve(req, complete=classifier(demand='deep'), **args)
-    assert 'selection=luna-default/V6_PRICE_AFTER_ELIGIBILITY/eligible' in decision_log_line(7, req, result)
+    assert 'selection=sol-high/V6_PRICE_AFTER_ELIGIBILITY/eligible' in decision_log_line(7, req, result)
 
 
 def test_classifier_error_codes_appear_but_the_reply_text_does_not():

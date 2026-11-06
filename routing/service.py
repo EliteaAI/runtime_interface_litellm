@@ -11,6 +11,7 @@ import json
 import re
 import time
 from contextvars import ContextVar
+from decimal import Decimal
 from functools import lru_cache
 from .pricing import PriceBook, Tokens, BYTES_PER_TOKEN, INPUT_ESTIMATOR, estimated_input_tokens
 from .context import read_context, digest, context_revision
@@ -25,6 +26,9 @@ from .inventory import (effective_models, model_binding, validate_binding, quali
                         unmeasured_variants)
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
+# List price of a deployment for the premium tie-break: one quote on a fixed request shape (the reviewer's basis,
+# section AI.3), so a tie is broken by the catalog rates, not by the request.
+LIST_PRICE_TOKENS = Tokens(3000, 512)
 MAX_REQUEST_BYTES = 2_000_000
 PIN_HEADER = 'X-Elitea-Routing-Pin'
 CLASSIFIER_REASONS = {'CLASSIFIER_NOT_CONFIGURED', 'CLASSIFIER_UNAVAILABLE', 'CLASSIFIER_NOT_CHAT'}
@@ -259,6 +263,8 @@ class GenerationRouter(CalibratedRouter):
     def admission_context(self):
         context = super().admission_context()
         context['last_resort_quotes'] = getattr(self.gateway, 'last_resort_quotes', None) or {}
+        # `floor_only` cells are candidates only when the project chose `economical` (#6826 rule 1).
+        context['floor_only'] = _REQUEST.get({}).get('floor_only', False)
         return context
 
     def _resolve(self, messages, mode, binding, hint, previous, allowed, min_demand):
@@ -551,6 +557,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                                   'cap_basis': 'explicit' if cap is not None else 'provider_default', 'tier_caps': tier_caps,
                                   'last_resort_quotes': last_resort_quotes,
                                   **({'catalog': request_catalog} if unmeasured_heads else {}),
+                                  # An explicit project choice only: an absent or unknown mode never admits floor_only.
+                                  'floor_only': settings.get('escalation_mode') == 'economical',
                                   'classifier': {'model': classifier['name'], 'effort': None},
                                   'deployments': {vid: m['name'] for vid, m in runtime_variants.items()}})
     try:
@@ -568,9 +576,14 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
             # One failure signal per resolve moves the scope up one admitted head (#6722).
             event = next((e for e in escalation.PRIORITY
                           if e in events | escalation.correction_event(messages, decision['descriptor'])), None)
+            list_price = {v: prices.quote(runtime_variants[v]['name'], LIST_PRICE_TOKENS)['usd'] for v in allowed}
             decision['selection'], escalation_trace, sticky = escalation.apply(
                 decision['selection'], catalog, mode=escalation.mode_of(settings), event=event, prior=restored_state,
-                tiering={'scope_id': scope_id, 'share': escalation.share_of(settings)})
+                tiering={'scope_id': scope_id, 'share': escalation.share_of(settings)},
+                # An unpriced deployment ranks last on the list-price step, for that head only.
+                list_price={v: None if usd is None else Decimal(usd) for v, usd in list_price.items()})
+            if escalation.mode_code(settings):
+                escalation_trace['mode_code'] = escalation.mode_code(settings)  # unknown value: the default ran
             state_token = encode_pin(state_value(session, decision, messages, scope_id=scope_id,
                 project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
                 policy_revision=router.revision, escalation=sticky), signing_key)
