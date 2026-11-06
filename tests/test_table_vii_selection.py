@@ -280,3 +280,15 @@ def test_every_stored_lb90_of_the_served_table_is_reproduced_and_no_family_cell_
     assert [c['lb90'] for c in cells if round(jeffreys_lower(c['pass'], c['n']), 6) != c['lb90']] == []
     assert [c for c in families if c['tier'] in admission.ADMITTED] == []
 
+
+
+def test_a_deep_pool_with_only_provisional_confirmed_cells_starts_on_the_best_of_them():
+    # Review AK.1: Luna (0.871) and Terra (0.890) are both provisional at deep and both confirmed panel cells. With no
+    # eligible confirmed head the best provisional one is the frontier; `economical` keeps the cheapest head.
+    tiered = route(('luna', 'terra'), 'deep', 'tiered')
+    assert (head(tiered), moved(tiered)['reason']) == ('terra-default', 'TIERED_START')
+    assert moved(tiered)['premium'] == {'head': 'terra-default', 'premium_tiebreak': 'lb90', 'code': None}
+    premium = route(('luna', 'terra'), 'deep', 'premium_at_deep')
+    assert (head(premium), moved(premium)['reason']) == ('terra-default', 'PREMIUM_START')
+    economical = route(('luna', 'terra'), 'deep', 'economical')
+    assert head(economical) == 'luna-default' and moved(economical)['reason'] is None
