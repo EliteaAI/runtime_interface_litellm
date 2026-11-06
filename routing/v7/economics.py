@@ -23,8 +23,8 @@ def forecast(variant, family, size, cap):
 
 
 def rank(selection, messages, catalog, *, session, gateway, cap, tools=None, previous=None):
-    if selection['reason'] == 'UNCERTAIN_TASK_BASELINE':
-        return selection
+    if selection['reason'] in {'UNCERTAIN_TASK_BASELINE', 'UNMEASURED_CHEAPEST'}:
+        return selection  # nothing cleared the floor: no admitted rows to re-rank
     eligible = [row['variant'] for row in selection['candidates'] if row['eligible']]
     size = len(json.dumps({'messages': messages, 'tools': tools or [], 'output_schema': getattr(gateway, 'output_schema', None)}, ensure_ascii=False).encode()) + 64*len(messages)
     size = max(size, getattr(gateway, 'generation_input_bytes', 0))  # UTF-8 bytes

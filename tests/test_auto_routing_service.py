@@ -471,17 +471,137 @@ def test_unknown_required_modality_is_refused():
         resolve({**request(), 'required_modalities': ['audio']}, complete=lambda *a, **k: None, **fixture())
 
 
-def test_nothing_clears_the_floor_without_the_baseline_is_a_named_refusal_that_names_the_model():
-    # #7307 follow-up: a project holding only cheap models used to surface the internal
-    # ValueError as the generic "cannot resolve" text; the admin could not tell what to add.
+DESIGN = 'Design a distributed Rust NATS Postgres worker with exactly-once delivery.'
+
+
+def reply(**changes):
+    """A classifier reply: the deep design descriptor of `classifier_design`, with `changes`."""
+    body = json.loads(classifier_design()['message']['content'])
+    body.update(changes)
+    return lambda *a, **k: {'message': {'content': json.dumps(body)}, 'finish_reason': 'stop'}
+
+
+def price(name, unit='.000001'):
+    return dict(model_name=name, input_cost_per_token=unit, output_cost_per_token=unit,
+                cache_read_input_token_cost='.0000001', cache_creation_input_token_cost=unit)
+
+
+def installation(keep=(), extra=(), classifier=None):
+    """The fixture narrowed to `keep`, plus `extra` (model, price entry or None) deployments."""
     args = fixture()
-    # Luna is eligible at deep in the material-r2 table (#6826): haiku alone clears nothing, and classifies.
+    args['models'] = [m for m in args['models'] if m['name'] in keep] + [m for m, _ in extra]
+    args['price_snapshot']['entries'] = ([e for e in args['price_snapshot']['entries'] if e['model_name'] in keep]
+                                         + [e for _, e in extra if e is not None])
+    if classifier:
+        args['settings']['classifier'] = {'name': classifier, 'project_id': 7, 'source': 'platform'}
+    return args
+
+
+def unmeasured(name, canonical, **fields):
+    return {'name': name, 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 16000,
+            'identity': identity(canonical), **fields}
+
+
+SONNET5 = unmeasured('eu.anthropic.claude-sonnet-5', 'anthropic/claude-sonnet-5')  # a head out at every demand
+GPT52 = unmeasured('gpt-5.2', 'openai/gpt-5-2')  # absent from the admission table
+
+
+def test_nothing_clears_the_floor_without_the_baseline_routes_to_the_cheapest_hard_gated_head():
+    # #7307 (AB.0): a project holding only a cheap model used to be refused; it passes the hard gates. (Luna is
+    # eligible at deep in the material-r2 table, so Haiku alone, also the classifier, clears nothing.)
     keep = {'eu.anthropic.claude-haiku-4-5-20251001-v1:0'}
-    args['settings']['classifier']['name'] = 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'
-    args['models'] = [m for m in args['models'] if m['name'] in keep]
-    args['price_snapshot']['entries'] = [e for e in args['price_snapshot']['entries'] if e['model_name'] in keep]
+    result = resolve(request(DESIGN), complete=classifier_design,
+                     **installation(keep, classifier='eu.anthropic.claude-haiku-4-5-20251001-v1:0'))
+    selection = result['trace']['selection']
+    assert selection['reason'] == 'UNMEASURED_CHEAPEST' and selection['provisional'] is True
+    assert selection['admission']['status'] == 'unmeasured_installation' and selection['guard_sample'] is True
+    assert result['config']['model_name'] in keep
+
+
+@pytest.mark.parametrize('cheaper', ['eu.anthropic.claude-sonnet-5', 'gpt-5.4-mini'])
+def test_only_heads_out_everywhere_route_to_the_cheaper_one_by_quote(cheaper):
+    from routing.service import decision_log_line
+    dearer = ({'eu.anthropic.claude-sonnet-5', 'gpt-5.4-mini'} - {cheaper}).pop()
+    args = installation({'gpt-5.4-mini'}, extra=[(SONNET5, price(SONNET5['name']))], classifier='gpt-5.4-mini')
+    for entry in args['price_snapshot']['entries']:
+        entry.update(price(entry['model_name'], '.0000001' if entry['model_name'] == cheaper else '.00001'))
+    req = request(DESIGN)
+    result = resolve(req, complete=classifier_design, **args)
+    selection = result['trace']['selection']
+    assert selection['reason'] == 'UNMEASURED_CHEAPEST' and selection['tier'] is None
+    assert result['config']['model_name'] == cheaper
+    quotes = selection['admission']['last_resort']['quotes_usd']
+    assert selection['admission']['last_resort']['quote_tokens'] == {'input': 34000, 'output': 900}
+    assert {'unmeasured:eu.anthropic.claude-sonnet-5', 'mini-medium'} == set(quotes)  # mini-low: effort filter
+    by_model = {('gpt-5.4-mini' if v == 'mini-medium' else 'eu.anthropic.claude-sonnet-5'): q for v, q in quotes.items()}
+    assert float(by_model[cheaper]) < float(by_model[dearer])
+    assert selection['admission']['rejections']['unmeasured:eu.anthropic.claude-sonnet-5'] == ['ADMISSION_ROW_OUT']
+    assert result['trace']['inventory']['unmeasured_variants'] == ['unmeasured:eu.anthropic.claude-sonnet-5']
+    assert '/UNMEASURED_CHEAPEST/' in decision_log_line(7, req, result)
+
+
+def test_a_model_absent_from_the_table_is_routable_as_unmeasured():
+    args = installation(extra=[(GPT52, price('gpt-5.2'))], classifier='gpt-5.2')
+    first = resolve(request(DESIGN), complete=classifier_design, **args)
+    selection = first['trace']['selection']
+    assert (selection['variant'], selection['reason']) == ('unmeasured:gpt-5.2', 'UNMEASURED_CHEAPEST')
+    assert selection['admission']['rejections']['unmeasured:gpt-5.2'] == ['ADMISSION_NO_ROW']
+    # No measured contract: default effort, no calibrated transport in the signed config.
+    assert first['config']['model_name'] == 'gpt-5.2' and first['config']['reasoning_effort'] is None
+    assert 'routing_transport' not in first['config'] and 'guard_sample' not in first['config']
+    # The next turn carries the unmeasured variant as `previous`; the pin reauthorizes its deployment.
+    later = request(DESIGN)
+    later['messages'] += [{'role': 'assistant', 'content': 'Draft.'}, {'role': 'user', 'content': DESIGN + ' Again.'}]
+    second = resolve({**later, 'state_token': first['state_token']}, complete=classifier_design, **args)
+    assert second['trace']['selection']['variant'] == 'unmeasured:gpt-5.2'
+    renewed = resolve({**request(DESIGN), 'prior_pin': first['pin']}, complete=classifier_design, **args)
+    assert renewed['trace']['reason'] == 'REAUTHORIZED_CHECKPOINT_PIN'
+    assert renewed['config']['model_name'] == 'gpt-5.2'
+
+
+def test_a_greeting_on_an_unmeasured_installation_is_not_refused():
+    args = installation(extra=[(GPT52, price('gpt-5.2'))], classifier='gpt-5.2')
+    result = resolve(request('Hi'), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
+    assert result['trace']['selection']['reason'] == 'UNMEASURED_CHEAPEST'
+    assert result['config']['model_name'] == 'gpt-5.2'
+
+
+def test_the_usable_baseline_still_wins_over_a_cheaper_unmeasured_model():
+    # Luna is eligible at deep in the material-r2 table, so Haiku (also the classifier) and the baseline only.
+    keep = {'eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'gpt-5.4'}
+    args = installation(keep, extra=[(GPT52, price('gpt-5.2', '.000000001'))],
+                        classifier='eu.anthropic.claude-haiku-4-5-20251001-v1:0')
+    selection = resolve(request(DESIGN), complete=classifier_design, **args)['trace']['selection']
+    assert (selection['variant'], selection['reason']) == ('gpt54-medium', 'UNCERTAIN_TASK_BASELINE')
+    assert 'guard_sample' not in selection
+
+
+def test_an_admitted_head_always_wins_over_a_cheaper_unmeasured_model():
+    args = installation({'global.openai.gpt-5.6-luna'}, extra=[(GPT52, price('gpt-5.2', '.000000001'))])
+    result = resolve(request('Analyze the supplied figures.'), complete=reply(
+        operation='analysis', demand='standard', task_family='quantitative', effort_need='low'), **args)
+    selection = result['trace']['selection']
+    assert selection['variant'] == 'luna-default' and selection['reason'] != 'UNMEASURED_CHEAPEST'
+    assert 'unmeasured:gpt-5.2' not in selection['economics']['quotes']  # never even ranked
+    assert result['trace']['inventory']['admitted_variants'] == 3  # luna-default, luna-high, gpt-5.2
+
+
+def test_nothing_passing_the_hard_gates_is_still_a_refusal():
+    from admission_support import CLASSIFIER
+    classifier = {'name': CLASSIFIER, 'project_id': 7, 'context_window': 128000, 'max_output_tokens': 4096,
+                  'identity': identity(None)}  # unresolved identity: never a generation candidate
+    small = unmeasured('eu.anthropic.claude-sonnet-5', 'anthropic/claude-sonnet-5', context_window=1000)
+    args = installation(extra=[(classifier, price(CLASSIFIER)), (GPT52, None), (small, price(small['name']))],
+                        classifier=CLASSIFIER)
     with pytest.raises(RoutingUnavailable) as info:
-        resolve(request('Design a distributed Rust NATS Postgres worker with exactly-once delivery.'),
-                complete=classifier_design, **args)
+        resolve(request(DESIGN), complete=classifier_design, **args)
+    assert info.value.reason == 'NO_QUALIFIED_MODELS'
+
+
+def test_nothing_left_after_the_effort_filter_is_the_named_baseline_refusal():
+    # The effort and qualification filters still apply to the last resort; the admin is told what to add.
+    args = installation({'gpt-5.4-mini'}, classifier='gpt-5.4-mini')
+    with pytest.raises(RoutingUnavailable) as info:
+        resolve(request(DESIGN), complete=reply(effort_need='high'), **args)
     assert info.value.reason == 'BASELINE_NOT_CONFIGURED'
     assert 'gpt-5.4' in str(info.value) and 'project admin' in str(info.value)

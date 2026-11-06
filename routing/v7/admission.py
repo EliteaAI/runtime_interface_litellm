@@ -9,17 +9,29 @@ A head or demand without a row is out: nothing is inferred from names or prices.
 The legacy catalog tables (``tasks``, ``max_demand``, ``preferences``) and
 ``qualification-policy.json`` stay on disk for the lab tests but no longer decide
 product routing: only the greeting rule still reads ``tasks``/``preferences``.
+
+Unmeasured installations (#7307): when no variant clears the floor and the baseline
+family is unusable, Auto routes to the cheapest variant that passed every hard gate
+(availability, context window, price, effort and pool filters) but holds no admitting
+row: a table head that is out at this demand, or an unmeasured deployment the table
+does not know. The reason is ``UNMEASURED_CHEAPEST``, the selection is provisional and
+flagged ``guard_sample`` so the record-only guard samples every such answer. It is a
+last resort only: never chosen while any variant clears the floor or the baseline is
+usable. Auto refuses only when nothing passed the hard gates.
 """
 import copy
 import hashlib
 import json
 import re
+from decimal import Decimal
 from functools import lru_cache
 from pathlib import Path
 
 TABLE_PATH = Path(__file__).with_name('admission-table.json')
 DEMAND = {'simple': 0, 'standard': 1, 'deep': 2}
 ADMITTED = frozenset({'eligible', 'provisional'})
+# Evidence verdicts of the table; the unmeasured last resort sets only these aside.
+EVIDENCE_REJECTIONS = frozenset({'ADMISSION_NO_ROW', 'ADMISSION_ROW_OUT', 'CALIBRATION_ALLOWANCE_BELOW_P90'})
 EFFORT_ORDER = {None: 0, 'low': 1, 'medium': 2, 'high': 3}
 TRANSPORT_BY_VENDOR = {'anthropic': 'anthropic_messages'}
 _SHORT = re.compile(r'^(claude-|gpt-\d+-\d+-)')
@@ -113,7 +125,8 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
     ``context`` comes from the gateway of the current request: ``tier_caps`` maps a variant to
     ``{'tier': 'provisional', 'flags': [...]}`` (admitted, but its tier is capped), ``caps`` the
     effective output cap per variant (explicit cap, else the model's own maximum) and ``cap_basis``
-    which of the two applies.
+    which of the two applies. ``last_resort_quotes`` orders the unmeasured last resort
+    (``{'tokens': {...}, 'usd': {variant: str | None}}``).
     """
     admission = catalog['admission']
     context = context or {}
@@ -160,7 +173,8 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
     base = {'candidates': rows, 'predicted_output_tokens': None, 'currency_cost_estimate': None,
             'quality_status': catalog['qualification']}
     if not eligible:
-        return _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections)
+        return _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections,
+                         context.get('last_resort_quotes') or {})
     eligible.sort(key=lambda vid: (catalog['variants'][vid]['cost_band'],
                                    EFFORT_ORDER[catalog['variants'][vid]['effort']], vid))
     selected = eligible[0]
@@ -175,7 +189,7 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
 
 
 class NoEligibleModel(ValueError):
-    """Nothing clears the floor and the baseline family is not available to the project.
+    """Nothing clears the floor, the baseline family is unusable and no hard-gated variant is left.
 
     Carries the baseline model name so the refusal can tell an admin what to add (#7307).
     """
@@ -185,18 +199,48 @@ class NoEligibleModel(ValueError):
         self.baseline = baseline
 
 
-def _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections):
-    """Nothing clears the floor: the configured baseline family, or an honest refusal."""
+def _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections, quotes):
+    """Nothing clears the floor: the configured baseline family, else the unmeasured last resort."""
     baseline = catalog['variants'][catalog['baseline']]
     usable = [vid for vid, v in catalog['variants'].items()
-              if vid in allowed and v['enabled'] and v['model'] == baseline['model']]
+              if vid in allowed and v['enabled'] and not v.get('unmeasured') and v['model'] == baseline['model']]
     if not usable:
-        raise NoEligibleModel(baseline['model'])
+        return _unmeasured_cheapest(catalog, rows, base, admission, demand, family, rejected, rejections, quotes,
+                                    baseline['model'])
     chosen = (catalog['baseline'] if catalog['baseline'] in usable
               else min(usable, key=lambda vid: (EFFORT_ORDER[catalog['variants'][vid]['effort']], vid)))
     result = {'variant': chosen, **copy.deepcopy(catalog['variants'][chosen]), 'reason': 'UNCERTAIN_TASK_BASELINE',
               **base, 'tier': None, 'provisional': False}
     result['admission'] = {'status': 'no_variant_clears_floor', 'demand': demand, 'family': family, 'tier': None,
                            'flags': [], 'allowance_rejected': rejected, 'rejections': rejections,
+                           'rule_revision': admission['rule_revision'], 'table_sha256': admission['sha256']}
+    return result
+
+
+def _unmeasured_cheapest(catalog, rows, base, admission, demand, family, rejected, rejections, quotes, baseline):
+    """The cheapest variant held back only by the table's evidence verdicts, or an honest refusal.
+
+    The pool is extended by hard-gated heads only, never silently escaped: a variant outside the
+    preflight pool, removed by the effort or qualification filters, or disabled is never a candidate.
+    Ordered by the fixed-request quote (unpriced last), a measured head before an unmeasured one at
+    an equal price, then effort and id.
+    """
+    usd = quotes.get('usd') or {}
+    candidates = [r['variant'] for r in rows if r['rejections'] and set(r['rejections']) <= EVIDENCE_REJECTIONS]
+    if not candidates:
+        raise NoEligibleModel(baseline)
+
+    def key(vid):
+        quote, variant = usd.get(vid), catalog['variants'][vid]
+        return (quote is None, Decimal(quote) if quote is not None else Decimal(0), bool(variant.get('unmeasured')),
+                EFFORT_ORDER[variant['effort']], vid)
+    chosen = min(candidates, key=key)
+    result = {'variant': chosen, **copy.deepcopy(catalog['variants'][chosen]), 'reason': 'UNMEASURED_CHEAPEST',
+              **base, 'tier': None, 'provisional': True, 'guard_sample': True}
+    flags = next(list(r['flags']) for r in rows if r['variant'] == chosen)
+    result['admission'] = {'status': 'unmeasured_installation', 'demand': demand, 'family': family, 'tier': None,
+                           'flags': flags, 'allowance_rejected': rejected, 'rejections': rejections,
+                           'last_resort': {'quote_tokens': copy.deepcopy(quotes.get('tokens')),
+                                           'quotes_usd': {vid: usd.get(vid) for vid in sorted(candidates)}},
                            'rule_revision': admission['rule_revision'], 'table_sha256': admission['sha256']}
     return result

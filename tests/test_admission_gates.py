@@ -64,10 +64,14 @@ def test_explicit_cap_is_compared_with_the_cell_p90_at_the_boundary(delta, passe
         assert 'luna-default' in selection['admission']['allowance_rejected']
 
 
-def test_small_explicit_cap_leaves_nothing_to_route_to_without_a_baseline():
-    with pytest.raises(ValueError, match='baseline model gpt-5.4 is not available') as info:
-        go(('luna', 'terra'), demand='standard', cap=256)
-    assert getattr(info.value, 'reason', None) == 'BASELINE_NOT_CONFIGURED'  # named for the admin (#7307)
+def test_small_explicit_cap_without_a_baseline_routes_to_the_cheapest_hard_gated_head():
+    # #7307 (AB.0): the cap is below every admitted cell's p90 and the baseline is missing. Both heads
+    # pass the hard gates, so the cheaper one answers as the unmeasured last resort, under the cap.
+    result = go(('luna', 'terra'), demand='standard', cap=256)
+    selection = result['trace']['selection']
+    assert (selection['variant'], selection['reason']) == ('luna-default', 'UNMEASURED_CHEAPEST')
+    assert {'luna-default', 'terra-default'} <= set(selection['admission']['allowance_rejected'])
+    assert result['config']['max_tokens'] == 256
 
 
 def test_candidate_row_carries_the_flag():

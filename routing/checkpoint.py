@@ -76,7 +76,9 @@ def apply_observation(session, state, observation, messages, gateway, catalog, t
     session.finish_pending(decision.get('pending_intent_id'), result)
     vid = decision['selection']['variant']
     completed_at = observation.get('completed_at')
-    if type(completed_at) in (int, float) and 0 <= time.time() - completed_at <= 180:
+    # An unmeasured last-resort variant (#7307) exists only while its deployment is in the
+    # inventory; once it is gone there is no variant to attribute cache evidence to.
+    if vid in catalog['variants'] and type(completed_at) in (int, float) and 0 <= time.time() - completed_at <= 180:
         # Rebuilding/Continue/restart must not refresh old provider evidence.
         # Missing, future or expired times can inform intent, never warm cache.
         observe_cache(session, gateway, vid, catalog['variants'][vid], messages[:response_index], tools,

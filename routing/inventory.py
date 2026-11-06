@@ -120,6 +120,35 @@ def qualified_inventory(models, catalog, *, project_id=None, alternates=None):
     return available, exclusions
 
 
+UNMEASURED_PREFIX = 'unmeasured:'
+
+
+def unmeasured_variants(models, exclusions):
+    """Last-resort runtime variants for deployments that join no measured variant (#7307).
+
+    Only a chat deployment with a resolved canonical identity and the default contract
+    qualifies (the same join rule as a measured default-effort variant); legacy items
+    without an identity, unresolved identities, non-chat kinds and tool contracts never do.
+    The variant claims no evidence: no tier, no tasks, no cost band, the lowest demand.
+    Hard gates still apply to it in the preflight; the chooser picks it only when nothing
+    clears the floor and the baseline family is unusable (v7/admission.py).
+    """
+    result = {}
+    for entry in exclusions:
+        if entry.get('reason') != 'NO_CALIBRATED_MODEL_CONTRACT':
+            continue
+        model = models[entry['model']]
+        identity = model.get('identity')
+        if not isinstance(identity, dict) or not isinstance(identity.get('canonical'), str):
+            continue
+        variant = {'model': model['name'], 'canonical_model': identity['canonical'], 'effort': None,
+                   'enabled': True, 'tasks': [], 'max_demand': 'simple', 'cost_band': None,
+                   'cache_write_mode': 'separate', 'tier': None, 'unmeasured': True}
+        if _joins(model, variant):
+            result[UNMEASURED_PREFIX + model['name']] = variant
+    return result
+
+
 def map_bound_model(binding, *, project_id, public_project_id, lookup):
     """Auto dispatch never silently falls back to a different owner or raw name."""
     owner = binding['project_id']

@@ -6,7 +6,7 @@ from tools import context, VaultClient
 from ..routing.service import (resolve, PROFILE, RoutingUnavailable, RoutingAdmissionDenied, compiled_router,
                                auto_routing_settings, deployment_signals, decision_log_line)
 from ..routing.pricing import PriceBook
-from ..routing.inventory import effective_models, model_binding, qualified_inventory
+from ..routing.inventory import effective_models, model_binding, qualified_inventory, unmeasured_variants
 from ..routing import guard as answer_guard
 from ..routing.escalation import usage_record
 from ..utils.metering import meter_llm_call, record_escalation
@@ -27,11 +27,13 @@ def routing_prices(rpc, names, canonical_by_name):
 
 def routing_price_snapshot(rpc, inventory, catalog, project_id, classifier=None):
     """Join the inventory and quote its bound deployments, the classifier and,
-    within the Costs bound, ranked duplicates. Returns (variants, alternates, snapshot);
-    `snapshot['unquoted']` lists alternates beyond the bound (treated as unpriced)."""
+    within the Costs bound, ranked duplicates, then unmeasured chat deployments.
+    Returns (variants, alternates, snapshot); `snapshot['unquoted']` lists alternates
+    beyond the bound (treated as unpriced)."""
     alternates = {}
-    variants, _ = qualified_inventory(inventory, catalog, project_id=project_id, alternates=alternates)
-    # Unqualified inventory can exceed the bounded Costs RPC and is never quoted.
+    variants, exclusions = qualified_inventory(inventory, catalog, project_id=project_id, alternates=alternates)
+    # Unqualified inventory can exceed the bounded Costs RPC: only its unmeasured chat
+    # deployments are quoted, after everything measured and only within the bound.
     names = {model['name'] for model in variants.values()}
     if isinstance(classifier, dict) and classifier.get('name') in inventory:
         names.add(classifier['name'])
@@ -41,6 +43,11 @@ def routing_price_snapshot(rpc, inventory, catalog, project_id, classifier=None)
     for name in (n for vid in variants for n in alternates.get(vid, ())):
         if name not in names and name not in unquoted:
             (names if len(names) < MAX_PRICE_NAMES else unquoted).append(name)
+    # Unmeasured last-resort deployments (#7307) last, within what is left of the bound;
+    # beyond it one stays unpriced and so is never materialised.
+    for name in sorted(v['model'] for v in unmeasured_variants(inventory, exclusions).values()):
+        if name not in names and len(names) < MAX_PRICE_NAMES:
+            names.append(name)
     canonical = {name: inventory[name]['identity']['canonical'] for name in names
                  if isinstance((inventory[name].get('identity') or {}).get('canonical'), str)}
     snapshot = routing_prices(rpc, names, canonical)

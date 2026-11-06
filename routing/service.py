@@ -21,12 +21,15 @@ from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
 from .v7.admission import NoEligibleModel
 from . import escalation
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
-from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
+from .inventory import (effective_models, model_binding, validate_binding, qualified_inventory, fingerprint,
+                        unmeasured_variants)
 
 PROFILE = {'id': 'v7-quality-cost', 'revision': 1}
 MAX_REQUEST_BYTES = 2_000_000
 PIN_HEADER = 'X-Elitea-Routing-Pin'
 CLASSIFIER_REASONS = {'CLASSIFIER_NOT_CONFIGURED', 'CLASSIFIER_UNAVAILABLE', 'CLASSIFIER_NOT_CHAT'}
+# Fixed request that orders the unmeasured last resort (#7307); no banding helper exists.
+LAST_RESORT_TOKENS = Tokens(34000, 900)
 
 
 class RoutingUnavailable(ValueError):
@@ -208,6 +211,10 @@ class ClassifierTransport:
         return _REQUEST.get().get('tier_caps', {})
 
     @property
+    def last_resort_quotes(self):
+        return _REQUEST.get().get('last_resort_quotes', {})
+
+    @property
     def cache_policy_revision(self):
         return digest({"output_schema": self.output_schema, "runtime_context": context_revision(self.runtime_context)})
 
@@ -238,6 +245,21 @@ class GenerationRouter(CalibratedRouter):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.revision += '-model-owned-clarification-1'
+
+    @property
+    def catalog(self):
+        """The compiled catalog, or this request's copy extended by its unmeasured variants (#7307)."""
+        current = _REQUEST.get(None)
+        return (current or {}).get('catalog') or self._catalog
+
+    @catalog.setter
+    def catalog(self, value):
+        self._catalog = value
+
+    def admission_context(self):
+        context = super().admission_context()
+        context['last_resort_quotes'] = getattr(self.gateway, 'last_resort_quotes', None) or {}
+        return context
 
     def _resolve(self, messages, mode, binding, hint, previous, allowed, min_demand):
         decision = super()._resolve(messages, mode, binding, hint, previous, allowed, min_demand)
@@ -333,6 +355,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     visible = effective_models(models, project_id)
     alternates = {}
     runtime_variants, exclusions = qualified_inventory(visible, catalog, project_id=project_id, alternates=alternates)
+    # Last resort (#7307): priced chat deployments that join no measured variant. The price
+    # snapshot is the bounded set Costs quoted; an unpriced one would fail the PRICE gate anyway.
+    unmeasured_heads = {vid: v for vid, v in unmeasured_variants(visible, exclusions).items()
+                        if v['model'] in prices.entries}
+    variants = {**catalog['variants'], **unmeasured_heads}
+    request_catalog = {**catalog, 'variants': variants} if unmeasured_heads else catalog
+    measured_count = len(runtime_variants)
     inventory_revision = fingerprint([model_binding(m) for m in visible.values()])
     output_schema = request.get('output_schema')
     if output_schema is not None and not isinstance(output_schema, dict):
@@ -406,13 +435,15 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         return []
 
     signals = deployment_signals(catalog, runtime_variants, alternates, visible, prices)
+    # Unmeasured variants pass the same hard gates (no contract, default effort) as measured ones.
+    runtime_variants.update({vid: visible[v['model']] for vid, v in unmeasured_heads.items()})
     # A renewal keeps its pinned deployment while it is still a ranked candidate
     # and passes the gates, so a later price row cannot flip an in-flight run.
     pinned = (restored['config']['model_name'], restored['config']['model_project_id']) if restored else None
     rebound, rebound_attempts = {}, {}
     gate_failures = {}
     for vid, bound in list(runtime_variants.items()):
-        variant = catalog['variants'][vid]
+        variant = variants[vid]
         contract = variant.get('calibration_contract')
         candidates = [bound] + [visible[name] for name in alternates.get(vid, ())]
         candidates.sort(key=lambda m: (m['name'], m['project_id']) != pinned)
@@ -474,7 +505,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     if 'image' in modalities and not prior:
         vision = [v for v in allowed if runtime_variants[v].get('supports_vision') is not False]
         gate_failures.update({v: ['VISION_UNSUPPORTED'] for v in allowed if v not in vision})
-        if vision:
+        # Only a measured vision variant narrows the pool, so an unmeasured one never displaces
+        # the text-only fallback of the measured pool.
+        if any(v not in unmeasured_heads for v in vision):
             allowed = vision
         else:
             vision_fallback = True
@@ -486,7 +519,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
         if restored.get('policy_revision') != router.revision:
             raise RoutingUnavailable('The checkpoint routing policy changed')
         kept = [v for v in allowed if runtime_variants[v]['name'] == restored['config']['model_name']
-                and catalog['variants'][v]['effort'] == restored['config']['reasoning_effort']]
+                and variants[v]['effort'] == restored['config']['reasoning_effort']]
         gate_failures.update({v: ['CHECKPOINT_PIN'] for v in allowed if v not in kept})
         allowed = kept
         if not allowed:
@@ -511,8 +544,13 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     runtime_context = read_context(request, key=signing_key, project_id=project_id, user_id=user_id, now=now)
     restored_state = restore_state(request.get('state_token'), signing_key, project_id=project_id,
         user_id=user_id, scope_id=scope_id, gate_revision=settings['revision'], policy_revision=router.revision)
+    last_resort_quotes = {'tokens': {'input': LAST_RESORT_TOKENS.uncached, 'output': LAST_RESORT_TOKENS.output},
+                          'usd': {vid: prices.quote(runtime_variants[vid]['name'], LAST_RESORT_TOKENS)['usd']
+                                  for vid in allowed}}
     context_token = _REQUEST.set({'complete': complete, 'prices': prices, 'project_id': project_id, 'output_schema': output_schema, 'runtime_context': runtime_context, 'generation_input_bytes': size, 'output_caps': output_caps,
                                   'cap_basis': 'explicit' if cap is not None else 'provider_default', 'tier_caps': tier_caps,
+                                  'last_resort_quotes': last_resort_quotes,
+                                  **({'catalog': request_catalog} if unmeasured_heads else {}),
                                   'classifier': {'model': classifier['name'], 'effort': None},
                                   'deployments': {vid: m['name'] for vid, m in runtime_variants.items()}})
     try:
@@ -521,7 +559,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                          restored_state['checkpoint'] if restored_state else None) as entry:
             session = entry['session']
             apply_observation(session, restored_state, request.get('observation'), messages,
-                              router.gateway, catalog, tools, router.revision)
+                              router.gateway, request_catalog, tools, router.revision)
             previous = restored_state['decision']['selection']['variant'] if restored_state else None
             decision = router.resolve(messages, output_cap=cap, tools=tools, allowed=allowed,
                 session=session, previous=previous, access_revision=digest({'gate':settings['revision'],'inventory':inventory_revision,'context':context_revision(runtime_context)}),
@@ -538,7 +576,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                 policy_revision=router.revision, escalation=sticky), signing_key)
             publish(entry, state_token)
     except NoEligibleModel as exc:
-        # Product-visible (#7307): the admin needs the model name, not a generic refusal.
+        # Product-visible (#7307): nothing passed the hard gates, so not even the unmeasured last
+        # resort applies; the admin needs the model name, not a generic refusal.
         raise RoutingUnavailable(
             f'No model available to this project clears the Auto floor for this request, and the baseline model '
             f'{exc.baseline} is not available here. Ask a project admin to add {exc.baseline} to the project, '
@@ -550,6 +589,9 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
     trace['selection'] = {k: copy.deepcopy(decision.get('selection', {}).get(k)) for k in (
         'variant', 'reason', 'family_qualification', 'economics', 'tier', 'provisional', 'admission')}
     trace['escalation'] = escalation_trace
+    if decision.get('selection', {}).get('guard_sample'):
+        # No guard field exists in the signed config yet: the trace asks the record-only guard to sample.
+        trace['selection']['guard_sample'] = True
     if catalog.get('admission') is not None:
         trace['policy'] = {'admission_table_sha256': catalog['admission']['sha256'],
                            'rule_revision': catalog['admission']['rule_revision']}
@@ -565,7 +607,8 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                        'aliases': {e['model_name']: e['matched_name'] for e in entries if e.get('match') == 'alias'}}
     trace['instruction_chars'] = (runtime_context.get('active_instructions') or {}).get('total_chars', 0)
     trace['inventory'] = {'revision': inventory_revision, 'discovered': len(visible),
-                          'qualified_variants': len(runtime_variants), 'admitted_variants': len(allowed),
+                          'qualified_variants': measured_count, 'admitted_variants': len(allowed),
+                          'unmeasured_variants': sorted(unmeasured_heads),
                           'excluded': exclusions, 'unmeasured_contracts': contract_exclusions,
                           'rebound': rebound, 'rebound_attempts': rebound_attempts,
                           'unquoted_alternates': list(price_snapshot.get('unquoted', [])),
@@ -587,7 +630,7 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
               'supports_vision': model.get('supports_vision') is not False,
               # None is the provider default; the relay then accepts any value up to max_output_tokens.
               'max_tokens': cap, 'routing_total_output_cap': cap is not None}
-    contract = catalog['variants'][selected['variant']].get('calibration_contract')
+    contract = variants[selected['variant']].get('calibration_contract')
     if contract:
         unmeasured = selected['variant'] in tier_caps
         if not unmeasured:

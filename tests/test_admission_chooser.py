@@ -107,12 +107,16 @@ def test_the_baseline_honours_the_effort_need_filter():
     assert selection['variant'] == 'gpt-5-4-default'
 
 
-def test_no_baseline_and_nothing_admitted_is_a_refusal_not_a_guess():
-    # Named for the admin (#7307): the baseline model to add, never a silent escape or a generic text.
-    # Luna is eligible at deep in the material-r2 table, so only haiku is left to clear nothing (#6826).
-    with pytest.raises(ValueError, match='baseline model gpt-5.4 is not available') as info:
-        run(keys=('haiku',), demand='deep')
-    assert getattr(info.value, 'reason', None) == 'BASELINE_NOT_CONFIGURED'
+def test_no_baseline_and_nothing_admitted_routes_to_the_cheapest_hard_gated_head():
+    # #7307 (AB.0): an installation is never refused for lack of evidence. Haiku is out at deep (Luna is
+    # eligible there in the material-r2 table) and the baseline is missing, so Haiku answers, flagged for the guard.
+    result = run(keys=('haiku',), demand='deep')
+    selection = result['trace']['selection']
+    assert selected(result) == ('haiku-default', None, True)
+    assert selection['reason'] == 'UNMEASURED_CHEAPEST' and selection['guard_sample'] is True
+    assert selection['admission']['status'] == 'unmeasured_installation'
+    assert selection['family_qualification']['status'] == 'unmeasured_installation'
+    assert set(selection['admission']['last_resort']['quotes_usd']) == {'haiku-default'}
 
 
 # --- uncertain descriptors ---------------------------------------------------------------------------------------

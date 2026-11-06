@@ -222,6 +222,11 @@ def choose(descriptor, allowed=None, previous=None, min_demand="simple", catalog
         if op not in v["tasks"] and not uncertain: reasons.append("task not in provisional cohort")
         rows.append({"variant": vid, "eligible": not reasons, "rejections": reasons, "cost_band": v["cost_band"]})
     eligible = [r["variant"] for r in rows if r["eligible"]]
+    if not eligible and catalog.get("admission") is not None:
+        # #7307: a product greeting with no legacy cohort member is admitted by the table, which
+        # also holds the unmeasured last resort; a greeting is never refused for lack of evidence.
+        from .admission import choose_admitted
+        return choose_admitted(descriptor, allowed, previous, min_demand, catalog, context)
     if not eligible:
         raise ValueError("No eligible configured model; do not silently escape the pool")
     preference = catalog["preferences"]["other" if uncertain else op]
