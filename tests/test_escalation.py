@@ -13,9 +13,9 @@ from routing import escalation
 from routing.service import RoutingUnavailable, compiled_router, decision_log_line, resolve, restore_state
 
 ALL = ('luna', 'terra', 'sol', 'sonnet55', 'opus55', 'gpt54')
-# Deep ladder of ALL on the material-r2 table: Luna (eligible), Terra (provisional), Sol high, Sonnet 5.5 and
-# Opus 5.5 default (all eligible); one head per canonical model, each strictly dearer than the one before.
-LADDER = ['luna-default', 'terra-default', 'sol-high', 'sonnet-5-5-default', 'opus-5-5-default']
+# Deep ladder of ALL on the round (vii) table: Luna and Terra (provisional), Sol high (eligible); the Anthropic deep
+# cells are out. One head per canonical model, each strictly dearer than the one before.
+LADDER = ['luna-default', 'terra-default', 'sol-high']
 SENTINEL = 'SENTINEL-do-not-store-5519 zero trust worker'
 
 
@@ -53,7 +53,7 @@ def state_of(args, result):
 @pytest.mark.parametrize('settings', [None, {'escalation_mode': 'economical'}, {'escalation_mode': 'unknown-mode'}, {'escalation_mode': 'premium'}])
 def test_economical_and_absent_modes_choose_the_cheapest_admitted_head_at_deep(settings):
     _, result = first(settings=settings)
-    assert head(result) == LADDER[0] and result['trace']['selection']['tier'] == 'eligible'  # luna is eligible at deep
+    assert head(result) == LADDER[0] and result['trace']['selection']['tier'] == 'provisional'  # luna, vii deep
     assert moved(result) == {'mode': 'economical', 'event': 'none', 'from': None, 'to': 'luna-default',
                              'level': 0, 'reason': None, 'ladder': LADDER, 'next': 'terra-default'}
 
@@ -109,30 +109,38 @@ def table_of_record(monkeypatch):
 
 
 def frontier_rows(spec):
+    """spec: variant -> (tier, lb90); every cell cross-provider-confirmed and panel-labelled (premium-capable)."""
     ladder = list(spec)
-    return ladder, {v: {'tier': tier, 'cell': {'lb90': lb90}} for v, (tier, lb90) in spec.items()}
+    return ladder, {v: {'tier': tier, 'cell': {'lb90': lb90, 'cross_provider_confirmed': True, 'label_regime': 'panel'}}
+                    for v, (tier, lb90) in spec.items()}
 
 
 @pytest.mark.parametrize('mode', ['premium_at_deep', 'premium_from_standard'])
-def test_premium_at_deep_picks_the_highest_lb90_eligible_head_not_the_cheapest(mode):
+def test_premium_at_deep_picks_the_highest_lb90_admitted_head_not_the_cheapest(mode):
+    # Candidates are the admitted heads (eligible or provisional, rule 1); the highest lb90 starts.
     ladder, rows = frontier_rows({'a-x': ('eligible', .931), 'b-x': ('provisional', .999), 'c-x': ('eligible', .965),
-                                  'd-x': ('eligible', .929)})
-    assert escalation._start(mode, 'deep', ladder, rows, {}, None) == ('c-x', 'PREMIUM_START', None)
-    assert escalation._start('economical', 'deep', ladder, rows, {}, None)[0] == 'a-x'  # the cheapest eligible
+                                  'd-x': ('out', 1.0)})
+    assert escalation._start(mode, 'deep', ladder, rows, {}, None) == ('b-x', 'PREMIUM_START', None)
+    assert escalation._start('economical', 'deep', ladder, rows, {}, None)[0] == 'a-x'  # the cheapest admitted
 
 
 def test_premium_at_deep_breaks_a_lb90_tie_toward_the_cheaper_head():
     ladder, rows = frontier_rows({'a-x': ('eligible', .90), 'b-x': ('eligible', .965), 'c-x': ('eligible', .965),
                                   'd-x': ('eligible', .94)})
     assert escalation._start('premium_at_deep', 'deep', ladder, rows, {}, None)[0] == 'b-x'  # b is cheaper than c
+    assert escalation._premium(ladder, rows) == ('b-x', 'list_price')
 
 
-def test_premium_at_deep_with_nothing_eligible_keeps_the_cheapest_head():
-    ladder, rows = frontier_rows({'a-x': ('provisional', .9), 'b-x': ('provisional', .95)})
-    assert escalation._start('premium_at_deep', 'deep', ladder, rows, {}, None)[0] == 'a-x'
+def test_premium_at_deep_with_no_confirmed_panel_cell_is_inactive_and_starts_as_tiered():
+    ladder, rows = frontier_rows({'a-x': ('eligible', .9), 'b-x': ('eligible', .95)})
+    for row in rows.values():
+        row['cell']['cross_provider_confirmed'] = False
+    tiering = {'scope_id': 's', 'share': escalation.share_of({})}
+    assert escalation._start('premium_at_deep', 'deep', ladder, rows, {}, tiering) == ('b-x', 'PREMIUM_INACTIVE', None)
+    assert escalation._start('tiered', 'deep', ladder, rows, {}, tiering) == ('b-x', 'TIERED_START', None)
 
 
-def test_premium_at_deep_shares_the_lookup_with_tiered_and_leaves_simple_and_standard_alone():
+def test_premium_at_deep_leaves_simple_and_standard_alone():
     ladder, rows = frontier_rows({'a-x': ('eligible', .931), 'b-x': ('eligible', .965), 'c-x': ('eligible', .95)})
     tiering = {'scope_id': 's', 'share': escalation.share_of({})}
     assert (escalation._start('tiered', 'deep', ladder, rows, {}, tiering)[0]
@@ -148,17 +156,17 @@ def test_premium_at_deep_starts_on_sol_high_on_the_shipped_table():
     assert premium['trace']['selection']['tier'] == 'eligible' and moved(premium)['reason'] == 'PREMIUM_START'
 
 
-def test_premium_at_deep_starts_on_sol_high_on_the_material_r2_table_where_luna_is_eligible(table_of_record):
+def test_premium_is_inactive_on_the_material_r2_table_and_starts_as_tiered(table_of_record):
+    # The material-r2 cells carry no cross-provider confirmation, so premium is inactive there: the scope starts as
+    # `tiered` does at deep (the highest-lb90 eligible head, sol-high) and the trace says why.
     _, economical = first()
     _, premium = first(settings={'escalation_mode': 'premium_at_deep'})
-    # Cheapest eligible is now Luna; the premium mode must not start there.
     assert head(economical) == 'luna-default' and economical['trace']['selection']['tier'] == 'eligible'
     assert head(premium) == 'sol-high' and premium['config']['model_name'] == 'global.openai.gpt-5.6-sol'
     deep = {h: e['cells']['deep'] for h, e in json.loads(table_of_record.read_text())['heads'].items()}
-    eligible = {h: c['lb90'] for h, c in deep.items() if c['tier'] == 'eligible'}
-    assert max(eligible, key=eligible.get) == 'openai/gpt-5-6-sol|high'
-    assert eligible['openai/gpt-5-6-sol|high'] > eligible['openai/gpt-5-6-luna|default'] > 0.93
-    assert moved(premium)['mode'] == 'premium_at_deep' and moved(premium)['reason'] == 'PREMIUM_START'
+    assert not any(c.get('cross_provider_confirmed') for c in deep.values())
+    assert moved(premium)['mode'] == 'premium_at_deep' and moved(premium)['reason'] == 'PREMIUM_INACTIVE'
+    assert moved(premium)['premium'] == {'head': None, 'premium_tiebreak': None, 'code': 'PREMIUM_INACTIVE'}
     assert moved(premium)['ladder'][0] == 'sol-high'
 
 
@@ -179,18 +187,18 @@ def test_premium_from_standard_matches_premium_at_deep_at_deep_and_leaves_simple
     assert head(simple) == 'luna-default' and moved(simple)['reason'] is None
 
 
-def test_premium_from_standard_starts_standard_at_the_cheapest_eligible_tier_head():
-    # On the current table every admitted standard head is eligible, so the cheapest eligible head is Luna.
+def test_premium_from_standard_starts_standard_at_the_premium_head():
+    # Round (vii) standard: Luna eligible (lb90 0.940), Terra and gpt-5.4 provisional (0.905); all confirmed, panel.
     _, result = first(demand='standard', settings=PREMIUM_STANDARD)
     assert head(result) == 'luna-default' and result['trace']['selection']['tier'] == 'eligible'
-    # Where the cheapest standard head is only provisional (Anthropic over an OpenAI-compatible deployment),
-    # the premium start is the cheapest eligible-tier head instead; economical keeps the provisional one.
-    cheap = {'prices': {'sonnet55': ('.0000001', '.0000001')}, 'sonnet55': {'openai_compatible': True}}
-    _, economical = first(keys=('sol', 'sonnet55'), demand='standard', **cheap)
-    _, premium = first(keys=('sol', 'sonnet55'), demand='standard', settings=PREMIUM_STANDARD, **cheap)
-    assert (head(economical), economical['trace']['selection']['tier']) == ('sonnet-5-5-default', 'provisional')
-    assert (head(premium), premium['trace']['selection']['tier']) == ('sol-default', 'eligible')
+    # With Luna the dearest head, economical starts on a cheaper provisional head; premium still starts on Luna.
+    dear = {'prices': {'luna': ('.00001', '.0001')}}
+    _, economical = first(keys=('luna', 'terra', 'gpt54'), demand='standard', **dear)
+    _, premium = first(keys=('luna', 'terra', 'gpt54'), demand='standard', settings=PREMIUM_STANDARD, **dear)
+    assert economical['trace']['selection']['tier'] == 'provisional' and head(economical) != 'luna-default'
+    assert (head(premium), premium['trace']['selection']['tier']) == ('luna-default', 'eligible')
     assert moved(premium)['reason'] == 'PREMIUM_START'
+    assert moved(premium)['premium'] == {'head': 'luna-default', 'premium_tiebreak': 'lb90', 'code': None}
 
 
 def test_premium_from_standard_escalation_changes_the_model_not_the_effort():
@@ -306,7 +314,9 @@ def test_at_simple_luna_escalates_to_the_next_model_never_to_luna_high():
     args, one = first(demand='simple')
     two = follow(args, one, demand='simple', **FIELDS['regenerate'])
     assert head(one) == 'luna-default' and head(two) == 'terra-default'
-    assert moved(two)['ladder'] == ['luna-default', 'terra-default', 'sol-default', 'sonnet-5-5-default', 'opus-5-5-high']
+    # Round (vii): sol-default is floor_only at simple, a candidate only because these tests run `economical`.
+    assert moved(two)['ladder'] == ['luna-default', 'terra-default', 'sol-default', 'gpt-5-4-default', 'sol-high',
+                                    'sonnet-5-5-default', 'opus-5-5-high']
     assert 'luna-high' not in moved(two)['ladder']
     three = follow(args, two, demand='simple', **FIELDS['refusal'])  # a second signal: one more step
     assert (head(three), moved(three)['level']) == ('sol-default', 2)
@@ -315,10 +325,10 @@ def test_at_simple_luna_escalates_to_the_next_model_never_to_luna_high():
 def test_at_deep_the_ladder_is_luna_terra_sol_sonnet_opus_by_price_with_no_same_model_steps():
     args, result = first()
     heads = [head(result)]
-    for _ in range(5):
+    for _ in range(len(LADDER)):
         result = follow(args, result, **FIELDS['regenerate'])
         heads.append(head(result))
-    assert heads == LADDER + [LADDER[-1]]  # four steps, then the ceiling keeps Opus
+    assert heads == LADDER + [LADDER[-1]]  # one step per head, then the ceiling keeps the top head
     assert moved(result)['reason'] == 'ESCALATION_CEILING' and moved(result)['ladder'] == LADDER
     variants = compiled_router().catalog['variants']
     assert len({variants[h]['canonical_model'] for h in LADDER}) == len(LADDER)
@@ -396,11 +406,12 @@ def test_a_state_token_of_another_scope_is_refused():
 
 
 def test_premium_at_deep_still_escalates_on_a_signal_from_the_top_tier():
+    # Round (vii): the premium head at deep is sol-high and the Anthropic deep cells are out, so Sonnet 5.5 is
+    # deployed and priced above Sol but reachable only where it is admitted: at simple. Deep keeps the ceiling.
     args, one = first(settings={'escalation_mode': 'premium_at_deep'})
     two = follow(args, one, **FIELDS['regenerate'])
-    assert (head(one), head(two), moved(two)['level']) == ('sol-high', 'sonnet-5-5-default', 1)
-    three = follow(args, two)
-    assert head(three) == 'sonnet-5-5-default' and moved(three)['reason'] == 'STICKY'
+    assert (head(one), head(two), moved(two)['reason']) == ('sol-high', 'sol-high', 'ESCALATION_CEILING')
+    assert moved(one)['premium'] == {'head': 'sol-high', 'premium_tiebreak': 'lb90', 'code': None}
 
 
 def test_the_uncertain_baseline_has_no_ranked_heads_to_climb():

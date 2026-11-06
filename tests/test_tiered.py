@@ -10,7 +10,8 @@ from admission_support import args_for, classifier, request
 from routing import escalation, guard
 from routing.service import resolve
 
-ALL = ('luna', 'terra', 'sol', 'sonnet55', 'opus55', 'gpt54')
+# gpt-6.1-sol is the only eligible standard head besides Luna on the round (vii) table: the mid tier (#6826).
+ALL = ('luna', 'terra', 'sol', 'sonnet55', 'opus55', 'gpt54', 'sol61')
 TIERED = {'escalation_mode': 'tiered'}
 
 
@@ -113,9 +114,9 @@ def test_standard_low_arm_stays_on_the_cheapest_head():
 
 def test_standard_mid_arm_starts_at_the_cheapest_eligible_head_of_another_model():
     _, result = run(scope_id=find_scope('mid'))
-    assert head(result) == 'sol-default' and moved(result)['arm'] == 'mid' and moved(result)['reason'] == 'TIERED_START'
+    assert head(result) == 'gpt-6-1-sol-default' and moved(result)['arm'] == 'mid' and moved(result)['reason'] == 'TIERED_START'
     assert result['trace']['selection']['tier'] == 'eligible'
-    assert result['config']['model_name'] == 'global.openai.gpt-5.6-sol'  # measured on this table: Sol default is cheaper than Terra at standard
+    assert result['config']['model_name'] == 'global.openai.gpt-6.1-sol'  # Terra and gpt-5.4 are only provisional at standard
 
 
 def test_the_arm_follows_the_share_setting():
@@ -128,8 +129,8 @@ def test_the_arm_follows_the_share_setting():
 
 
 def test_deep_starts_at_the_frontier_head():
-    _, result = run(demand='deep')
-    assert head(result) == 'sol-high' and moved(result)['reason'] == 'TIERED_START' and moved(result)['arm'] is None
+    _, result = run(demand='deep')  # gpt-6.1-sol 63/63 (lb90 0.979) over sol-high 38/38 (0.965)
+    assert head(result) == 'gpt-6-1-sol-default' and moved(result)['reason'] == 'TIERED_START' and moved(result)['arm'] is None
     assert result['trace']['selection']['tier'] == 'eligible'
 
 
@@ -157,17 +158,17 @@ def test_a_signal_escalates_across_models_from_either_arm():
     low, mid = find_scope('low'), find_scope('mid')
     args, one = run(scope_id=low)
     two = follow(args, one, low, escalation={'event': 'regenerate'})
-    assert (head(one), head(two)) == ('luna-default', 'sol-default') and 'luna-high' not in moved(two)['ladder']
+    assert (head(one), head(two)) == ('luna-default', 'terra-default') and 'luna-high' not in moved(two)['ladder']
     args, one = run(scope_id=mid)
     two = follow(args, one, mid, escalation={'event': 'regenerate'})
-    assert (head(one), head(two), moved(two)['arm']) == ('sol-default', 'terra-default', 'mid')
+    assert (head(one), head(two), moved(two)['arm']) == ('gpt-6-1-sol-default', 'gpt-5-4-default', 'mid')
 
 
 def test_the_arm_and_the_head_are_stable_across_turns_of_a_scope():
     mid = find_scope('mid')
     args, one = run(scope_id=mid)
     two = follow(args, one, mid)
-    assert (head(two), moved(two)['arm']) == ('sol-default', 'mid')
+    assert (head(two), moved(two)['arm']) == ('gpt-6-1-sol-default', 'mid')
 
 
 def test_the_guard_records_against_the_tiered_start():
@@ -179,7 +180,7 @@ def test_the_guard_records_against_the_tiered_start():
                          price_snapshot=args['price_snapshot'], signing_key=args['signing_key'],
                          complete=lambda *a, **k: pytest.fail('hard signal'), now=args['now'])
     assert (result['verdict'], result['code']) == ('fail', 'refusal') and 'escalate_to' not in result
-    assert result['trace']['escalation']['arm'] == 'mid' and result['trace']['escalation']['next'] == 'terra-default'
+    assert result['trace']['escalation']['arm'] == 'mid' and result['trace']['escalation']['next'] == 'gpt-5-4-default'
     assert guard.usage_record(7, mid, result, now=1)['arm'] == 'mid'
 
 
@@ -200,10 +201,10 @@ def absent(demand, scope_id=None):
 def test_an_absent_escalation_mode_is_tiered():
     assert escalation.mode_of({}) == 'tiered' and escalation.mode_of({'escalation_mode': None}) == 'tiered'
     deep, simple = absent('deep'), absent('simple')
-    assert (head(deep), moved(deep)['mode'], moved(deep)['reason']) == ('sol-high', 'tiered', 'TIERED_START')
+    assert (head(deep), moved(deep)['mode'], moved(deep)['reason']) == ('gpt-6-1-sol-default', 'tiered', 'TIERED_START')
     assert (head(simple), moved(simple)['mode']) == ('luna-default', 'tiered')
     mid, low = absent('standard', find_scope('mid')), absent('standard', find_scope('low'))
-    assert (head(mid), moved(mid)['arm'], head(low), moved(low)['arm']) == ('sol-default', 'mid', 'luna-default', 'low')
+    assert (head(mid), moved(mid)['arm'], head(low), moved(low)['arm']) == ('gpt-6-1-sol-default', 'mid', 'luna-default', 'low')
     assert moved(low)['standard_low_share'] == {'requested': None, 'used': 0.20, 'clamped': False}
 
 

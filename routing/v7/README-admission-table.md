@@ -1,4 +1,16 @@
-# Admission table of record (`admission-table.json`)
+# Admission table of record
+
+**Since #6826 round (vii) the loader serves `admission-table-material-r2-vii-3of4-ref30-limit-ai.json`**, sha256
+`09a9bcd29f7b2f8590126c9fc27b46b087801d7e89e93e488dd76129d6e4ba00` (21 heads, rule revision
+`interim-reviewed-demand-1+ac2+ref30+limit_oracle`, 3-of-4 panel labels). Its rules, cell fields (`status: floor_only`,
+`cross_provider_confirmed`, `label_regime`, `marginal`, `reference_head`) and the round's results are documented in
+`autorouting_impl/admission-rebuild-iv/README.md` and `REPORT-vii.md`; the Gateway consumes tiers only. Selection:
+`floor_only` cells are candidates only under an explicit `economical` mode; premium modes start on the highest
+full-precision `lb90` among admitted cells that are cross-provider confirmed and panel-labelled (tie: paired adverse
+rate, list price, canonical order; `premium_tiebreak` in the trace), else `PREMIUM_INACTIVE` and the `tiered` start.
+The material-r2 table below stays as `admission-table.json` for the history of the pins.
+
+## Previous table of record (`admission-table.json`)
 
 Label revision: **`material-r2`** (#6722 / #6826). Admission is not selection: selection is the policy's price
 ordering over the eligible heads.

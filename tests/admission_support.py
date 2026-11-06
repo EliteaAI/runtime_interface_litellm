@@ -17,6 +17,16 @@ MODELS = {
     'opus55': ('global.anthropic.claude-opus-5-5', 'anthropic/claude-opus-5-5', ('.000005', '.000025')),
     'gpt54': ('gpt-5.4', 'openai/gpt-5-4', ('.0000025', '.00002')),
     'haiku': ('eu.anthropic.claude-haiku-4-5-20251001-v1:0', 'anthropic/claude-haiku-4-5', ('.000001', '.000005')),
+    # Round (vii) heads (#6826); fixture prices, ordering only.
+    'luna6': ('global.openai.gpt-6-luna', 'openai/gpt-6-luna', ('.0000001', '.0000005')),
+    'sol61': ('global.openai.gpt-6.1-sol', 'openai/gpt-6-1-sol', ('.000002', '.000016')),
+    'haiku55': ('global.anthropic.claude-haiku-5-5', 'anthropic/claude-haiku-5-5', ('.000001', '.000005')),
+    'gemini31': ('gemini-3.1-pro-preview', 'google/gemini-3-1-pro', ('.000002', '.000012')),
+    'gemini38': ('gemini-3.8-flash', 'google/gemini-3-8-flash', ('.0000003', '.0000025')),
+    # The customer installation of REPORT-vii (sonnet-5, sonnet-4-6, gpt-5.4-mini).
+    'sonnet5': ('eu.anthropic.claude-sonnet-5', 'anthropic/claude-sonnet-5', ('.000003', '.000015')),
+    'sonnet46': ('eu.anthropic.claude-sonnet-4-6', 'anthropic/claude-sonnet-4-6', ('.000003', '.000015')),
+    'mini': ('gpt-5.4-mini', 'openai/gpt-5-4-mini', ('.00000025', '.000002')),
 }
 CLASSIFIER = 'classifier-only'
 

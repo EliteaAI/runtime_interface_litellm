@@ -99,8 +99,9 @@
     "calibration-v12.json": "b8ccfb1ecdc2720af2001b78bc075853ddba9a6267f912af9f8ac2a0560cf559",
     "task_profile.py": "f916772760d8377eccbd8043c0acc429749b7afb04f988765130450049b516f6",
     "mechanical.py": "fc12879cb46481feac3a75e365f1ddf881fb9215b8af97a571c97ec06169283d",
-    "admission.py": "0eb2cd82cd6d689fd2eeb6bf4e1ce572148ef3fbda4e0db19d343f31ee3ceae5",
+    "admission.py": "9017fbf945dfcef3e743c1724b653399ede77e981db319e75c88a95afc4ac18b",
     "admission-table.json": "0d2320a526469f6cf12ad4313148b250bfe75b06e23cbb0890273491305e4692",
+    "admission-table-material-r2-vii-3of4-ref30-limit-ai.json": "09a9bcd29f7b2f8590126c9fc27b46b087801d7e89e93e488dd76129d6e4ba00",
     "build_admission_table.py": "fbc4d15bf2a77b12510e897a63d24e702e6f7b8acea781ced5e2a3e523d016b6"
   },
   "product_revision": "V12 measured efforts, bounded task groups, task properties and comparable expenditure; no production promotion; interim admission table (reviewed-demand view), provider-default output",

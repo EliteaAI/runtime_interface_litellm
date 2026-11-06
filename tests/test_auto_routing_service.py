@@ -11,6 +11,10 @@ from routing.service import resolve, decode_pin, RoutingUnavailable, PROFILE
 from routing.v7.catalog import compile_catalog
 
 
+# Heads the round (vii) table admits somewhere (#6826). They stay out of the retained deployment fixture below;
+# tests/test_table_vii_selection.py deploys them.
+ROUND_VII = {'eu.anthropic.claude-sonnet-5': 'anthropic/claude-sonnet-5', 'gemini-3.1-pro-preview': 'google/gemini-3-1-pro',
+             'global.openai.gpt-6.1-sol': 'openai/gpt-6-1-sol', 'global.openai.gpt-6-luna': 'openai/gpt-6-luna'}
 # PLAN #6826 section 3.3: exact catalog name -> canonical identity (Configurations rules, copied).
 CANONICAL = {
     'global.openai.gpt-5.6-luna': 'openai/gpt-5-6-luna', 'global.openai.gpt-5.6-sol': 'openai/gpt-5-6-sol',
@@ -20,7 +24,10 @@ CANONICAL = {
     'eu.anthropic.claude-opus-4-8': 'anthropic/claude-opus-4-8', 'eu.anthropic.claude-opus-5': 'anthropic/claude-opus-5',
     # Heads added to the catalog from the admission table (#6722).
     'global.anthropic.claude-sonnet-5-5': 'anthropic/claude-sonnet-5-5',
-    'global.anthropic.claude-opus-5-5': 'anthropic/claude-opus-5-5'}
+    'global.anthropic.claude-opus-5-5': 'anthropic/claude-opus-5-5',
+    # The round (vii) table lists the eu ids first for the 5.5 default heads (#6826).
+    'eu.anthropic.claude-sonnet-5-5': 'anthropic/claude-sonnet-5-5', 'eu.anthropic.claude-opus-5-5': 'anthropic/claude-opus-5-5',
+    **ROUND_VII}
 
 
 def identity(canonical, contract='default', source='rule', kind='chat'):
@@ -33,7 +40,8 @@ def fixture():
     catalog = compile_catalog()
     # Retained V7 deployment fixture. V9 candidate admission has its own32k
     # inventory fixtures; discovering new contracts does not deploy them here.
-    names = sorted({v['model'] for v in catalog['variants'].values() if not v.get('calibration_contract')})
+    names = sorted({v['model'] for v in catalog['variants'].values()
+                    if not v.get('calibration_contract') and v['model'] not in ROUND_VII})
     return dict(project_id=7, user_id=2, settings={'enabled': True, 'revision': 'g1',
             'classifier': {'name': 'global.openai.gpt-5.6-luna', 'project_id': 7, 'source': 'platform'}},
         signing_key='unit-test-only', now=100,
@@ -502,7 +510,8 @@ def unmeasured(name, canonical, **fields):
             'identity': identity(canonical), **fields}
 
 
-SONNET5 = unmeasured('eu.anthropic.claude-sonnet-5', 'anthropic/claude-sonnet-5')  # a head out at every demand
+# A head out at every demand with no catalog variant (round vii admits sonnet-5 at simple, so Haiku 5.5).
+HAIKU55 = unmeasured('global.anthropic.claude-haiku-5-5', 'anthropic/claude-haiku-5-5')
 GPT52 = unmeasured('gpt-5.2', 'openai/gpt-5-2')  # absent from the admission table
 
 
@@ -518,11 +527,11 @@ def test_nothing_clears_the_floor_without_the_baseline_routes_to_the_cheapest_ha
     assert result['config']['model_name'] in keep
 
 
-@pytest.mark.parametrize('cheaper', ['eu.anthropic.claude-sonnet-5', 'gpt-5.4-mini'])
+@pytest.mark.parametrize('cheaper', ['global.anthropic.claude-haiku-5-5', 'gpt-5.4-mini'])
 def test_only_heads_out_everywhere_route_to_the_cheaper_one_by_quote(cheaper):
     from routing.service import decision_log_line
-    dearer = ({'eu.anthropic.claude-sonnet-5', 'gpt-5.4-mini'} - {cheaper}).pop()
-    args = installation({'gpt-5.4-mini'}, extra=[(SONNET5, price(SONNET5['name']))], classifier='gpt-5.4-mini')
+    dearer = ({'global.anthropic.claude-haiku-5-5', 'gpt-5.4-mini'} - {cheaper}).pop()
+    args = installation({'gpt-5.4-mini'}, extra=[(HAIKU55, price(HAIKU55['name']))], classifier='gpt-5.4-mini')
     for entry in args['price_snapshot']['entries']:
         entry.update(price(entry['model_name'], '.0000001' if entry['model_name'] == cheaper else '.00001'))
     req = request(DESIGN)
@@ -532,11 +541,11 @@ def test_only_heads_out_everywhere_route_to_the_cheaper_one_by_quote(cheaper):
     assert result['config']['model_name'] == cheaper
     quotes = selection['admission']['last_resort']['quotes_usd']
     assert selection['admission']['last_resort']['quote_tokens'] == {'input': 34000, 'output': 900}
-    assert {'unmeasured:eu.anthropic.claude-sonnet-5', 'mini-medium'} == set(quotes)  # mini-low: effort filter
-    by_model = {('gpt-5.4-mini' if v == 'mini-medium' else 'eu.anthropic.claude-sonnet-5'): q for v, q in quotes.items()}
+    assert {'unmeasured:global.anthropic.claude-haiku-5-5', 'mini-medium'} == set(quotes)  # mini-low: effort filter
+    by_model = {('gpt-5.4-mini' if v == 'mini-medium' else 'global.anthropic.claude-haiku-5-5'): q for v, q in quotes.items()}
     assert float(by_model[cheaper]) < float(by_model[dearer])
-    assert selection['admission']['rejections']['unmeasured:eu.anthropic.claude-sonnet-5'] == ['ADMISSION_ROW_OUT']
-    assert result['trace']['inventory']['unmeasured_variants'] == ['unmeasured:eu.anthropic.claude-sonnet-5']
+    assert selection['admission']['rejections']['unmeasured:global.anthropic.claude-haiku-5-5'] == ['ADMISSION_ROW_OUT']
+    assert result['trace']['inventory']['unmeasured_variants'] == ['unmeasured:global.anthropic.claude-haiku-5-5']
     assert '/UNMEASURED_CHEAPEST/' in decision_log_line(7, req, result)
 
 

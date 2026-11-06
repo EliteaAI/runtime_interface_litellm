@@ -4,12 +4,15 @@ The demand floor of the admission table always stays. Modes choose the starting 
 `tiered` (default): simple cheapest; standard splits per scope between the cheapest head (`standard_low_share`)
 and the measured mid tier; deep the measured frontier tier. `economical`: cheapest at every demand.
 
-`premium_at_deep` / `premium_from_standard`: at deep the frontier head, i.e. the eligible head with the highest
-`lb90` on the admission table (ties to the cheaper), found by the same lookup `tiered` uses. Admission is not
-selection: on the table of record (material-r2) Luna is eligible at deep, so "cheapest eligible" would start on
-Luna and make the knob meaningless. Premium costs about 13x per success at deep for +2.5 pp [+0.1, +5.4] pass on
-the held-out deep items (REVIEW-R81 section X(b)), so a project chooses it with that number in view.
-`premium_from_standard` also starts standard on the cheapest head of the table's top (`eligible`) tier.
+`premium_at_deep` / `premium_from_standard` (deep, and from standard up): the premium head is the admitted head
+with the highest `lb90` among cells that are `cross_provider_confirmed` and `label_regime: panel` (a single-judge
+cell never starts premium; `marginal` is trace only). An exact `lb90` tie (full precision, from the cell counts)
+goes to the lower paired adverse rate, then the cheaper list price, then the canonical head order; the deciding step
+is traced as `premium_tiebreak`. The reviewer's head-to-head step (fewer losses on shared items) needs item outcomes,
+which the table does not carry, so it cannot decide here. With no such cell at the demand, premium is inactive:
+the scope starts as `tiered` would and the trace records `PREMIUM_INACTIVE` (Anthropic-only installations today).
+Premium costs about 13x per success at deep for +2.5 pp [+0.1, +5.4] pass on the held-out deep items (REVIEW-R81
+section X(b)), so a project chooses it with that number in view.
 
 One signal per resolve (regenerate, upgrade control, correction, refusal, incomplete, tool failure, inability)
 moves the scope one step up the ladder of admitted heads, ordered by the economics ranking; a step changes the
@@ -23,9 +26,10 @@ import hashlib
 import re
 import time
 from decimal import Decimal
-from .v7.admission import annotate, EFFORT_ORDER
+from .v7.admission import annotate, variant_head, ADMITTED, EFFORT_ORDER
+from .v7.build_admission_table import jeffreys_lower
 
-# Demands at which a premium mode starts at the cheapest head of the top admitted tier.
+# Demands at which a premium mode starts on the premium head (`_premium`).
 PREMIUM_DEMANDS = {'premium_at_deep': frozenset({'deep'}), 'premium_from_standard': frozenset({'standard', 'deep'})}
 MODES = frozenset({'economical', 'tiered'} | set(PREMIUM_DEMANDS))
 DEFAULT_MODE = 'tiered'  # plan section 13.5; `economical` stays selectable
@@ -70,24 +74,63 @@ def arm_of(scope_id, share):
 
 def _frontier(ladder, rows):
     """The eligible head with the highest `lb90` of its admission row (ties: the cheaper, `ladder` is cheapest
-    first), or None when no head is eligible. One lookup for `tiered` and the premium modes at deep."""
+    first), or None when no head is eligible. The `tiered` deep start (and an inactive premium start)."""
     eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
     top = max((rows[v]['cell']['lb90'] for v in eligible), default=None)
     return next((v for v in eligible if rows[v]['cell']['lb90'] == top), None)
 
 
-def _start(mode, demand, ladder, rows, family, tiering):
+def _lb90(cell):
+    """`lb90` at full precision from the cell counts; the table stores it rounded."""
+    return jeffreys_lower(cell['pass'], cell['n']) if 'pass' in cell and 'n' in cell else cell['lb90']
+
+
+def _adverse_rate(cell):
+    return cell['adverse'] / cell['paired_n'] if cell.get('paired_n') else 0.0
+
+
+def _premium(ladder, rows, list_price=None, head_of=None):
+    """-> (premium head, deciding step), or (None, None) when no admitted cell is cross-provider-confirmed
+    and panel-labelled. `list_price` (variant -> list price) falls back to the ladder order (cheapest first);
+    `head_of` (variant -> canonical head) to the variant id."""
+    pool = [v for v in ladder if rows[v]['tier'] in ADMITTED
+            and (rows[v].get('cell') or {}).get('cross_provider_confirmed') is True
+            and rows[v]['cell'].get('label_regime') == 'panel']
+    if not pool:
+        return None, None
+    price = list_price or {v: i for i, v in enumerate(ladder)}
+    steps = (('lb90', lambda v: -_lb90(rows[v]['cell'])),
+             ('paired_adverse_rate', lambda v: _adverse_rate(rows[v]['cell'])),
+             ('list_price', lambda v: price[v]),
+             ('canonical_order', lambda v: (head_of or {}).get(v, v)))
+    for step, key in steps:
+        best = min(key(v) for v in pool)
+        pool = [v for v in pool if key(v) == best]
+        if len(pool) == 1:
+            return pool[0], step
+    return pool[0], 'canonical_order'
+
+
+def _start(mode, demand, ladder, rows, family, tiering, list_price=None, head_of=None):
     """-> (start head, reason code, arm). The head a scope starts on before any signal.
 
     Tiers are measured, never named: `eligible` is the admission-table tier of the row for this demand and
     family; the frontier is the eligible head(s) with the highest `lb90` (ties: cheapest); mid is an eligible
-    head whose canonical model is not that of the cheapest admitted head.
+    head whose canonical model is not that of the cheapest admitted head. Premium: see `_premium`.
     """
     cheapest = ladder[0]
+    inactive = False
     if demand in PREMIUM_DEMANDS.get(mode, ()):
-        if demand == 'deep':
-            return _frontier(ladder, rows) or cheapest, 'PREMIUM_START', None
-        return next((v for v in ladder if rows[v]['tier'] == 'eligible'), cheapest), 'PREMIUM_START', None
+        premium = _premium(ladder, rows, list_price, head_of)[0]
+        if premium:
+            return premium, 'PREMIUM_START', None
+        mode, inactive = 'tiered', True  # no confirmed panel cell: start as `tiered` for this demand
+    start, reason, arm = _tiered_start(mode, demand, ladder, rows, family, tiering)
+    return start, ('PREMIUM_INACTIVE' if inactive else reason), arm
+
+
+def _tiered_start(mode, demand, ladder, rows, family, tiering):
+    cheapest = ladder[0]
     if mode != 'tiered' or demand == 'simple':
         return cheapest, None, None
     eligible = [v for v in ladder if rows[v]['tier'] == 'eligible']
@@ -175,14 +218,17 @@ def _next(selection, catalog, here):
     return next((v for v in ladder if family[v] != family[here] and price[v] > price[here]), None)
 
 
-def apply(selection, catalog, *, mode, event, prior, tiering=None):
-    """-> (selection, record, sticky); `record['next']` is the head a failed guard would escalate to."""
-    selection, record, sticky = _apply(selection, catalog, mode=mode, event=event, prior=prior, tiering=tiering)
+def apply(selection, catalog, *, mode, event, prior, tiering=None, list_price=None):
+    """-> (selection, record, sticky); `record['next']` is the head a failed guard would escalate to.
+
+    `list_price` maps a variant to its list price, the premium tie-break before the canonical order."""
+    selection, record, sticky = _apply(selection, catalog, mode=mode, event=event, prior=prior, tiering=tiering,
+                                       list_price=list_price)
     record['next'] = _next(selection, catalog, record['to'])
     return selection, record, sticky
 
 
-def _apply(selection, catalog, *, mode, event, prior, tiering):
+def _apply(selection, catalog, *, mode, event, prior, tiering, list_price=None):
     """-> (selection, record, sticky).
 
     `prior` is the signed state of the scope's previous turn (None for the first); `event` the one
@@ -200,13 +246,21 @@ def _apply(selection, catalog, *, mode, event, prior, tiering):
     if event and not prior:
         record['reason'] = 'NO_PRIOR_ROUTE'  # nothing to move up from; the first route is the default
         return selection, record, None
+    demand = (selection.get('admission') or {}).get('demand')
+    if demand in PREMIUM_DEMANDS.get(mode, ()):
+        record['premium'] = {'head': None, 'premium_tiebreak': None, 'code': 'PREMIUM_INACTIVE'}
     if not ladder or 'admission' not in selection:  # greeting rule or no ranking: nothing to climb
         record['reason'] = 'ESCALATION_NO_RANKED_HEADS' if event else None
         return selection, record, (carried or None)
     family = {v: catalog['variants'][v].get('canonical_model') or catalog['variants'][v]['model'] for v in ladder}
+    head_of = {v: variant_head(catalog['variants'][v]) for v in ladder}
     rows = {r['variant']: r for r in selection['candidates']}
-    start, start_reason, arm = _start(mode, selection['admission']['demand'], ladder, rows, family, tiering)
-    if mode == 'tiered':
+    if 'premium' in record:
+        premium, step = _premium(ladder, rows, list_price, head_of)
+        if premium:
+            record['premium'] = {'head': premium, 'premium_tiebreak': step, 'code': None}
+    start, start_reason, arm = _start(mode, demand, ladder, rows, family, tiering, list_price, head_of)
+    if mode == 'tiered' or arm:
         record['arm'] = arm
     chain = _chain(ladder, price, family, start)
     record['ladder'] = chain
@@ -221,7 +275,7 @@ def _apply(selection, catalog, *, mode, event, prior, tiering):
         sticky = {'event': event, 'from': previous, 'level': level} if level else None
     elif level:
         record['reason'] = 'STICKY'
-    elif start != ladder[0]:
+    elif start != ladder[0] or start_reason == 'PREMIUM_INACTIVE':
         record['reason'] = start_reason
     if record['reason'] is not None and target != chosen:
         selection = _switch(selection, catalog, target)

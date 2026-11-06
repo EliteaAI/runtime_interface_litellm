@@ -10,7 +10,7 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from routing.inventory import qualified_inventory, select_deployment
 from routing.service import resolve, decode_pin, RoutingUnavailable, is_anthropic
 from routing.v7.catalog import compile_catalog
-from test_auto_routing_service import fixture, request, classifier_design, identity, CANONICAL
+from test_auto_routing_service import fixture, request, classifier_design, identity, CANONICAL, ROUND_VII
 
 GRAMMAR = re.compile(r'^[a-z]+/[a-z0-9][a-z0-9-]*$')
 LUNA = 'openai/gpt-5-6-luna'
@@ -47,9 +47,12 @@ def customer(args):
 @pytest.mark.parametrize('revision', ['v9', 'v12'])
 def test_every_compiled_variant_declares_the_expected_canonical_model(revision):
     variants = compile_catalog(revision)['variants']
-    # The admission table adds the 5.5 heads to the product (v12) catalog only (#6722).
-    added = {'global.anthropic.claude-sonnet-5-5', 'global.anthropic.claude-opus-5-5'}
-    assert {v['model'] for v in variants.values()} == (set(CANONICAL) if revision == 'v12' else set(CANONICAL) - added)
+    # The admission table adds the 5.5 and round (vii) heads to the product (v12) catalog only (#6722, #6826). The
+    # vii table names the 5.5 default heads by their eu id, so the global Sonnet 5.5 id is no longer a variant model.
+    added = {'global.anthropic.claude-sonnet-5-5', 'global.anthropic.claude-opus-5-5', 'eu.anthropic.claude-sonnet-5-5',
+             'eu.anthropic.claude-opus-5-5', *ROUND_VII}
+    expected = set(CANONICAL) - {'global.anthropic.claude-sonnet-5-5'} if revision == 'v12' else set(CANONICAL) - added
+    assert {v['model'] for v in variants.values()} == expected
     for vid, variant in variants.items():
         assert GRAMMAR.fullmatch(variant['canonical_model']), vid
         assert variant['canonical_model'] == CANONICAL[variant['model']], vid
