@@ -129,7 +129,7 @@ def test_live_output_maximum_is_the_provider_default_bound():
 
 def test_original_observations_and_legacy_candidate_remain_reproducible():
     assert len(compile_catalog('v9')['variants']) == 13
-    assert len(compile_catalog()['variants']) == 32
+    assert len(compile_catalog()['variants']) == 33
     assert len(compile_catalog(admission=False)['variants']) == 28
     assert DATA['original_outcomes'] == {'pass': 1278, 'fail': 210, 'unknown': 12}
     assert sum(r['eligible_local_beta'] for r in DATA['records']) == 248

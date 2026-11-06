@@ -198,7 +198,8 @@ def test_customer_named_inventory_routes_greeting_and_binds_exact_deployment():
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
     assert result['config']['model_name'] in DIAL.values()
     assert result['trace']['inventory']['excluded'] == []
-    assert result['trace']['inventory']['qualified_variants'] == 9
+    # Nine catalog variants plus gpt-5-4-default, which the material-r2 table admits at standard (#6826).
+    assert result['trace']['inventory']['qualified_variants'] == 10
     pin = decode_pin(result['pin'], args['signing_key'], project_id=7, user_id=2, settings=args['settings'], now=101)
     assert pin['model_binding']['name'] == result['config']['model_name']
 
@@ -271,7 +272,8 @@ def test_older_configurations_without_identity_still_route_by_exact_name():
     for model in args['models']:
         model.pop('identity')
     result = resolve(request(), complete=lambda *a, **k: pytest.fail('Greeting classified'), **args)
-    assert result['trace']['inventory']['qualified_variants'] == 9
+    # Nine catalog variants plus gpt-5-4-default, which the material-r2 table admits at standard (#6826).
+    assert result['trace']['inventory']['qualified_variants'] == 10
 
 
 def test_trace_records_price_match_kind():

@@ -141,6 +141,10 @@ python routing/v7/build_admission_table.py /path/to/dataset-r81/dataset.jsonl --
 python -m pytest --rootdir=tests tests/test_admission_table_builder.py -q   # pinned digest, numbers
 ```
 
+The table of record is label revision `material-r2`; `v7/README-admission-table.md` lists its digests, the heads
+admitted and the cells that changed tier. Admission is not selection: selection is the price ordering over the
+eligible heads.
+
 Per canonical head (`vendor/family|effort`) and demand it holds counts, a one-sided 90%
 Jeffreys lower bound, a paired adverse count against the best head, a tier (`eligible`,
 `provisional` at deep only, `out`) and the cell's p90 output tokens. A head or demand

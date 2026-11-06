@@ -78,7 +78,10 @@ def test_truncated_active_contract_uses_explicit_conservative_fallback():
     assert result['action']=='generate'
     assert result['trace']['descriptor']['needs_context'] is True
     assert 'exceed' in result['trace']['descriptor']['reason']
-    assert result['config']['model_name']!='global.openai.gpt-5.6-luna'
+    # Uncertain input goes to the cheapest head that clears the deep floor; luna-default clears it in the material-r2 table.
+    assert result['trace']['selection']['reason']=='UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+    assert result['trace']['selection']['admission']['demand']=='deep'
+    assert result['config']['model_name']=='global.openai.gpt-5.6-luna'
 
 
 def test_prior_pin_is_same_run_only_even_with_same_conversation():

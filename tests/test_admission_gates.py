@@ -42,7 +42,11 @@ def test_the_provider_default_is_the_models_own_maximum_and_can_fail_the_p90_che
     result = go(('luna', 'gpt54'), demand='standard', inventory=small)
     info = result['trace']['selection']['admission']
     assert 'luna-default' in info['allowance_rejected']  # rejected on its own provider maximum
-    assert result['trace']['selection']['variant'] == 'gpt54-medium'
+    # gpt-5.4 default is admitted at standard in the material-r2 table (21/21), so it is chosen as an admitted
+    # head and no longer through the baseline rule.
+    selection = result['trace']['selection']
+    assert (selection['variant'], selection['tier']) == ('gpt-5-4-default', 'eligible')
+    assert selection['reason'] != 'UNCERTAIN_TASK_BASELINE'
 
 
 @pytest.mark.parametrize('delta,passes', [(0, True), (1, True), (-1, False)])
@@ -56,7 +60,7 @@ def test_explicit_cap_is_compared_with_the_cell_p90_at_the_boundary(delta, passe
         assert selection['admission']['effective_cap'] == cap
         assert result['config']['max_tokens'] == cap
     else:
-        assert selection['variant'] == 'gpt54-medium'
+        assert (selection['variant'], selection['tier']) == ('gpt-5-4-default', 'eligible')  # admitted at standard
         assert 'luna-default' in selection['admission']['allowance_rejected']
 
 

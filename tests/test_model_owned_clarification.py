@@ -34,8 +34,9 @@ def test_uncertainty_keeps_original_request_and_normal_signed_binding(status, re
     assert result['trace']['descriptor']['needs_context'] is True
     assert result['trace']['descriptor']['input_status'] == status
     assert result['trace']['uncertainty'] == {'handling': 'generation_model', 'reason': reason}
-    assert result['trace']['selection']['reason'] == 'UNCERTAIN_TASK_BASELINE'
-    assert result['config']['model_name'] == 'gpt-5.4'
+    # The cheapest head that clears the deep floor: luna-default (eligible at deep, material-r2 table).
+    assert result['trace']['selection']['reason'] == 'UNCERTAIN_CHEAPEST_CLEARING_FLOOR'
+    assert result['config']['model_name'] == 'global.openai.gpt-5.6-luna'
     pin = decode_pin(result['pin'], args['signing_key'], project_id=7, user_id=2,
                      settings=args['settings'], now=101)
     assert pin['config'] == result['config']
@@ -107,6 +108,9 @@ def test_uncertainty_cannot_escape_explicit_effort_or_available_pool():
     assert result['config']['reasoning_effort'] == 'high'
     args = fixture()
     args['models'] = [m for m in args['models'] if m['name'] == 'global.openai.gpt-5.6-luna']
+    pooled = resolve(request('Summarize the absent document.'), complete=complete, **args)
+    assert pooled['config']['model_name'] == 'global.openai.gpt-5.6-luna'  # the only deployment in the pool
+    args['models'] = []
     with pytest.raises((RoutingUnavailable, ValueError)):
         resolve(request('Summarize the absent document.'), complete=complete, **args)
 
