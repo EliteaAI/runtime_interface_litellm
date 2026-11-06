@@ -18,6 +18,7 @@ from .v7.catalog import compile_catalog
 from .v7.candidate import CalibratedRouter
 from .v7.economics import rank
 from .v7.routing import GatewayError, CONFIGURED_CLASSIFIER
+from .v7.admission import NoEligibleModel
 from .checkpoint import session_for, publish, apply_observation, state_value, MAX_CHECKPOINT_BYTES
 from .inventory import effective_models, model_binding, validate_binding, qualified_inventory, fingerprint
 
@@ -522,6 +523,12 @@ def resolve(request, *, project_id, user_id, settings, models, price_snapshot, s
                 project_id=project_id, user_id=user_id, gate_revision=settings['revision'],
                 policy_revision=router.revision), signing_key)
             publish(entry, state_token)
+    except NoEligibleModel as exc:
+        # Product-visible (#7307): the admin needs the model name, not a generic refusal.
+        raise RoutingUnavailable(
+            f'No model available to this project clears the Auto floor for this request, and the baseline model '
+            f'{exc.baseline} is not available here. Ask a project admin to add {exc.baseline} to the project, '
+            f'or pick a model', 'BASELINE_NOT_CONFIGURED') from exc
     finally:
         _REQUEST.reset(context_token)
 

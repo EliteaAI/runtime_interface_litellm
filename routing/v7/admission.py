@@ -174,13 +174,24 @@ def choose_admitted(descriptor, allowed, previous, min_demand, catalog, context=
                     rejections=rejections)
 
 
+class NoEligibleModel(ValueError):
+    """Nothing clears the floor and the baseline family is not available to the project.
+
+    Carries the baseline model name so the refusal can tell an admin what to add (#7307).
+    """
+
+    def __init__(self, baseline):
+        super().__init__('No eligible configured model; do not silently escape the pool')
+        self.baseline = baseline
+
+
 def _baseline(catalog, allowed, rows, base, admission, demand, family, rejected, rejections):
     """Nothing clears the floor: the configured baseline family, or an honest refusal."""
     baseline = catalog['variants'][catalog['baseline']]
     usable = [vid for vid, v in catalog['variants'].items()
               if vid in allowed and v['enabled'] and v['model'] == baseline['model']]
     if not usable:
-        raise ValueError('No eligible configured model; do not silently escape the pool')
+        raise NoEligibleModel(baseline['model'])
     chosen = (catalog['baseline'] if catalog['baseline'] in usable
               else min(usable, key=lambda vid: (EFFORT_ORDER[catalog['variants'][vid]['effort']], vid)))
     result = {'variant': chosen, **copy.deepcopy(catalog['variants'][chosen]), 'reason': 'UNCERTAIN_TASK_BASELINE',

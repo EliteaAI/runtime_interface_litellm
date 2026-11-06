@@ -90,8 +90,10 @@ def test_the_baseline_honours_the_effort_need_filter():
 
 
 def test_no_baseline_and_nothing_admitted_is_a_refusal_not_a_guess():
-    with pytest.raises(ValueError, match='No eligible configured model'):
+    # Named for the admin (#7307): the baseline model to add, never a silent escape or a generic text.
+    with pytest.raises(ValueError, match='baseline model gpt-5.4 is not available') as info:
         run(keys=('luna', 'haiku'), demand='deep')
+    assert getattr(info.value, 'reason', None) == 'BASELINE_NOT_CONFIGURED'
 
 
 # --- uncertain descriptors ---------------------------------------------------------------------------------------

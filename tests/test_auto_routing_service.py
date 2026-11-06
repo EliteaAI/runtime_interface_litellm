@@ -464,3 +464,17 @@ def test_image_request_falls_back_to_text_only_model_when_none_has_vision():
 def test_unknown_required_modality_is_refused():
     with pytest.raises(RoutingUnavailable, match='modality'):
         resolve({**request(), 'required_modalities': ['audio']}, complete=lambda *a, **k: None, **fixture())
+
+
+def test_nothing_clears_the_floor_without_the_baseline_is_a_named_refusal_that_names_the_model():
+    # #7307 follow-up: a project holding only cheap models used to surface the internal
+    # ValueError as the generic "cannot resolve" text; the admin could not tell what to add.
+    args = fixture()
+    keep = {'global.openai.gpt-5.6-luna', 'eu.anthropic.claude-haiku-4-5-20251001-v1:0'}
+    args['models'] = [m for m in args['models'] if m['name'] in keep]
+    args['price_snapshot']['entries'] = [e for e in args['price_snapshot']['entries'] if e['model_name'] in keep]
+    with pytest.raises(RoutingUnavailable) as info:
+        resolve(request('Design a distributed Rust NATS Postgres worker with exactly-once delivery.'),
+                complete=classifier_design, **args)
+    assert info.value.reason == 'BASELINE_NOT_CONFIGURED'
+    assert 'gpt-5.4' in str(info.value) and 'project admin' in str(info.value)
