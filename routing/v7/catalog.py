@@ -17,6 +17,18 @@ def effort_candidate():
     return json.loads((Path(__file__).parent/'calibration-v12.json').read_text())
 
 
+def wire_reasoning_fields(transport, fields):
+    """Measured reasoning envelope as the relay must send it today.
+
+    The v11 runs requested Chat Completions effort as a nested ``reasoning`` object.
+    LiteLLM 1.108 rejects that for Bedrock-hosted GPT models and takes the same
+    effort as a top-level ``reasoning_effort``, so only the field spelling changes.
+    """
+    if transport == 'chat_completions' and set(fields) == {'reasoning'}:
+        return {'reasoning_effort': fields['reasoning']['effort']}
+    return copy.deepcopy(fields)
+
+
 def compile_catalog(calibration_revision='v12', admission=None):
     """``admission`` attaches the data-derived admission table (default: the product revision v12).
 
@@ -60,7 +72,8 @@ def compile_catalog(calibration_revision='v12', admission=None):
                 'transport': identity['transport'], 'output_allowance': identity['total_output_allowance'],
                 'production_promotion_allowed': False}}
         if 'requested_reasoning_fields' in identity:
-            value['variants'][vid]['calibration_contract']['reasoning_fields'] = copy.deepcopy(identity['requested_reasoning_fields'])
+            value['variants'][vid]['calibration_contract']['reasoning_fields'] = wire_reasoning_fields(
+                identity['transport'], identity['requested_reasoning_fields'])
     if admission:
         table = admission_table.load()
         value['admission'] = {'rule_revision': table['rule_revision'], 'sha256': table['sha256'],

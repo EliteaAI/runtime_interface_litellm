@@ -10,7 +10,7 @@ def validate_fields(config, body):
     if effort is None:
         allowed = {}
     elif effort in {'low', 'medium', 'high'} and transport == 'chat_completions':
-        allowed = {'reasoning': {'effort': effort}}
+        allowed = {'reasoning_effort': effort}
     elif effort in {'low', 'medium', 'high'} and transport == 'anthropic_messages':
         allowed = {'thinking': {'type': 'adaptive', 'display': 'summarized'},
                    'output_config': {'effort': effort}}
