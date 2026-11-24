@@ -8,12 +8,17 @@ import pytest
 
 from routing.effort import validate_fields
 from routing.service import resolve, RoutingUnavailable
-from routing.v7.catalog import effort_candidate, compile_catalog
+from routing.v7.catalog import effort_candidate, compile_catalog, wire_reasoning_fields
 from routing.v7.candidate import CalibratedRouter, compiled_policy
 from test_auto_routing_service import fixture, request
 
 ROOT = Path(__file__).resolve().parents[1]
 DATA = effort_candidate()
+
+
+def wire(preset):
+    c = DATA['variants'][preset]
+    return wire_reasoning_fields(c['transport'], c['requested_reasoning_fields'])
 
 
 @pytest.fixture(autouse=True)
@@ -72,8 +77,8 @@ def test_each_explicit_effort_can_be_selected_pinned_and_renewed(preset):
     result = resolve(req, complete=complete, **args)
     assert result['trace']['selection']['variant'] == preset
     assert result['config']['reasoning_effort'] == contract['effort']
-    assert result['config']['routing_reasoning_fields'] == contract['requested_reasoning_fields']
-    validate_fields(result['config'], contract['requested_reasoning_fields'])
+    assert result['config']['routing_reasoning_fields'] == wire(preset)
+    validate_fields(result['config'], wire(preset))
     req.update(prior_pin=result['pin'], state_token=result['state_token'])
     req['messages'].append({'role': 'user', 'content': 'Steering: consider another failure case'})
     renewed = resolve(req, complete=lambda *a, **k: pytest.fail('Run reclassified'), **args)
@@ -85,12 +90,13 @@ def test_each_explicit_effort_can_be_selected_pinned_and_renewed(preset):
 def test_measured_fields_reject_aliases_overrides_and_conflicts(preset, mutation):
     c = DATA['variants'][preset]
     config = {'reasoning_effort': c['effort'], 'routing_transport': c['transport'],
-              'routing_reasoning_fields': c['requested_reasoning_fields']}
-    body = copy.deepcopy(c['requested_reasoning_fields'])
-    if mutation == 'alias': body = {'reasoning_effort': c['effort']}
-    elif mutation == 'extra': body['reasoning_effort'] = c['effort']
-    elif mutation == 'effort': body = {'reasoning': {'effort': 'low'}}
-    elif mutation == 'null': body['reasoning_effort'] = None
+              'routing_reasoning_fields': wire(preset)}
+    body = copy.deepcopy(wire(preset))
+    if mutation == 'alias': body = ({'reasoning': {'effort': c['effort']}} if 'reasoning_effort' in body
+                                    else {'reasoning_effort': c['effort']})
+    elif mutation == 'extra': body['reasoning'] = {'effort': c['effort']}
+    elif mutation == 'effort': body = {'reasoning_effort': 'low'}
+    elif mutation == 'null': body['reasoning'] = None
     else: body['thinking'] = {'type': 'enabled', 'budget_tokens': 9092}
     with pytest.raises(ValueError): validate_fields(config, body)
 
@@ -158,4 +164,18 @@ def test_auto_itself_selects_measured_effort_when_default_lacks_quality_evidence
     assert result['config']['reasoning_effort'] is not None
     selected=result['trace']['selection']['variant']
     assert cells[(selected,cell['family'])]['eligible_local_beta']
-    assert result['config']['routing_reasoning_fields']==DATA['variants'][selected]['requested_reasoning_fields']
+    assert result['config']['routing_reasoning_fields']==wire(selected)
+
+
+# LiteLLM 1.108 rejects a nested `reasoning` object for Bedrock-hosted GPT models;
+# the measured Chat Completions effort is relayed as a top-level reasoning_effort.
+@pytest.mark.parametrize('preset', [p for p, v in DATA['variants'].items() if v['effort'] and v['transport'] == 'chat_completions'])
+def test_chat_completions_effort_is_relayed_top_level(preset):
+    c = DATA['variants'][preset]
+    contract = compile_catalog(admission=False)['variants'][preset]['calibration_contract']
+    assert contract['reasoning_fields'] == {'reasoning_effort': c['effort']}
+    config = {'reasoning_effort': c['effort'], 'routing_transport': c['transport'],
+              'routing_reasoning_fields': contract['reasoning_fields']}
+    validate_fields(config, {'reasoning_effort': c['effort']})
+    with pytest.raises(ValueError):
+        validate_fields(config, {'reasoning': {'effort': c['effort']}})

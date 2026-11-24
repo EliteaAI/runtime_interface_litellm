@@ -47,7 +47,7 @@ Signed config gains `routing_reasoning_fields`. It is an exact transport contrac
 | Measured preset | Request fields |
 |---|---|
 | Provider default | No reasoning/thinking fields |
-| Terra/Sol explicit | `reasoning: {effort: low/medium/high}` on Chat Completions |
+| Terra/Sol explicit | measured as `reasoning: {effort: low/medium/high}` on Chat Completions; relayed as top-level `reasoning_effort` (LiteLLM 1.108 rejects the nested object for Bedrock GPT) |
 | Native Opus explicit | `thinking: {type: adaptive, display: summarized}` and `output_config: {effort: low/medium/high}` on Messages |
 
 The SDK preserves those shapes even when worker defaults prefer another API.

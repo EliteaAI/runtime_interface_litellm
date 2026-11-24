@@ -233,7 +233,7 @@ def test_explicit_cap_pin_still_requires_exactly_its_cap(relay,frozen_cells,body
     assert (relay.method.prepare_request(target,auth) is None) is accepted
 
 
-@pytest.mark.parametrize('preset,field', [('terra-high','reasoning'),('opus5-high','thinking'),
+@pytest.mark.parametrize('preset,field', [('terra-high','reasoning_effort'),('opus5-high','thinking'),
     ('opus5-high','output_config'),('terra-high','max_tokens'),('terra-high','model')])
 @pytest.mark.parametrize('scope', ['additional_drop_params','model_drop_params'])
 def test_parameter_drops_cannot_change_measured_auto_contract(relay,frozen_cells,preset,field,scope):
