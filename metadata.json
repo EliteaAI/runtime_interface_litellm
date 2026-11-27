@@ -1,6 +1,6 @@
 {
   "name": "Runtime interface: LiteLLM",
-  "version": "0.2.43",
+  "version": "0.2.44",
   "depends_on": [
     "shared",
     "auth",
