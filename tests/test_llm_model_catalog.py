@@ -262,10 +262,31 @@ class TestFormVocabulary(CatalogTestCase):
         })
 
     def test_a_claude_model_without_reasoning_gets_no_thinking_mode(self):
-        self.assertEqual(self.models["claude-3-haiku"], {"provider": "anthropic"})
+        self.assertEqual(self.models["claude-3-haiku"], {"provider": "anthropic", "supports_reasoning": False})
+
+    def test_a_model_litellm_resolves_to_no_levels_is_reported_as_not_reasoning(self):
+        entry = {"mode": "chat", "litellm_provider": "openai", "supports_vision": True}
+        self.assertIs(catalog.form_entry("gpt-4o", entry, {"gpt-4o": entry})["supports_reasoning"], False)
+
+    def test_a_reasoning_model_without_level_data_stays_reasoning_with_levels_unknown(self):
+        entry = {"mode": "responses", "litellm_provider": "openai", "supports_reasoning": True}
+        self.assertEqual(
+            catalog.form_entry("gpt-5.1-codex-max", entry, {"gpt-5.1-codex-max": entry}),
+            {"provider": "openai", "supports_reasoning": True},
+        )
+
+    def test_a_route_that_inherits_levels_from_its_bare_twin_is_not_reported_as_not_reasoning(self):
+        twin = {"mode": "chat", "supports_reasoning": True, "supports_minimal_reasoning_effort": True}
+        entry = {"mode": "chat", "litellm_provider": "azure"}
+        form = catalog.form_entry("azure/gpt-5-chat", entry, {"azure/gpt-5-chat": entry, "gpt-5-chat": twin})
+        self.assertNotIn("supports_reasoning", form)
+        self.assertIn("supported_efforts", form)
 
     def test_fields_litellm_does_not_report_are_omitted(self):
-        self.assertEqual(self.models["gpt-4.1"], {"provider": "openai", "supports_vision": True})
+        self.assertEqual(
+            self.models["gpt-4.1"], {"provider": "openai", "supports_reasoning": False, "supports_vision": True},
+        )
+        self.assertNotIn("supports_vision", self.models["claude-3-haiku"])
 
     def test_a_non_reasoning_model_reports_false_and_no_levels(self):
         self.assertEqual(

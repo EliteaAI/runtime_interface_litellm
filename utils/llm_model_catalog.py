@@ -101,11 +101,12 @@ def form_entry(key, entry, catalog):
     form = {}
     if isinstance(entry.get("litellm_provider"), str):
         form["provider"] = entry["litellm_provider"]
-    if isinstance(entry.get("supports_reasoning"), bool):
-        form["supports_reasoning"] = entry["supports_reasoning"]
-    #
     thinking_type = form_thinking_type(entry)
     efforts = supported_reasoning_efforts(key, entry, catalog)
+    if isinstance(entry.get("supports_reasoning"), bool):
+        form["supports_reasoning"] = entry["supports_reasoning"]
+    elif efforts == ():
+        form["supports_reasoning"] = False
     if is_token_budget_claude(key, entry, thinking_type, efforts):
         thinking_type, efforts = TOKEN_BUDGET_THINKING_TYPE, TOKEN_BUDGET_EFFORTS
     if thinking_type:
