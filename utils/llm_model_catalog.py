@@ -81,12 +81,12 @@ def cached_form_models(gateway):
                 "model_cost_map", timeout=CATALOG_HTTP_SECONDS,
             )
             models = form_models(gateway_catalog)
-            ttl = CATALOG_TTL_SECONDS if models else FAILED_FETCH_TTL_SECONDS
         except Exception as error:  # pylint: disable=W0718
             log.warning("LLM model catalog is unavailable: %s", error)
-            models, ttl = {}, FAILED_FETCH_TTL_SECONDS
-        _cached_models, _cache_expires_at = models, time.monotonic() + ttl
-        return models
+            models = {}
+        ttl = CATALOG_TTL_SECONDS if models else FAILED_FETCH_TTL_SECONDS
+        _cached_models, _cache_expires_at = models or _cached_models or {}, time.monotonic() + ttl
+        return _cached_models
 
 
 def form_models(catalog):

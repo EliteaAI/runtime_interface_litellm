@@ -348,6 +348,23 @@ class TestCatalogCache(CatalogTestCase):
         self.clock.return_value += 61
         self.assertIn("gpt-5.6-luna", catalog.llm_model_catalog(_gateway())["models"])
 
+    def test_a_failed_refresh_keeps_serving_the_last_loaded_catalog(self):
+        catalog.llm_model_catalog(_gateway())
+        self.clock.return_value += 601
+        failing = _gateway(error=RuntimeError("boom"))
+        self.assertIn("gpt-5.6-luna", catalog.llm_model_catalog(failing)["models"])
+        self.clock.return_value += 59
+        self.assertIn("gpt-5.6-luna", catalog.llm_model_catalog(failing)["models"])
+        self.assertEqual(failing.return_value.litellm_api_call.call_count, 1)
+        self.clock.return_value += 2
+        catalog.llm_model_catalog(failing)
+        self.assertEqual(failing.return_value.litellm_api_call.call_count, 2)
+
+    def test_an_empty_refresh_keeps_serving_the_last_loaded_catalog(self):
+        catalog.llm_model_catalog(_gateway())
+        self.clock.return_value += 601
+        self.assertIn("gpt-5.6-luna", catalog.llm_model_catalog(_gateway(result={}))["models"])
+
     def test_concurrent_first_calls_make_one_gateway_fetch(self):
         release = threading.Event()
         entered = threading.Event()
