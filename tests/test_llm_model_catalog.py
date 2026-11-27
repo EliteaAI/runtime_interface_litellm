@@ -343,6 +343,11 @@ class TestCatalogCache(CatalogTestCase):
         self.clock.return_value += 2
         self.assertIn("gpt-5.6-luna", catalog.llm_model_catalog(healthy)["models"])
 
+    def test_an_answer_without_chat_models_is_remembered_for_a_minute_only(self):
+        catalog.llm_model_catalog(_gateway(result={"error": {"message": "starting"}}))
+        self.clock.return_value += 61
+        self.assertIn("gpt-5.6-luna", catalog.llm_model_catalog(_gateway())["models"])
+
     def test_concurrent_first_calls_make_one_gateway_fetch(self):
         release = threading.Event()
         entered = threading.Event()
